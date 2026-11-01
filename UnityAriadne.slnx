@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Analyzer/">
+    <Project Path="src/Analyzer/UnityAriadne.Analyzer.csproj" />
+  </Folder>
+  <Folder Name="/src/Graph/">
+    <Project Path="src/Graph/UnityAriadne.Graph.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/UnityAriadne.Tests/UnityAriadne.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,30 @@
+# テキスト/バイナリを自動判定し、改行コードをLFに正規化します。
+# （"text=auto": 内容からGitがtext/binaryを判定します。
+#   "eol=lf": core.autocrlfやプラットフォームに関わらず、チェックアウト時の
+#   改行コードをLFに固定します。）
+* text=auto eol=lf
+# .NET / C#
+# diff=csharp / diff=markdown はGit組み込みのuserdiffハンクヘッダー
+# パターンを指定するものです（gitattributes(5) "Defining a custom hunk-header"）。
+# [diff "csharp"] 等の追加設定なしでそのまま機能します。
+*.cs text eol=lf diff=csharp
+*.csproj text eol=lf
+*.slnx text eol=lf
+*.sln text eol=lf
+*.props text eol=lf
+*.targets text eol=lf
+*.editorconfig text eol=lf
+# ドキュメント・設定ファイル
+*.md text eol=lf diff=markdown
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+# 生成物・成果物
+# "binary" はGitの予約済みマクロ属性で、"-diff -merge -text" と等価です
+# （gitattributes(5) "Marking files as binary"）。
+# diffを取らず、3-wayマージも行わず、改行変換も行いません。
+*.db binary
+# "-text" のみ: diff対象のテキストとしては扱いますが、改行変換は無効にします
+# （これらはエクスポートしたスナップショットであり、人が書くテキストではないためです）。
+*.jsonl -text
