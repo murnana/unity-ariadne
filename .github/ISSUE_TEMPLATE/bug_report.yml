@@ -1,0 +1,47 @@
+name: バグ報告
+description: 想定と違う動作、クラッシュ、参照が出ない/誤っている場合
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Asset Store など第三者の Unity アセット(.unity / .prefab / .meta / YAML の抜粋など)を貼らないでください。**
+        再現に必要な最小限のファイルを新規に作るか、構造だけを書いてください。脆弱性は Issue ではなく SECURITY.md の手順で報告してください。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 何が起きましたか
+      description: 期待した結果と、実際の結果を書いてください。
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 再現手順
+      description: 実行したコマンド(`ariadne analyze ...` など)と、再現に必要な最小限の入力を書いてください。
+    validations:
+      required: true
+  - type: input
+    id: ariadne-version
+    attributes:
+      label: ariadne のバージョン
+      description: インストーラーのバージョン、または Release のタグ。
+    validations:
+      required: true
+  - type: input
+    id: unity-version
+    attributes:
+      label: Unity のバージョン
+      placeholder: 例) 6000.0.78f1
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options: [Windows, macOS (Apple Silicon), Linux]
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: ログ・エラーメッセージ
+      render: text

@@ -1,0 +1,21 @@
+name: 機能要望
+description: 新しい機能や、解析できるようにしてほしい参照の提案
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 解決したい課題
+      description: 何ができなくて困っていますか。「このアセットを消しても大丈夫か」のような、実際に知りたい問いで書いてもらえると助かります。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 提案する内容
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 検討した代替案
