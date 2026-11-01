@@ -1,0 +1,24 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Unity Ariadne" Manufacturer="murnana" Version="$(ProductVersion)"
+           UpgradeCode="4119CDF9-FD18-4CA0-96F6-CAEFD563A73B" Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Unity Ariadne is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Unity Ariadne">
+        <Files Include="$(PublishDir)\**" />
+        <File Source="..\NOTICE.txt" />
+        <File Source="..\..\LICENSE" />
+        <File Source="..\..\THIRD-PARTY-NOTICES.md" />
+        <!-- Makes `ariadne` available from any terminal; removed again on uninstall. -->
+        <Component Id="PathEntry" Guid="*">
+          <!-- Environment has no file to act as KeyPath, so a registry value stands in. -->
+          <RegistryValue Root="HKLM" Key="Software\murnana\Unity Ariadne" Name="InstallFolder"
+                         Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+          <Environment Id="AriadneOnPath" Name="PATH" Value="[INSTALLFOLDER]" Part="last"
+                       Action="set" System="yes" Permanent="no" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+  </Package>
+</Wix>
