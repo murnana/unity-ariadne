@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, develop]
   pull_request:
+  workflow_dispatch: # THIRD-PARTY-NOTICES.md の自動更新後に再実行するため
 
 # -----------------------------------------------------------------------------
 # ワークフローレベルの権限

@@ -1,0 +1,52 @@
+name: Update third-party notices
+
+# Dependabot の NuGet 更新 PR で THIRD-PARTY-NOTICES.md を自動再生成し、PR ブランチへコミットする。
+# CI の third-party-notices ジョブ(差分検出)が Dependabot PR で必ず落ちるのを防ぐ恒久対策。
+#
+# 安全性:
+#   - pull_request_target は書き込み権限を持つため、実行者が dependabot[bot] の PR にだけ限定する。
+#   - Dependabot が変更するのは csproj のバージョン指定のみ。
+#   - GITHUB_TOKEN による push は他のワークフローを起動しないため、
+#     コミット後に CI を workflow_dispatch で明示的に起動する(CI 側にも workflow_dispatch が必要)。
+
+on:
+  pull_request_target:
+    paths:
+      - "**/*.csproj"
+      - "**/Directory.Packages.props"
+      - "**/Directory.Build.props"
+      - "global.json"
+      - ".config/dotnet-tools.json"
+
+permissions: {}
+
+jobs:
+  regenerate:
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - run: bash scripts/generate-third-party-notices.sh
+      - name: Commit if changed and re-run CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if git diff --quiet THIRD-PARTY-NOTICES.md; then
+            echo "THIRD-PARTY-NOTICES.md は最新です。"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add THIRD-PARTY-NOTICES.md
+          git commit -m "Regenerate THIRD-PARTY-NOTICES.md"
+          git push origin "HEAD:${BRANCH}"
+          gh workflow run ci.yml --ref "${BRANCH}"

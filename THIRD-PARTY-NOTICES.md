@@ -10,9 +10,9 @@ Unity Ariadne は、以下のサードパーティ製ソフトウェアを利用
 
 | パッケージ | バージョン | ライセンス | URL |
 |---|---|---|---|
-| Microsoft.CodeAnalysis.Analyzers | 5.3.0 | MIT | https://github.com/dotnet/roslyn |
-| Microsoft.CodeAnalysis.Common | 5.6.0 | MIT | https://github.com/dotnet/roslyn |
-| Microsoft.CodeAnalysis.CSharp | 5.6.0 | MIT | https://github.com/dotnet/roslyn |
+| Microsoft.CodeAnalysis.Analyzers | 5.9.0-1.26328.17 | MIT | https://github.com/dotnet/roslyn |
+| Microsoft.CodeAnalysis.Common | 5.9.0 | MIT | https://github.com/dotnet/roslyn |
+| Microsoft.CodeAnalysis.CSharp | 5.9.0 | MIT | https://github.com/dotnet/roslyn |
 | Microsoft.Data.Sqlite | 10.0.11 | MIT | https://docs.microsoft.com/dotnet/standard/data/sqlite/ |
 | Microsoft.Data.Sqlite.Core | 10.0.11 | MIT | https://docs.microsoft.com/dotnet/standard/data/sqlite/ |
 | Microsoft.Extensions.AI.Abstractions | 10.8.3 | MIT | https://dot.net/ |
