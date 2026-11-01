@@ -1,0 +1,81 @@
+# =============================================================================
+# Dependabot 設定ファイル
+# =============================================================================
+#
+# Dependabot は、依存関係の更新を自動的に検出し、プルリクエストを作成します。
+# これにより、セキュリティパッチや新機能を簡単に取り込むことができます。
+#
+# 対象:
+#   1. GitHub Actions ワークフロー
+#   2. NuGet パッケージ（.NET、UnityAriadne.slnx 配下の全プロジェクト）
+#
+# 更新頻度:
+#   - 毎週月曜日に自動チェック
+#   - 最大5件のプルリクエストを同時に開きます
+#
+# 詳細:
+#   https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# =============================================================================
+
+version: 2
+updates:
+  # ---------------------------------------------------------------------------
+  # GitHub Actions の自動更新
+  # ---------------------------------------------------------------------------
+  # .github/workflows/ 内のワークフローファイルで使用している
+  # GitHub Actions のバージョンを監視し、更新可能な場合はプルリクエストを作成します。
+  #
+  # 対象:
+  #   - actions/checkout
+  #   - actions/setup-dotnet
+  #   - github/codeql-action
+  #   - softprops/action-gh-release
+  #   など、すべてのアクション
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+      timezone: "Asia/Tokyo"
+
+    # プルリクエストのアサイン先
+    assignees:
+      - "murnana"
+
+    # クールダウン期間
+    # アクション公開から 7 日経過するまで更新 PR を作成しない
+    cooldown:
+      default-days: 7
+
+  # ---------------------------------------------------------------------------
+  # NuGet パッケージの自動更新（.NET）
+  # ---------------------------------------------------------------------------
+  # ルート直下の UnityAriadne.slnx を起点に、そこから参照されている全プロジェクト
+  # (src/Analyzer, src/Graph, tests/UnityAriadne.Tests) の csproj を対象にします。
+  # directory を各プロジェクトフォルダごとに列挙する必要はありません
+  # (Dependabot は .sln/.slnx をルートで見つけると、そこから参照先の csproj を
+  # 再帰的に展開して依存関係を解決します)。
+  #
+  # 対象:
+  #   - Microsoft.Data.Sqlite / SQLitePCLRaw.bundle_e_sqlite3
+  #   - YamlDotNet
+  #   - Microsoft.CodeAnalysis.CSharp
+  #   - ModelContextProtocol / Microsoft.Extensions.Hosting
+  #   - xUnit 等、テストプロジェクトの依存関係
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+      timezone: "Asia/Tokyo"
+
+    # プルリクエストのアサイン先
+    assignees:
+      - "murnana"
+
+    # クールダウン期間
+    # パッケージ公開から 7 日経過するまで更新 PR を作成しない
+    cooldown:
+      default-days: 7

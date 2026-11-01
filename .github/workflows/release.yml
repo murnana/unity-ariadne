@@ -1,0 +1,193 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+# -----------------------------------------------------------------------------
+# ワークフローレベルの権限
+# -----------------------------------------------------------------------------
+# デフォルトですべての権限を無効化し、ジョブごとに必要な権限のみ付与します。
+# -----------------------------------------------------------------------------
+permissions: {}
+
+jobs:
+  # plugin.json の version がタグと一致しているか検証する。
+  # 外部 marketplace がこのタグ(または添付 zip)を参照するため、ずれると別バージョンを配ってしまう。
+  verify-plugin-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Check plugin.json version matches the tag
+        run: |
+          set -euo pipefail
+          expected="${GITHUB_REF_NAME#v}"
+          actual="$(jq -r .version plugins/claude-code/.claude-plugin/plugin.json)"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error file=plugins/claude-code/.claude-plugin/plugin.json::version ($actual) がタグ ($expected) と一致しません。plugin.json の version を更新してから、タグを打ち直してください。"
+            exit 1
+          fi
+
+  verify-build:
+    needs: verify-plugin-version
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+          - os: macos-latest
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Build src/Analyzer (pulls in src/Graph as a project reference)
+        run: dotnet build src/Analyzer/UnityAriadne.Analyzer.csproj --configuration Release
+      - name: Smoke test (exercises the native SQLite path end to end)
+        shell: bash
+        run: |
+          set -euo pipefail
+          project="$RUNNER_TEMP/smoke-project"
+          db="$RUNNER_TEMP/smoke.db"
+          mkdir -p "$project/Assets"
+          dotnet run --no-build --project src/Analyzer --configuration Release -- analyze "$project" --db "$db"
+          dotnet run --no-build --project src/Analyzer --configuration Release -- report --db "$db"
+
+  package-and-release:
+    needs: verify-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Package source zip
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          staging="$RUNNER_TEMP/unity-ariadne-${version}"
+          mkdir -p "$staging/src"
+          cp -R src/Analyzer src/Graph "$staging/src/"
+          cp LICENSE THIRD-PARTY-NOTICES.md installer/NOTICE.txt "$staging/"
+          # bin/obj are gitignored and never present in a fresh checkout, but strip them
+          # defensively in case a future workflow change builds before packaging.
+          find "$staging" -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+
+          # Stamp the tag version onto both projects at once (Directory.Build.props is
+          # auto-imported by every csproj under this directory) so a plain `dotnet build`/
+          # `dotnet run` on the recipient's machine produces an assembly whose
+          # AssemblyVersion/InformationalVersion match the release tag, with no extra flags
+          # needed. Not committed to the repo — generated only at packaging time, so normal
+          # dev builds from a git checkout are unaffected.
+          cat > "$staging/src/Directory.Build.props" <<EOF
+          <Project>
+            <PropertyGroup>
+              <Version>${version}</Version>
+            </PropertyGroup>
+          </Project>
+          EOF
+
+          sed \
+            -e "s|{{VERSION}}|${GITHUB_REF_NAME}|g" \
+            -e "s|{{DOCS_URL}}|https://github.com/${GITHUB_REPOSITORY}/tree/main/docs/manual|g" \
+            .github/release-usage-template.md > "$staging/USAGE.md"
+
+      - name: Verify the staged (version-stamped) zip contents actually build
+        run: dotnet build "$RUNNER_TEMP/unity-ariadne-${GITHUB_REF_NAME#v}/src/Analyzer/UnityAriadne.Analyzer.csproj" --configuration Release
+
+      - name: Zip
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          staging="$RUNNER_TEMP/unity-ariadne-${version}"
+          find "$staging" -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+          mkdir -p dist
+          (cd "$RUNNER_TEMP" && zip -r "$OLDPWD/dist/unity-ariadne-${version}-src.zip" "unity-ariadne-${version}")
+
+      - name: Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
+
+  # ---------------------------------------------------------------------------
+  # インストーラー(self-contained のため利用者に .NET SDK/ランタイムは不要)
+  # package-and-release が Release を作成した後に、同じ Release へ追加アップロードします。
+  # どちらも未署名です(docs/development/release.md 参照)。
+  # ---------------------------------------------------------------------------
+  build-msi:
+    needs: package-and-release
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Build MSI
+        shell: pwsh
+        run: ./installer/windows/build.ps1 -Version "$($env:GITHUB_REF_NAME.TrimStart('v'))" -OutDir dist
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: dist/*.msi
+
+  build-pkg:
+    needs: package-and-release
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Build pkg
+        run: ./installer/macos/build-pkg.sh osx-arm64 "${GITHUB_REF_NAME#v}" dist
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: dist/*.pkg
+
+  # ---------------------------------------------------------------------------
+  # Claude Code プラグイン zip
+  # 外部 marketplace(murnana/murnana-claude-code-plugin)の `archive` ソースから参照します:
+  #   { "source": "archive", "url": "<zip の URL>", "sha256": "<.sha256 ファイルの値>" }
+  # zip のルート直下にプラグイン本体(.claude-plugin/ と .mcp.json)を置きます。
+  # ---------------------------------------------------------------------------
+  build-plugin:
+    needs: package-and-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Package plugin
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          staging="$RUNNER_TEMP/plugin"
+          mkdir -p "$staging" dist
+          cp -R plugins/claude-code/. "$staging/"
+          cp LICENSE "$staging/"
+          zip_name="unity-ariadne-${version}-claude-plugin.zip"
+          (cd "$staging" && zip -r -X "$GITHUB_WORKSPACE/dist/$zip_name" .)
+          (cd dist && sha256sum "$zip_name" | awk '{print $1}' > "$zip_name.sha256")
+          {
+            echo "### Claude Code plugin"
+            echo
+            echo "- zip: \`$zip_name\`"
+            echo "- sha256: \`$(cat "dist/$zip_name.sha256")\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: |
+            dist/*-claude-plugin.zip
+            dist/*-claude-plugin.zip.sha256
