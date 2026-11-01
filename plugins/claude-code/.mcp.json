@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "unity-ariadne": {
+      "command": "ariadne",
+      "args": ["serve", "--db", "${CLAUDE_PROJECT_DIR}/graph.db"]
+    }
+  }
+}
