@@ -46,11 +46,11 @@ Unity Ariadne は、以下のサードパーティ製ソフトウェアを利用
 | Microsoft.Extensions.Primitives | 10.0.13 | MIT | https://dot.net/ |
 | ModelContextProtocol | 2.2.0 | Apache-2.0 | https://csharp.sdk.modelcontextprotocol.io/ |
 | ModelContextProtocol.Core | 2.2.0 | Apache-2.0 | https://csharp.sdk.modelcontextprotocol.io/ |
-| SourceGear.sqlite3 | 3.50.4.5 | Public Domain (SQLite) | https://sqlite.org/ |
-| SQLitePCLRaw.bundle_e_sqlite3 | 3.0.3 | Apache-2.0 | - |
-| SQLitePCLRaw.config.e_sqlite3 | 3.0.3 | Apache-2.0 | - |
-| SQLitePCLRaw.core | 3.0.3 | Apache-2.0 | - |
-| SQLitePCLRaw.provider.e_sqlite3 | 3.0.3 | Apache-2.0 | - |
+| SQLite | 3.53.4 | LICENSE.txt | https://sqlite.org/ |
+| SQLitePCLRaw.bundle_e_sqlite3 | 3.0.5 | Apache-2.0 | - |
+| SQLitePCLRaw.config.e_sqlite3 | 3.0.5 | Apache-2.0 | - |
+| SQLitePCLRaw.core | 3.0.5 | Apache-2.0 | - |
+| SQLitePCLRaw.provider.e_sqlite3 | 3.0.5 | Apache-2.0 | - |
 | System.Diagnostics.EventLog | 10.0.13 | MIT | https://dot.net/ |
 | YamlDotNet | 18.1.0 | MIT | https://github.com/aaubry/YamlDotNet/wiki |
 
