@@ -1,0 +1,30 @@
+name: Main source branch
+
+# main 宛ての PR は develop(または Dependabot)からのものだけを許可する。
+# GitHub のブランチ保護だけでは PR の head ブランチを制限できないため、
+# このジョブを main のブランチ保護の必須チェック(check-source-branch)に指定する。
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  check-source-branch:
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Verify head branch
+        env:
+          # 式を run に直接埋め込まない(ブランチ名経由のインジェクション対策)
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          case "$HEAD_REF" in
+            develop|dependabot/*)
+              echo "OK: ${HEAD_REF} -> main"
+              ;;
+            *)
+              echo "::error::main への PR は develop (または dependabot/*) からのみ許可されています。head: ${HEAD_REF}"
+              exit 1
+              ;;
+          esac

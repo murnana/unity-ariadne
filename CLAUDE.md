@@ -49,3 +49,9 @@ See `docs/manual/schema.md` (tables `assets` / `objects` / `refs` / `settings_fi
 ## Session workflow
 
 One work item per session. Commit at each boundary once tests are green.
+
+### Branching
+
+- Always branch from `develop`; never start work from `main`.
+- If `develop` does not exist yet (check `git ls-remote --heads origin develop`), create it from `main` and push it first, then branch from it.
+- PRs target `develop`.

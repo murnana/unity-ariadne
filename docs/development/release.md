@@ -67,16 +67,17 @@ Apple Developer ID 署名+notarization が必要で、アカウントと証明�
 
 ## リリース手順
 
-1. `main` で `dotnet test` が green であることを確認する。
-2. `plugins/claude-code/.claude-plugin/plugin.json` の `version` をリリースするバージョン(タグから `v` を除いた値)に更新してコミットする。**一致しないと `verify-plugin-version` ジョブが失敗します。**
-3. `git tag vX.Y.Z && git push origin vX.Y.Z` — これだけで `release.yml` が発火します。
-4. Actions の実行結果を確認し、`package-and-release` が作成した GitHub Release に
+1. `develop` で `dotnet test` が green であることを確認する。
+2. `develop` → `main` の Pull Request を作成してマージする(マージ後、`main` の CI が green であることを確認する)。
+3. `main` に切り替えて最新を取得し、`claude-plugins/.claude-plugin/plugin.json` の `version` をリリースするバージョン(タグから `v` を除いた値)に更新してコミットする。**一致しないと `verify-plugin-version` ジョブが失敗します。** このコミットは `main` に積んだあと、`develop` にも取り込む(`main` → `develop` のマージ)。
+4. `git tag vX.Y.Z && git push origin vX.Y.Z` — これだけで `release.yml` が発火します。
+5. Actions の実行結果を確認し、`package-and-release` が作成した GitHub Release に
    `unity-ariadne-<version>-src.zip` が添付されていることを確認する。
-5. 外部 marketplace([murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin))の `unity-ariadne` エントリを新バージョンに更新する(別リポジトリでの作業。下記)。
+6. 外部 marketplace([murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin))の `unity-ariadne` エントリを新バージョンに更新する(別リポジトリでの作業。下記)。
 
 ## Claude Code プラグイン
 
-プラグイン本体は `plugins/claude-code/` にあります(AI ごとにディレクトリを分けています)。`build-plugin` ジョブが、プラグイン本体と `LICENSE` を zip のルート直下に置いた `unity-ariadne-<version>-claude-plugin.zip` と、その SHA-256(`.sha256`)を同じ Release に添付します。SHA-256 はジョブのサマリーにも出力されます。
+プラグイン本体は `claude-plugins/` にあります。`build-plugin` ジョブが、プラグイン本体と `LICENSE` を zip のルート直下に置いた `unity-ariadne-<version>-claude-plugin.zip` と、その SHA-256(`.sha256`)を同じ Release に添付します。SHA-256 はジョブのサマリーにも出力されます。
 
 外部 marketplace のエントリは、次のどちらかで参照します(`claude plugin validate` と公式ドキュメントで確認済みの `source` 型です)。
 
@@ -91,7 +92,7 @@ Apple Developer ID 署名+notarization が必要で、アカウントと証明�
 { "name": "unity-ariadne",
   "source": { "source": "git-subdir",
               "url": "murnana/unity-ariadne",
-              "path": "plugins/claude-code",
+              "path": "claude-plugins",
               "ref": "vX.Y.Z" } }
 ```
 
@@ -103,5 +104,6 @@ OSS として公開するとき、リポジトリの設定で次を行います�
 
 - Public にし、Description と Topics(`unity` / `mcp` / `claude-code` / `dependency-graph` / `sqlite`)を設定する
 - Settings → Security で **Private vulnerability reporting**、Dependabot alerts、Secret scanning を有効にする([SECURITY.md](../../SECURITY.md) の報告窓口です)
-- `main` のブランチ保護で、必須チェックに `test`(3 OS)/ `installer-windows` / `third-party-notices` / `analyze`(CodeQL)を指定する
+- `main` と `develop` のブランチ保護で、必須チェックに `test`(3 OS)/ `installer-windows` / `third-party-notices` / `analyze`(CodeQL)を指定し、直接 push を禁止して Pull Request 経由に限定する
+- `main` へマージできる PR の head ブランチを `develop`(と Dependabot の `dependabot/*`)に限定するため、`main` のブランチ保護の必須チェックに `check-source-branch`([`main-source-branch.yml`](../../.github/workflows/main-source-branch.yml))を加える。GitHub の設定だけでは PR の head ブランチを制限できないための措置
 - Settings → Actions → General の Workflow permissions を Read only にする(各ジョブは必要な権限を明示しています)
