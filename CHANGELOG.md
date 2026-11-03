@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-04
+
 ### Changed
 
 - インストーラー(MSI / pkg)のビルドを、リリースタグの push と Actions からの手動実行(`Release` ワークフロー)のときだけ行うようにした。通常の push / PR ではビルドしない。手動実行ではインストーラーが実行ページの Artifacts(`installer-msi` / `installer-pkg`)に出力され、`version` 入力は省略すると `0.0.0-dev` になる。 https://github.com/murnana/unity-ariadne/pull/27
@@ -17,4 +19,5 @@
 
 - macOS 向け pkg をリリースワークフローでビルドすると `installer/macos/build-pkg.sh` が `Permission denied` で失敗していたのを修正した。 https://github.com/murnana/unity-ariadne/pull/25
 
-[Unreleased]: https://github.com/murnana/unity-ariadne/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/murnana/unity-ariadne/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/murnana/unity-ariadne/compare/v0.1.0...v0.1.1
