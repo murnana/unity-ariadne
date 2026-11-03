@@ -18,7 +18,7 @@
 
    ```sh
    claude plugin marketplace add murnana/murnana-claude-code-plugin
-   claude plugin install unity-ariadne@<marketplace名>
+   claude plugin install unity-ariadne@murnana-claude-code-plugin
    ```
 
 5. Unity プロジェクトのルートで Claude Code を起動し、`/mcp` に `unity-ariadne` が出ていることを確認します。
