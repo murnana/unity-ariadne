@@ -105,5 +105,5 @@ OSS として公開するとき、リポジトリの設定で次を行います�
 - Public にし、Description と Topics(`unity` / `mcp` / `claude-code` / `dependency-graph` / `sqlite`)を設定する
 - Settings → Security で **Private vulnerability reporting**、Dependabot alerts、Secret scanning を有効にする([SECURITY.md](../../SECURITY.md) の報告窓口です)
 - `main` と `develop` のブランチ保護で、必須チェックに `test`(3 OS)/ `installer-windows` / `third-party-notices` / `analyze`(CodeQL)を指定し、直接 push を禁止して Pull Request 経由に限定する
-- `main` へマージできるのは `develop` からの PR だけにしたい場合は、GitHub の設定だけでは制限できないため、PR の head ブランチ名を検査するワークフローを必須チェックに加える
+- `main` へマージできる PR の head ブランチを `develop`(と Dependabot の `dependabot/*`)に限定するため、`main` のブランチ保護の必須チェックに `check-source-branch`([`main-source-branch.yml`](../../.github/workflows/main-source-branch.yml))を加える。GitHub の設定だけでは PR の head ブランチを制限できないための措置
 - Settings → Actions → General の Workflow permissions を Read only にする(各ジョブは必要な権限を明示しています)
