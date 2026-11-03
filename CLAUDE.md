@@ -21,7 +21,7 @@ If `dotnet` is not on PATH: `export PATH="$HOME/.dotnet:$PATH"` (.NET 10).
 - `src/Graph` — SQLite schema, writer, queries, jsonl exporter (Microsoft.Data.Sqlite)
 - `src/Analyzer` — CLI, scanners and parsers (YamlDotNet, Roslyn), MCP server. References Graph
 - `tests/UnityAriadne.Tests` — xUnit. References both projects
-- `installer/` — MSI (WiX) / pkg builders used by `.github/workflows/release.yml`
+- `installer/` — MSI (WiX) / pkg builders used by `.github/workflows/release.yml` (tag push and manual run only)
 - `docs/manual/` — user manuals; keep in sync when CLI options, MCP tools, ref_kinds or the schema change
 - `docs/development/` — internals, fixtures, benchmark, release process
 
