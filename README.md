@@ -76,7 +76,7 @@ claude mcp add unity-ariadne -- dotnet run --project <このリポジトリ>/src
 - `src/Analyzer` — CLI本体(YAML / .meta / ProjectSettings / JSON埋め込み / Roslynコード解析 / MCPサーバー)
 - `tests/UnityAriadne.Tests` — xUnit(差分テスト・census・Unity突合)。実プロジェクトを使うテストはフィクスチャを外部から渡したときだけ走ります([docs/development/fixtures.md](docs/development/fixtures.md))
 - `installer/` — MSI / pkg インストーラーのビルド定義
-- `plugins/` — AI エージェント向けプラグイン(AI ごとにディレクトリを分離。現在は `claude-code/`)
+- `claude-plugins/` — Claude Code 用プラグイン(他の AI 向けは AI ごとに別ディレクトリで並置する想定)
 - `docs/manual/` — 利用者向けマニュアル、`docs/development/` — 実装メモ・効果測定・リリース手順
 
 ## コントリビュート

@@ -25,9 +25,9 @@ jobs:
         run: |
           set -euo pipefail
           expected="${GITHUB_REF_NAME#v}"
-          actual="$(jq -r .version plugins/claude-code/.claude-plugin/plugin.json)"
+          actual="$(jq -r .version claude-plugins/.claude-plugin/plugin.json)"
           if [ "$actual" != "$expected" ]; then
-            echo "::error file=plugins/claude-code/.claude-plugin/plugin.json::version ($actual) がタグ ($expected) と一致しません。plugin.json の version を更新してから、タグを打ち直してください。"
+            echo "::error file=claude-plugins/.claude-plugin/plugin.json::version ($actual) がタグ ($expected) と一致しません。plugin.json の version を更新してから、タグを打ち直してください。"
             exit 1
           fi
 
@@ -175,7 +175,7 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           staging="$RUNNER_TEMP/plugin"
           mkdir -p "$staging" dist
-          cp -R plugins/claude-code/. "$staging/"
+          cp -R claude-plugins/. "$staging/"
           cp LICENSE "$staging/"
           zip_name="unity-ariadne-${version}-claude-plugin.zip"
           (cd "$staging" && zip -r -X "$GITHUB_WORKSPACE/dist/$zip_name" .)
