@@ -1,7 +1,7 @@
 {
   "name": "unity-ariadne",
   "displayName": "Unity Ariadne",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Unityプロジェクトの依存関係グラフ(SQLite)をMCPで照会します。事前に ariadne をインストールし、analyze で graph.db を作成してください。",
   "author": {
     "name": "murnana",
