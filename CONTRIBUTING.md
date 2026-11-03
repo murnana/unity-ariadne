@@ -5,8 +5,8 @@ Unity Ariadne への貢献を歓迎します。参加にあたっては [行動�
 ## 進め方
 
 1. 大きな変更は、先に Issue で相談してください(残課題は [GitHub Issues](https://github.com/murnana/unity-ariadne/issues) で管理しています)。
-2. リポジトリを fork し、ブランチを切って変更します。
-3. `dotnet test` が通ることを確認して、Pull Request を作成します。PR テンプレートのチェックリストに沿って確認してください。
+2. リポジトリを fork し、`develop` ブランチから作業ブランチを切って変更します(`main` からは切りません)。`develop` がない場合は、先に `main` から `develop` を作成してください。
+3. `dotnet test` が通ることを確認して、`develop` 宛てに Pull Request を作成します。PR テンプレートのチェックリストに沿って確認してください。
 
 ## 開発環境
 
@@ -35,6 +35,14 @@ dotnet run --project src/Analyzer -- analyze <unity-project-path> --db graph.db
 - 差分テスト(`RegexRefOracle` と完全パーサーの比較)を削除しないこと。回帰を防ぐ要です。
 - スキーマを変えるときは `PRAGMA user_version` を上げること。差分更新の結果は、フル再構築と行単位で一致させてください。
 - CLI オプション、MCP ツール、ref_kind、スキーマを変えたら、[docs/manual/](docs/manual/) を同じ PR で更新すること。
+
+## Claude Code プラグインを更新するとき
+
+プラグイン本体は `claude-plugins/` にあります。変更するときは次の点に注意してください。
+
+- 配布されるのは外部 marketplace([murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin))経由です。プラグインを更新したら、marketplace 側の `unity-ariadne` エントリの `version` も `claude-plugins/.claude-plugin/plugin.json` に合わせて更新する必要があります(別リポジトリでの作業です)。手順は [docs/development/release.md](docs/development/release.md) の「marketplace のエントリを更新する」を参照してください。
+- `plugin.json` の `version` は、リリースタグ(`v` を除く)と一致させます。リリース手順の中で更新します(通常の PR では変えません)。
+- 導入手順([docs/manual/claude-code-plugin.md](docs/manual/claude-code-plugin.md))は、プラグインの挙動や前提を変えたときに同じ PR で更新します。
 
 ## 依存パッケージを更新するとき
 
