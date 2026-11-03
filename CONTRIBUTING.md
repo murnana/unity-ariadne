@@ -36,6 +36,14 @@ dotnet run --project src/Analyzer -- analyze <unity-project-path> --db graph.db
 - スキーマを変えるときは `PRAGMA user_version` を上げること。差分更新の結果は、フル再構築と行単位で一致させてください。
 - CLI オプション、MCP ツール、ref_kind、スキーマを変えたら、[docs/manual/](docs/manual/) を同じ PR で更新すること。
 
+## Claude Code プラグインを更新するとき
+
+プラグイン本体は `claude-plugins/` にあります。変更するときは次の点に注意してください。
+
+- 配布されるのは外部 marketplace([murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin))経由です。プラグインを更新したら、marketplace 側の `unity-ariadne` エントリの `version` も `claude-plugins/.claude-plugin/plugin.json` に合わせて更新する必要があります(別リポジトリでの作業です)。手順は [docs/development/release.md](docs/development/release.md) の「marketplace のエントリを更新する」を参照してください。
+- `plugin.json` の `version` は、リリースタグ(`v` を除く)と一致させます。リリース手順の中で更新します(通常の PR では変えません)。
+- 導入手順([docs/manual/claude-code-plugin.md](docs/manual/claude-code-plugin.md))は、プラグインの挙動や前提を変えたときに同じ PR で更新します。
+
 ## 依存パッケージを更新するとき
 
 NuGet の依存を変えたら、サードパーティのライセンス一覧を再生成してコミットしてください(Dependabot の PR でも必要です。CI の `third-party-notices` ジョブが差分を検出します)。
