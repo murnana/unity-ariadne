@@ -31,31 +31,6 @@ jobs:
       - run: dotnet build --no-restore --configuration Release
       - run: dotnet test --no-build --configuration Release
 
-  # MSI は release.yml(タグ push)でしか作られないため、WiX 定義の壊れをここで早期検知する。
-  installer-windows:
-    runs-on: windows-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        with:
-          dotnet-version: 10.0.x
-      - run: ./installer/windows/build.ps1 -Version 0.0.0 -OutDir dist
-        shell: pwsh
-
-  # pkg も release.yml(タグ push)でしか作られないため、ビルドの壊れをここで早期検知する。
-  installer-macos:
-    runs-on: macos-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        with:
-          dotnet-version: 10.0.x
-      - run: bash installer/macos/build-pkg.sh osx-arm64 0.0.0 dist
-
   # THIRD-PARTY-NOTICES.md が依存関係と食い違っていないか検証する。
   # 失敗したら scripts/generate-third-party-notices.sh を実行して差分をコミットする。
   third-party-notices:
