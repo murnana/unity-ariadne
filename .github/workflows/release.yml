@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  # 手動実行: インストーラー(MSI / pkg)をビルドして Artifact としてアップロードするだけ。
+  # GitHub Release の作成・更新は行わない(タグ push のときだけ行う)。
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'インストーラーに埋め込むバージョン(例: 1.2.3 / 1.2.3-rc1)'
+        required: false
+        default: '0.0.0-dev'
+        type: string
 
 # -----------------------------------------------------------------------------
 # ワークフローレベルの権限
@@ -16,6 +25,7 @@ jobs:
   # plugin.json の version がタグと一致しているか検証する。
   # 外部 marketplace がこのタグ(または添付 zip)を参照するため、ずれると別バージョンを配ってしまう。
   verify-plugin-version:
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,6 +42,7 @@ jobs:
           fi
 
   verify-build:
+    if: github.ref_type == 'tag'
     needs: verify-plugin-version
     strategy:
       matrix:
@@ -59,6 +70,7 @@ jobs:
           dotnet run --no-build --project src/Analyzer --configuration Release -- report --db "$db"
 
   package-and-release:
+    if: github.ref_type == 'tag'
     needs: verify-build
     runs-on: ubuntu-latest
     permissions:
@@ -120,14 +132,18 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # インストーラー(self-contained のため利用者に .NET SDK/ランタイムは不要)
-  # package-and-release が Release を作成した後に、同じ Release へ追加アップロードします。
+  # タグ push と手動実行(workflow_dispatch)のときだけビルドし、Artifact としてアップロードします。
+  # タグ push のときは、さらに publish-installers が package-and-release の作成した
+  # GitHub Release(リリースページ)へも添付します。
   # どちらも未署名です(docs/development/release.md 参照)。
   # ---------------------------------------------------------------------------
   build-msi:
-    needs: package-and-release
     runs-on: windows-latest
     permissions:
-      contents: write
+      contents: read
+    env:
+      # タグ push のときはタグ名、手動実行のときは入力値。先頭の v は取り除く。
+      RAW_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -135,26 +151,51 @@ jobs:
           dotnet-version: 10.0.x
       - name: Build MSI
         shell: pwsh
-        run: ./installer/windows/build.ps1 -Version "$($env:GITHUB_REF_NAME.TrimStart('v'))" -OutDir dist
-      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        run: ./installer/windows/build.ps1 -Version "$($env:RAW_VERSION.TrimStart('v'))" -OutDir dist
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          files: dist/*.msi
+          name: installer-msi
+          path: dist/*.msi
+          if-no-files-found: error
 
   build-pkg:
-    needs: package-and-release
     runs-on: macos-latest
     permissions:
-      contents: write
+      contents: read
+    env:
+      RAW_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 10.0.x
       - name: Build pkg
-        run: ./installer/macos/build-pkg.sh osx-arm64 "${GITHUB_REF_NAME#v}" dist
+        run: ./installer/macos/build-pkg.sh osx-arm64 "${RAW_VERSION#v}" dist
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: installer-pkg
+          path: dist/*.pkg
+          if-no-files-found: error
+
+  # タグ push のときだけ、ビルド済みインストーラーを GitHub Release へ添付する。
+  # Release は package-and-release が同じ実行内で作成済み。
+  publish-installers:
+    if: github.ref_type == 'tag'
+    needs: [package-and-release, build-msi, build-pkg]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: installer-*
+          merge-multiple: true
+          path: dist
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          files: dist/*.pkg
+          files: |
+            dist/*.msi
+            dist/*.pkg
 
   # ---------------------------------------------------------------------------
   # Claude Code プラグイン zip
@@ -163,6 +204,7 @@ jobs:
   # zip のルート直下にプラグイン本体(.claude-plugin/ と .mcp.json)を置きます。
   # ---------------------------------------------------------------------------
   build-plugin:
+    if: github.ref_type == 'tag'
     needs: package-and-release
     runs-on: ubuntu-latest
     permissions:
