@@ -7,7 +7,13 @@
 
 ## [Unreleased]
 
-## [0.1.1] - 2026-11-04
+## [0.1.2] - 2026-11-05
+
+### Changed
+
+- リリースのバージョンを 0.1.1 から 0.1.2 に変更した。`v0.1.1` のタグはイミュータブルリリースの制約で再利用できず、0.1.1 は公開されていない。0.1.1 に記載した変更はすべて 0.1.2 に含まれる。
+
+## 0.1.1 - 2026-11-04(未公開)
 
 ### Changed
 
@@ -19,5 +25,5 @@
 
 - macOS 向け pkg をリリースワークフローでビルドすると `installer/macos/build-pkg.sh` が `Permission denied` で失敗していたのを修正した。 https://github.com/murnana/unity-ariadne/pull/25
 
-[Unreleased]: https://github.com/murnana/unity-ariadne/compare/v0.1.1...HEAD
-[0.1.1]: https://github.com/murnana/unity-ariadne/compare/v0.1.0...v0.1.1
+[Unreleased]: https://github.com/murnana/unity-ariadne/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/murnana/unity-ariadne/compare/v0.1.0...v0.1.2
