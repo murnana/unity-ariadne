@@ -14,9 +14,7 @@
 #   - 最大5件のプルリクエストを同時に開きます
 #
 # 対象ブランチ:
-#   develop と main の両方。Dependabot は 1 エントリにつき target-branch を 1 つしか
-#   指定できないため、各エコシステムを develop 用・main 用の 2 エントリに分けています。
-#   (main 用は、リリース済みコードへ依存関係の更新を直接届けるためのものです)
+#   develop のみ。main へは develop からのマージ経由で反映します。
 #
 # 詳細:
 #   https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
@@ -92,36 +90,5 @@ updates:
 
     # クールダウン期間
     # パッケージ公開から 7 日経過するまで更新 PR を作成しない
-    cooldown:
-      default-days: 7
-
-  # ---------------------------------------------------------------------------
-  # main ブランチ向け（上の develop 向けエントリと同じ設定）
-  # ---------------------------------------------------------------------------
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    target-branch: "main"
-    schedule:
-      interval: "weekly"
-      day: "saturday"
-      timezone: "Asia/Tokyo"
-    assignees:
-      - "murnana"
-    cooldown:
-      default-days: 7
-    groups:
-      codeql-action:
-        patterns:
-          - "github/codeql-action*"
-
-  - package-ecosystem: "nuget"
-    directory: "/"
-    target-branch: "main"
-    schedule:
-      interval: "weekly"
-      day: "saturday"
-      timezone: "Asia/Tokyo"
-    assignees:
-      - "murnana"
     cooldown:
       default-days: 7

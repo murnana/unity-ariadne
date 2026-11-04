@@ -36,8 +36,10 @@ Authenticode 署名する必要があり、Azure アカウント・証明書プ�
 
 ソース zip とは別に、同じ Release へインストーラーを添付します。いずれも self-contained
 publish なので利用者に .NET SDK / ランタイムは不要で、実行ファイル名は `ariadne`
-(`src/Analyzer` の `AssemblyName`)です。`package-and-release` が Release を作成した後に、
-`build-msi` / `build-pkg` ジョブが同じ Release へ追加アップロードします。
+(`src/Analyzer` の `AssemblyName`)です。ビルド(`build-msi` / `build-pkg`)は
+タグ push と手動実行(workflow_dispatch)のときだけ走り、どちらも Artifact(`installer-msi` / `installer-pkg`)として
+アップロードします。タグ push のときは、さらに `publish-installers` ジョブが `package-and-release` の作成した
+GitHub Release(リリースページ)へも添付します。手動実行では Release を作成・更新しません。
 
 | ファイル | ビルド | 入る場所 |
 |---|---|---|
@@ -46,7 +48,9 @@ publish なので利用者に .NET SDK / ランタイムは不要で、実行フ
 
 - MSI のバージョンは数値のみのため、タグのプレリリース接尾辞(`-rc1` 等)を除いた値を使います。
   `installer/windows/Package.wxs` の UpgradeCode は固定です(変えると上書きアップグレードが効きません)。
-- `ci.yml` の `installer-windows` / `installer-macos` ジョブが push / PR ごとに MSI / pkg のビルドを検証します。
+- 通常の push / PR(`ci.yml`)ではインストーラーをビルドしません。WiX 定義やインストーラーのビルドを確認したいときは、
+  Actions タブから `Release` ワークフローを手動実行します(`version` 入力は省略時 `0.0.0-dev`)。
+  結果は実行ページの Artifacts からダウンロードできます。
 
 ### 署名について(未署名)
 
@@ -115,6 +119,6 @@ OSS として公開するとき、リポジトリの設定で次を行います�
 
 - Public にし、Description と Topics(`unity` / `mcp` / `claude-code` / `dependency-graph` / `sqlite`)を設定する
 - Settings → Security で **Private vulnerability reporting**、Dependabot alerts、Secret scanning を有効にする([SECURITY.md](../../SECURITY.md) の報告窓口です)
-- `main` と `develop` のブランチ保護で、必須チェックに `test`(3 OS)/ `installer-windows` / `third-party-notices` / `analyze`(CodeQL)を指定し、直接 push を禁止して Pull Request 経由に限定する
+- `main` と `develop` のブランチ保護で、必須チェックに `test`(3 OS)/ `third-party-notices` / `analyze`(CodeQL)を指定し、直接 push を禁止して Pull Request 経由に限定する
 - `main` へマージできる PR の head ブランチを `develop`(と Dependabot の `dependabot/*`)に限定するため、`main` のブランチ保護の必須チェックに `check-source-branch`([`main-source-branch.yml`](../../.github/workflows/main-source-branch.yml))を加える。GitHub の設定だけでは PR の head ブランチを制限できないための措置
 - Settings → Actions → General の Workflow permissions を Read only にする(各ジョブは必要な権限を明示しています)
