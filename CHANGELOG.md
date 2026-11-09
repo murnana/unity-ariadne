@@ -7,6 +7,12 @@
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-09
+
+### Fixed
+
+- リリースワークフローが、公開済みのイミュータブルリリースへ後からアセットを追加しようとして失敗していたのを修正した。リリースを下書き(draft)で作成し、ソース zip・MSI・pkg・プラグイン zip をすべて添付したあとに、`publish-release` ジョブで公開するようにした。途中のジョブが失敗しても下書きのままなので、タグ名を再利用して再実行できる。 https://github.com/murnana/unity-ariadne/pull/34
+
 ## [0.1.2] - 2026-11-05
 
 ### Changed
@@ -25,5 +31,6 @@
 
 - macOS 向け pkg をリリースワークフローでビルドすると `installer/macos/build-pkg.sh` が `Permission denied` で失敗していたのを修正した。 https://github.com/murnana/unity-ariadne/pull/25
 
-[Unreleased]: https://github.com/murnana/unity-ariadne/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/murnana/unity-ariadne/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/murnana/unity-ariadne/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/murnana/unity-ariadne/compare/v0.1.0...v0.1.2
