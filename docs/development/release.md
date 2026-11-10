@@ -71,15 +71,21 @@ Apple Developer ID 署名+notarization が必要で、アカウントと証明�
 
 ## リリース手順
 
-1. `develop` で `dotnet test` が green であることを確認する。
-2. `develop` → `main` の Pull Request を作成してマージする(マージ後、`main` の CI が green であることを確認する)。
-3. `main` に切り替えて最新を取得し、`claude-plugins/.claude-plugin/plugin.json` の `version` をリリースするバージョン(タグから `v` を除いた値)に更新してコミットする。**一致しないと `verify-plugin-version` ジョブが失敗します。** このコミットは `main` に積んだあと、`develop` にも取り込む(`main` → `develop` のマージ)。
-4. `git tag vX.Y.Z && git push origin vX.Y.Z` — これだけで `release.yml` が発火します。
-5. Actions の実行結果を確認する。GitHub Release はイミュータブルリリース(公開後はアセットの追加も、タグ名の再利用もできない)のため、
+アプリのバージョンは `claude-plugins/.claude-plugin/plugin.json` の `version` が唯一の正です。タグは CI が自動で切ります。
+
+1. `develop` で `claude-plugins/.claude-plugin/plugin.json` の `version` をリリースするバージョン(`X.Y.Z`、プレリリースなら `X.Y.Z-rc1` など)に更新する PR を作ってマージし、`dotnet test` が green であることを確認する。
+2. `develop` → `main` の Pull Request を作成してマージする。
+3. `main` への push で `ci.yml` が走り、`test` / `third-party-notices` が green になると、`tag-release` ジョブが
+   `plugin.json` の `version` から `vX.Y.Z` タグをマージコミットに作成し、`release.yml` をそのタグを ref にして起動する
+   (`GITHUB_TOKEN` によるタグ作成は他のワークフローを起動しないため、`workflow_dispatch` で明示的に起動している)。
+   **同名のタグが既にあれば何もしません**(バージョンを上げずに `main` へマージした場合)。
+   - タグ保護のルールセットがある場合は、GitHub Actions がタグを作成できるよう bypass に追加しておく。
+   - 手動で `git tag vX.Y.Z && git push origin vX.Y.Z` してもこれまでどおり `release.yml` が発火する(`tag-release` はタグの存在を見てスキップする)。
+4. Actions の実行結果を確認する。GitHub Release はイミュータブルリリース(公開後はアセットの追加も、タグ名の再利用もできない)のため、
    `package-and-release` が下書き(draft)で作成し、インストーラーとプラグイン zip を添付したあと、最後の `publish-release` ジョブが公開する。
    公開された Release に、ソース zip・MSI・pkg・プラグイン zip(と `.sha256`)が揃っていることを確認する。
    **途中のジョブが失敗した場合、Release は下書きのままで、そのタグは未公開のまま残る。** 原因を直して失敗したジョブを再実行する(下書きのうちはアセットを追加でき、タグ名も使える)。
-6. 外部 marketplace([murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin))の `unity-ariadne` エントリの `version` を新バージョンに更新する(別リポジトリでの作業。下記「marketplace のエントリを更新する」)。
+5. 外部 marketplace([murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin))の `unity-ariadne` エントリの `version` を新バージョンに更新する(別リポジトリでの作業。下記「marketplace のエントリを更新する」)。
 
 ## Claude Code プラグイン
 
@@ -108,7 +114,7 @@ Apple Developer ID 署名+notarization が必要で、アカウントと証明�
 
 プラグインを更新(`claude-plugins/` を変更してリリース)したら、marketplace 側の `unity-ariadne` エントリの `version` を `claude-plugins/.claude-plugin/plugin.json` の `version` に合わせます。利用者は `version` の文字列が変わるまでキャッシュ済みのコピーを使い続けるため、これを上げないと更新が届きません。
 
-1. このリポジトリのリリース(上記の手順 1〜5)を終え、`main` の `plugin.json` に新しい `version` が入っていることを確認する。
+1. このリポジトリのリリース(上記の手順 1〜4)を終え、`main` の `plugin.json` に新しい `version` が入っていることを確認する。
 2. [murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin) で `develop` から `feature/unity-ariadne-<version>` を切る(`develop` が無ければ `main` から作って push してから)。
 3. `.claude-plugin/marketplace.json` の `unity-ariadne` の `version`(必要なら `description` も)を更新し、`claude plugin validate .` を実行する。
 4. `develop` 宛てに PR を作る。利用者に届くのは、marketplace 側の `develop` → `main` のリリース PR がマージされた後。

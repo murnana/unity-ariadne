@@ -6,6 +6,8 @@ on:
       - 'v*.*.*'
   # 手動実行: インストーラー(MSI / pkg)をビルドして Artifact としてアップロードするだけ。
   # GitHub Release の作成・更新は行わない(タグ push のときだけ行う)。
+  # ただしタグを ref にして起動した場合(ci.yml の tag-release ジョブ)は github.ref_type == 'tag' になり、
+  # タグ push と同じくリリースまで行う。その場合 version 入力は使われず、タグ名が使われる。
   workflow_dispatch:
     inputs:
       version:
