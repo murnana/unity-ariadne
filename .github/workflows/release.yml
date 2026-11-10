@@ -6,6 +6,8 @@ on:
       - 'v*.*.*'
   # 手動実行: インストーラー(MSI / pkg)をビルドして Artifact としてアップロードするだけ。
   # GitHub Release の作成・更新は行わない(タグ push のときだけ行う)。
+  # ただしタグを ref にして起動した場合(ci.yml の tag-release ジョブ)は github.ref_type == 'tag' になり、
+  # タグ push と同じくリリースまで行う。その場合 version 入力は使われず、タグ名が使われる。
   workflow_dispatch:
     inputs:
       version:
@@ -124,9 +126,12 @@ jobs:
           mkdir -p dist
           (cd "$RUNNER_TEMP" && zip -r "$OLDPWD/dist/unity-ariadne-${version}-src.zip" "unity-ariadne-${version}")
 
+      # イミュータブルリリースは公開後にアセットを追加できないため、下書き(draft)で作成する。
+      # 全アセットを添付したあと、最後の publish-release ジョブで公開する。
       - name: Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
+          draft: true
           files: dist/*.zip
           generate_release_notes: true
 
@@ -193,6 +198,7 @@ jobs:
           path: dist
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
+          draft: true
           files: |
             dist/*.msi
             dist/*.pkg
@@ -230,6 +236,21 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
+          draft: true
           files: |
             dist/*-claude-plugin.zip
             dist/*-claude-plugin.zip.sha256
+
+  # すべてのアセットを添付し終えたら、下書きのリリースを公開する。
+  # 公開後のリリースはイミュータブルで、アセットの追加も、タグ名の再利用もできない。
+  publish-release:
+    if: github.ref_type == 'tag'
+    needs: [publish-installers, build-plugin]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false

@@ -49,3 +49,44 @@ jobs:
             echo "::error file=THIRD-PARTY-NOTICES.md::依存関係と食い違っています。scripts/generate-third-party-notices.sh を実行して THIRD-PARTY-NOTICES.md をコミットしてください。"
             exit 1
           fi
+
+  # main への push で CI が green になったら、アプリのバージョン
+  # (claude-plugins/.claude-plugin/plugin.json の version)に対応するタグ v<version> を作成し、
+  # Release ワークフローを起動する。タグが既にあれば何もしない(バージョン据え置きの push)。
+  #
+  # GITHUB_TOKEN で作成したタグの push は他のワークフローを起動しないため、
+  # release.yml をタグを ref にして workflow_dispatch で明示的に起動する
+  # (タグ ref での実行は github.ref_type == 'tag' になり、タグ push と同じジョブが走る)。
+  tag-release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, third-party-notices]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # タグ(ref)の作成
+      actions: write # release.yml の workflow_dispatch
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create the version tag and dispatch the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(jq -r .version claude-plugins/.claude-plugin/plugin.json)"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error file=claude-plugins/.claude-plugin/plugin.json::version ($version) が X.Y.Z(-suffix) 形式ではありません。"
+            exit 1
+          fi
+          tag="v${version}"
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" --silent 2>/dev/null; then
+            echo "タグ ${tag} は既に存在します。リリースは作成しません。"
+            exit 0
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${tag}" -f sha="${GITHUB_SHA}" --silent
+          gh workflow run release.yml --repo "${GITHUB_REPOSITORY}" --ref "${tag}"
+          {
+            echo "### Release"
+            echo
+            echo "- タグ \`${tag}\` を \`${GITHUB_SHA}\` に作成し、Release ワークフローを起動しました。"
+          } >> "$GITHUB_STEP_SUMMARY"
