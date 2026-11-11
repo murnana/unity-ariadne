@@ -70,14 +70,14 @@ Non-obvious facts about Unity's file formats and about how the analyzer handles 
 - **Invariant: update result == fresh full build, row for row** (`GraphUpdaterTests` compares rowid-independent dumps).
 - A db with a different `user_version` (or not SQLite) makes `TryOpenForUpdate` return null → `analyze` rebuilds. `CreateWriter` is one transaction, so a failed update rolls back.
 
-## Per-project data directory (`--data-dir`)
+## Claude Code plugin launcher (not part of `ariadne`)
 
-- `ProjectDataStore` (`src/Analyzer/Storage`): `<data-dir>/<hash>/graph.db` plus `<data-dir>/index.json` (`hash → {name, path, lastUsed}`). The Claude Code plugin passes `${CLAUDE_PLUGIN_DATA}` (`~/.claude/plugins/data/<id>/`, survives plugin updates, deleted on uninstall).
-- Hash = SHA-256 of the normalized absolute path (`GetFullPath`, trailing separators trimmed, lower-cased on Windows only), first 12 hex chars. The index is the source of truth, not the hash: a registered path keeps its folder; a new path whose prefix is taken gets 16, 20, … chars. Tests force collisions through the injectable hash function.
-- Every read-modify-write of `index.json` holds `index.lock` (exclusive `FileShare.None`, 10 s timeout) and commits via temp file + rename, because several sessions can start at once. A corrupt index is moved to `index.json.corrupt` and rebuilt.
-- `Prune(retention)` runs on every `analyze`/`serve` start with `--data-dir`: deletes entries with `lastUsed` older than the retention (default 30 days) and hash-named folders missing from the index whose newest file is older than that. Keys read from the index are matched against `^[0-9a-f]{12,64}$` before they are used as a path segment, and non-hash folders are never touched. A folder that cannot be deleted keeps its entry for the next run.
-- `serve` touches `lastUsed` every 6 hours so a long session is not pruned by another one. Prune/touch failures are warnings; only an unusable data dir is an error.
-- `serve --project` analyzes first when the db file does not exist, with stdout redirected to stderr for the duration (stdout is the MCP transport).
+- `claude-plugins/scripts/launch.mjs` (+ `lib/store.mjs`, Node ≥ 20.12, no dependencies) is the plugin's MCP `command`. `ariadne serve --db` still only opens an existing file; location, first build and cleanup are plugin concerns, so the plugin works with any `ariadne` that has `serve --db`.
+- Layout: `${CLAUDE_PLUGIN_DATA}/<hash>/graph.db` + `index.json` (`hash → {name, path, lastUsed}`). Hash = SHA-256 of the normalized absolute path (trailing separators trimmed, lower-cased on Windows only), first 12 hex chars. The index, not the hash, is the source of truth: a registered path keeps its folder; a new path whose prefix is taken gets 16, 20, … chars. Tests force collisions through the injectable hash.
+- Every read-modify-write of `index.json` holds `index.lock` (exclusive create, 10 s timeout, locks older than 30 s are stale) and commits via temp file + rename. A corrupt index is moved to `index.json.corrupt` and rebuilt.
+- `prune` runs on every launch: drops entries with `lastUsed` older than `ARIADNE_RETENTION_DAYS` (default 30) and hash-named folders missing from the index whose newest file is that old. Index keys are matched against `^[0-9a-f]{12,64}$` before being used as a path segment; other folders are never touched. A folder that cannot be deleted keeps its entry. Failures are warnings only.
+- First start: `ariadne analyze <project> --db <db>.building`, renamed on success (a failed run never leaves a db that a later start would serve). The analyze summary goes to stderr: stdout is the MCP transport, and `serve` inherits stdin/stdout directly. A 6-hourly timer refreshes `lastUsed` for long sessions. `launch.mjs --update` (for humans) builds or incrementally updates the db and exits without serving; a timed-out MCP start kills the launcher and its analyze, so big projects are pre-built this way.
+- Tests: `cd claude-plugins && node --test` (CI runs it on all three OSes; the fake-`ariadne` tests need a POSIX shell and skip on Windows).
 
 ## Export and MCP
 

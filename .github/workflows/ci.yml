@@ -30,6 +30,9 @@ jobs:
       - run: dotnet restore
       - run: dotnet build --no-restore --configuration Release
       - run: dotnet test --no-build --configuration Release
+      # Claude Code プラグインの起動ラッパー(Node.js。ランナーに入っているものを使う)
+      - run: node --test
+        working-directory: claude-plugins
 
   # THIRD-PARTY-NOTICES.md が依存関係と食い違っていないか検証する。
   # 失敗したら scripts/generate-third-party-notices.sh を実行して差分をコミットする。

@@ -7,8 +7,6 @@ using UnityAriadne.Analyzer.Scanning;
 using UnityAriadne.Analyzer.Storage;
 using UnityAriadne.Graph;
 
-const int DefaultRetentionDays = 30;
-
 return args switch
 {
     ["analyze", .. var rest] => Analyze(rest),
@@ -22,8 +20,6 @@ static int Analyze(string[] args)
 {
     string? projectPath = null;
     string? dbPath = null;
-    string? dataDir = null;
-    var retentionDays = DefaultRetentionDays;
     var fullRebuild = false;
 
     for (var i = 0; i < args.Length; i++)
@@ -32,16 +28,6 @@ static int Analyze(string[] args)
         {
             case "--db" when i + 1 < args.Length:
                 dbPath = args[++i];
-                break;
-            case "--data-dir" when i + 1 < args.Length:
-                dataDir = args[++i];
-                break;
-            case "--retention-days" when i + 1 < args.Length:
-                if (!TryParseRetentionDays(args[++i], out retentionDays))
-                {
-                    return 1;
-                }
-
                 break;
             case "--full":
                 fullRebuild = true;
@@ -60,13 +46,7 @@ static int Analyze(string[] args)
 
     if (projectPath is null)
     {
-        Console.Error.WriteLine("usage: analyze <unity-project-path> [--db <path> | --data-dir <dir>] [--full]");
-        return 1;
-    }
-
-    if (dbPath is not null && dataDir is not null)
-    {
-        Console.Error.WriteLine("error: --db and --data-dir cannot be used together");
+        Console.Error.WriteLine("usage: analyze <unity-project-path> [--db <path>] [--full]");
         return 1;
     }
 
@@ -74,17 +54,6 @@ static int Analyze(string[] args)
     {
         Console.Error.WriteLine($"error: '{projectPath}' does not look like a Unity project (no Assets/ directory)");
         return 1;
-    }
-
-    if (dataDir is not null)
-    {
-        if (ResolveInDataDir(dataDir, projectPath, retentionDays) is not { } resolved)
-        {
-            return 1;
-        }
-
-        dbPath = resolved.DbPath;
-        Console.WriteLine($"database: {dbPath}");
     }
 
     var dictionary = UnityProjectScanner.Scan(projectPath);
@@ -358,10 +327,6 @@ static int Export(string[] args)
 static async Task<int> Serve(string[] args)
 {
     string? dbPath = null;
-    string? projectPath = null;
-    string? dataDir = null;
-    var retentionDays = DefaultRetentionDays;
-    var retentionGiven = false;
 
     for (var i = 0; i < args.Length; i++)
     {
@@ -370,91 +335,22 @@ static async Task<int> Serve(string[] args)
             case "--db" when i + 1 < args.Length:
                 dbPath = args[++i];
                 break;
-            case "--project" when i + 1 < args.Length:
-                projectPath = args[++i];
-                break;
-            case "--data-dir" when i + 1 < args.Length:
-                dataDir = args[++i];
-                break;
-            case "--retention-days" when i + 1 < args.Length:
-                if (!TryParseRetentionDays(args[++i], out retentionDays))
-                {
-                    return 1;
-                }
-
-                retentionGiven = true;
-                break;
             default:
                 Console.Error.WriteLine($"error: unexpected argument '{args[i]}'");
                 return 1;
         }
     }
 
-    const string usage = "usage: serve (--db <path> | --data-dir <dir> --project <unity-project-path>) [--retention-days <n>]";
-    if (dbPath is not null && dataDir is not null)
+    if (dbPath is null)
     {
-        Console.Error.WriteLine("error: --db and --data-dir cannot be used together");
+        Console.Error.WriteLine("usage: serve --db <path>");
         return 1;
-    }
-
-    if (dbPath is null && (dataDir is null || projectPath is null))
-    {
-        Console.Error.WriteLine(usage);
-        return 1;
-    }
-
-    if (dataDir is null && retentionGiven)
-    {
-        Console.Error.WriteLine("error: --retention-days needs --data-dir");
-        return 1;
-    }
-
-    // --data-dir: the database lives in a per-project folder of the data directory, so the
-    // location follows from the project path. Keep the project registered while serving.
-    ProjectDataStore? store = null;
-    if (dataDir is not null)
-    {
-        if (!Directory.Exists(Path.Combine(projectPath!, "Assets")))
-        {
-            Console.Error.WriteLine($"error: '{projectPath}' does not look like a Unity project (no Assets/ directory)");
-            return 1;
-        }
-
-        if (ResolveInDataDir(dataDir, projectPath!, retentionDays) is not { } resolved)
-        {
-            return 1;
-        }
-
-        store = resolved.Store;
-        dbPath = resolved.DbPath;
-    }
-
-    // --project: build the database first when it does not exist yet, so a plugin
-    // can point at ${CLAUDE_PROJECT_DIR} without a manual analyze. An existing
-    // database is served as is (refreshing stays an explicit analyze).
-    if (projectPath is not null && !File.Exists(dbPath))
-    {
-        Console.Error.WriteLine($"database not found: {dbPath}; analyzing {projectPath} first");
-        // stdout belongs to the stdio transport, but analyze prints its summary there.
-        var stdout = Console.Out;
-        Console.SetOut(Console.Error);
-        try
-        {
-            if (Analyze([projectPath, "--db", dbPath!]) != 0)
-            {
-                return 1;
-            }
-        }
-        finally
-        {
-            Console.SetOut(stdout);
-        }
     }
 
     // Fail fast on a bad path; the tools re-open the file per call afterwards.
     try
     {
-        GraphDatabase.OpenFile(dbPath!).Dispose();
+        GraphDatabase.OpenFile(dbPath).Dispose();
     }
     catch (FileNotFoundException)
     {
@@ -465,7 +361,7 @@ static async Task<int> Serve(string[] args)
     var builder = Host.CreateApplicationBuilder();
     // stdout belongs to the stdio transport — push every log line to stderr.
     builder.Logging.AddConsole(console => console.LogToStandardErrorThreshold = LogLevel.Trace);
-    builder.Services.AddSingleton(new GraphMcpOptions(Path.GetFullPath(dbPath!)));
+    builder.Services.AddSingleton(new GraphMcpOptions(Path.GetFullPath(dbPath)));
     builder.Services
         .AddMcpServer(options =>
         {
@@ -478,81 +374,8 @@ static async Task<int> Serve(string[] args)
         .WithStdioServerTransport()
         .WithTools<GraphMcpTools>();
 
-    using var keepAlive = new CancellationTokenSource();
-    if (store is not null)
-    {
-        _ = KeepProjectRegistered(store, projectPath!, keepAlive.Token);
-    }
-
     await builder.Build().RunAsync();
-    await keepAlive.CancelAsync();
     return 0;
-}
-
-// A session can outlive the retention period; refresh the last-used time so another
-// session's cleanup never deletes the database this server is reading.
-static async Task KeepProjectRegistered(ProjectDataStore store, string projectPath, CancellationToken cancellationToken)
-{
-    using var timer = new PeriodicTimer(TimeSpan.FromHours(6));
-    try
-    {
-        while (await timer.WaitForNextTickAsync(cancellationToken))
-        {
-            try
-            {
-                store.Resolve(projectPath);
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-            {
-                Console.Error.WriteLine($"warning: could not refresh project data: {e.Message}");
-            }
-        }
-    }
-    catch (OperationCanceledException)
-    {
-    }
-}
-
-// Registers the project in the data directory, then removes data of projects that were not
-// used for retentionDays. Cleanup problems are warnings; a bad data directory is an error.
-static (ProjectDataStore Store, string DbPath)? ResolveInDataDir(string dataDir, string projectPath, int retentionDays)
-{
-    var store = new ProjectDataStore(dataDir);
-    string dbPath;
-    try
-    {
-        dbPath = store.Resolve(projectPath);
-    }
-    catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
-    {
-        Console.Error.WriteLine($"error: cannot use data directory '{dataDir}': {e.Message}");
-        return null;
-    }
-
-    try
-    {
-        foreach (var removed in store.Prune(TimeSpan.FromDays(retentionDays)))
-        {
-            Console.Error.WriteLine($"removed unused project data: {removed}");
-        }
-    }
-    catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-    {
-        Console.Error.WriteLine($"warning: could not clean up '{dataDir}': {e.Message}");
-    }
-
-    return (store, dbPath);
-}
-
-static bool TryParseRetentionDays(string value, out int days)
-{
-    if (int.TryParse(value, out days) && days >= 1)
-    {
-        return true;
-    }
-
-    Console.Error.WriteLine($"error: --retention-days must be a whole number of days, 1 or more (got '{value}')");
-    return false;
 }
 
 static int Usage()
@@ -562,15 +385,11 @@ static int Usage()
         Unity Ariadne — Unity project dependency graph analyzer
 
         usage:
-          analyze <unity-project-path> [--db <path> | --data-dir <dir>] [--retention-days <n>] [--full]
-              (an existing --db is updated incrementally; --full rebuilds from scratch;
-               --data-dir keeps the database in a per-project folder of <dir>)
+          analyze <unity-project-path> [--db <path>] [--full]
+              (an existing --db is updated incrementally; --full rebuilds from scratch)
           report --db <path>
           export --db <path> --jsonl <path> [--include-packages]
-          serve --db <path> [--project <unity-project-path>]
-          serve --data-dir <dir> --project <unity-project-path> [--retention-days <n>]
-              (--project: analyze the project first when the database does not exist;
-               --data-dir: per-project database folder, unused ones are removed after <n> days, default 30)
+          serve --db <path>
         """);
     return 1;
 }

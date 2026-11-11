@@ -30,8 +30,7 @@ dotnet run --project src/Analyzer -- <command> ...
 analyze <unity-project-path> [--db <path>] [--full]
 report  --db <path>
 export  --db <path> --jsonl <path> [--include-packages]
-serve   --db <path> [--project <unity-project-path>]
-serve   --data-dir <dir> --project <unity-project-path> [--retention-days <n>]
+serve   --db <path>
 ```
 
 ---
@@ -40,7 +39,6 @@ serve   --data-dir <dir> --project <unity-project-path> [--retention-days <n>]
 
 ```sh
 analyze <unity-project-path> --db graph.db
-analyze <unity-project-path> --data-dir <dir>
 ```
 
 Unity プロジェクトを 1 パスで解析し、依存関係グラフを SQLite に書き込みます。
@@ -48,8 +46,6 @@ Unity プロジェクトを 1 パスで解析し、依存関係グラフを SQLi
 | オプション | 意味 |
 |---|---|
 | `--db <path>` | 出力先の SQLite ファイル。**省略すると in-memory で解析してサマリーだけ表示します**(ファイルは作られません。ドライラン用途) |
-| `--data-dir <dir>` | `--db` の代わりに、データディレクトリ `<dir>` の中のプロジェクト専用フォルダに DB を作ります(`--db` とは併用できません)。保存先の決まり方と掃除は [データディレクトリ](#データディレクトリ--data-dir) をご覧ください。使った DB のパスを `database: <path>` として表示します |
-| `--retention-days <n>` | `--data-dir` と併用。この日数を超えて使われていないプロジェクトのデータを削除します(デフォルト 30、1 以上) |
 | `--full` | 既存 DB があっても差分更新せず、削除してフル再構築します |
 
 ### 差分更新(インクリメンタル更新)
@@ -124,40 +120,11 @@ export --db graph.db --jsonl out.jsonl [--include-packages]
 
 ```sh
 serve --db graph.db
-serve --db graph.db --project <unity-project-path>
-serve --data-dir <dir> --project <unity-project-path>
 ```
 
 グラフ DB を MCP(stdio)で公開します。起動時に DB を 1 回開いてパスを検証し、以降は**ツール呼び出しごとに読み取り専用で開き直す**ため、サーバーを起動したまま別ターミナルで `analyze` を実行すればグラフの更新が即座に反映されます。再起動は不要です。
 
-| オプション | 説明 |
-|---|---|
-| `--db <path>` | 公開するグラフ DB(`--data-dir` を使わないときは必須) |
-| `--data-dir <dir>` | `--db` の代わりに使います(併用不可)。`--project` が必須で、DB は `<dir>` の中のプロジェクト専用フォルダになります。DB が無ければ自動で `analyze` します。起動のたびに、使われなくなったプロジェクトのデータを掃除します |
-| `--retention-days <n>` | `--data-dir` と併用。この日数を超えて使われていないプロジェクトのデータを削除します(デフォルト 30、1 以上) |
-| `--project <path>` | `--db` のファイルが**存在しないときだけ**、このプロジェクトを `analyze` してから起動します。既存の DB は再解析せずそのまま使います(更新は `analyze` を再実行してください)。解析のログは stderr に出力され、stdio の MCP 通信には影響しません。`Assets/` が無いディレクトリを指定するとエラー終了します |
-
 セットアップとツールの詳細は [mcp-server.md](mcp-server.md) をご覧ください。
-
-### データディレクトリ(`--data-dir`)
-
-`analyze` / `serve` に `--data-dir <dir>` を渡すと、DB の置き場所をプロジェクトごとに自動で決めます。Claude Code プラグインはこの方式で、`${CLAUDE_PLUGIN_DATA}` を渡しています。
-
-```text
-<dir>/
-├── index.json          # ハッシュ → プロジェクト名・パス・最終利用日時
-├── index.lock          # index.json の排他制御用(複数セッションが同時に起動しても壊れません)
-├── 48f69d66fe0e/
-│   └── graph.db        # プロジェクト A の DB
-└── 89e851c482fa/
-    └── graph.db        # プロジェクト B の DB
-```
-
-- **フォルダ名**は、プロジェクトのフルパス(末尾の区切りと `.` / `..` を正規化したもの。Windows は大文字小文字を区別しません)の SHA-256 の先頭 12 文字です。同じプロジェクトは常に同じフォルダになります
-- **衝突の回避**: 別のプロジェクトがすでに同じハッシュを使っていたら、フォルダ名を 16、20、…文字と延ばします。どのプロジェクトがどのフォルダかは `index.json` が持っているため、`name` と `path` を見れば人が読んでも分かります
-- **掃除**: 起動のたびに、`--retention-days`(デフォルト 30 日)を超えて使われていないプロジェクトのフォルダとインデックスの項目を削除します。`serve` は起動中も 6 時間ごとに最終利用日時を更新するため、長く開きっぱなしのセッションの DB が他のセッションに消されることはありません。インデックスが壊れて(または失われて)項目から外れたハッシュ名のフォルダも、中のファイルが保持期間を超えて古くなれば削除します。ハッシュ名でないフォルダには触れません
-- 削除した DB は、次にそのプロジェクトで起動したときに自動で作り直されます(解析し直しになります)
-- `--db` を使うと従来どおりで、掃除もインデックスも関係ありません
 
 ---
 
