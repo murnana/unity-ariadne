@@ -30,7 +30,7 @@ dotnet run --project src/Analyzer -- <command> ...
 analyze <unity-project-path> [--db <path>] [--full]
 report  --db <path>
 export  --db <path> --jsonl <path> [--include-packages]
-serve   --db <path>
+serve   --db <path> [--project <unity-project-path>]
 ```
 
 ---
@@ -120,9 +120,15 @@ export --db graph.db --jsonl out.jsonl [--include-packages]
 
 ```sh
 serve --db graph.db
+serve --db graph.db --project <unity-project-path>
 ```
 
 グラフ DB を MCP(stdio)で公開します。起動時に DB を 1 回開いてパスを検証し、以降は**ツール呼び出しごとに読み取り専用で開き直す**ため、サーバーを起動したまま別ターミナルで `analyze` を実行すればグラフの更新が即座に反映されます。再起動は不要です。
+
+| オプション | 説明 |
+|---|---|
+| `--db <path>` | 公開するグラフ DB(必須) |
+| `--project <path>` | `--db` のファイルが**存在しないときだけ**、このプロジェクトを `analyze` してから起動します。既存の DB は再解析せずそのまま使います(更新は `analyze` を再実行してください)。解析のログは stderr に出力され、stdio の MCP 通信には影響しません。`Assets/` が無いディレクトリを指定するとエラー終了します |
 
 セットアップとツールの詳細は [mcp-server.md](mcp-server.md) をご覧ください。
 

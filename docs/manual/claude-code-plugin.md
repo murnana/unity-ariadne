@@ -8,7 +8,7 @@
 
 1. [Releases](https://github.com/murnana/unity-ariadne/releases) のインストーラーで `ariadne` を入れます(Windows は `.msi`、macOS は `.pkg`)。
 2. **ターミナルと Claude Code を再起動します**(Windows は PATH の変更が起動済みのプロセスに反映されないためです)。`ariadne --help` が動けば準備完了です。
-3. Unity プロジェクトのルートで、グラフを作ります。
+3. (任意)Unity プロジェクトのルートで、グラフを先に作っておけます。`graph.db` が無い場合は、プラグインが初回の起動時に自動で作るため、省略しても動きます。
 
    ```sh
    ariadne analyze . --db graph.db
@@ -23,7 +23,15 @@
 
 5. Unity プロジェクトのルートで Claude Code を起動し、`/mcp` に `unity-ariadne` が出ていることを確認します。
 
-コードを変更したら `ariadne analyze . --db graph.db` を再実行してください。差分更新され、MCP サーバーの再起動は不要です。
+コードを変更したら `ariadne analyze . --db graph.db` を再実行してください。差分更新され、MCP サーバーの再起動は不要です。自動で作られるのは**初回(`graph.db` が無いとき)だけ**で、既存の `graph.db` は自動では更新されません。
+
+### graph.db の自動作成
+
+プラグインは `ariadne serve --db ${CLAUDE_PROJECT_DIR}/graph.db --project ${CLAUDE_PROJECT_DIR}` で起動します。`graph.db` が無ければ `analyze` してから MCP サーバーを開始します。
+
+- 初回はプロジェクトの規模に応じて解析時間がかかります。Claude Code の MCP 接続がタイムアウトする場合は、先に手順 3 で `analyze` を実行するか、環境変数 `MCP_TIMEOUT`(ミリ秒)を大きくして Claude Code を起動してください
+- Unity プロジェクト(`Assets/` があるフォルダ)以外で Claude Code を開くと、`/mcp` で failed になります
+- `--project` を使うため、**`ariadne` を `serve --project` に対応したバージョンに更新**してください。古い `ariadne` では `unexpected argument '--project'` で failed になります
 
 ## 使用する環境変数
 
@@ -42,5 +50,5 @@ claude mcp add unity-ariadne -- ariadne serve --db <graph.dbの絶対パス>
 
 ## うまく動かないとき
 
-- `/mcp` で `unity-ariadne` が failed になる → `graph.db` がプロジェクト直下にあるか確認してください。`serve` は起動時に DB パスを検証し、無ければ即エラー終了します
+- `/mcp` で `unity-ariadne` が failed になる → まず Claude Code を **Unity プロジェクトのルート**(`Assets/` があるフォルダ)で起動しているか確認してください。`graph.db` が無ければ `analyze` してから起動しますが、`Assets/` が無いフォルダでは解析に失敗して終了します。古い `ariadne` では `--project` が未対応のため、インストーラーで更新してください。原因が分からないときは `ariadne serve --db "$PWD/graph.db" --project "$PWD"` を手動で実行して、エラーメッセージを確認してください
 - `ariadne` が見つからない → インストーラーで入れたあと、ターミナルと Claude Code を再起動してください

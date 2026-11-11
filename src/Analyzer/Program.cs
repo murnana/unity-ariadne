@@ -327,6 +327,7 @@ static int Export(string[] args)
 static async Task<int> Serve(string[] args)
 {
     string? dbPath = null;
+    string? projectPath = null;
 
     for (var i = 0; i < args.Length; i++)
     {
@@ -334,6 +335,9 @@ static async Task<int> Serve(string[] args)
         {
             case "--db" when i + 1 < args.Length:
                 dbPath = args[++i];
+                break;
+            case "--project" when i + 1 < args.Length:
+                projectPath = args[++i];
                 break;
             default:
                 Console.Error.WriteLine($"error: unexpected argument '{args[i]}'");
@@ -343,8 +347,30 @@ static async Task<int> Serve(string[] args)
 
     if (dbPath is null)
     {
-        Console.Error.WriteLine("usage: serve --db <path>");
+        Console.Error.WriteLine("usage: serve --db <path> [--project <unity-project-path>]");
         return 1;
+    }
+
+    // --project: build the database first when it does not exist yet, so a plugin
+    // can point at ${CLAUDE_PROJECT_DIR} without a manual analyze. An existing
+    // database is served as is (refreshing stays an explicit analyze).
+    if (projectPath is not null && !File.Exists(dbPath))
+    {
+        Console.Error.WriteLine($"database not found: {dbPath}; analyzing {projectPath} first");
+        // stdout belongs to the stdio transport, but analyze prints its summary there.
+        var stdout = Console.Out;
+        Console.SetOut(Console.Error);
+        try
+        {
+            if (Analyze([projectPath, "--db", dbPath]) != 0)
+            {
+                return 1;
+            }
+        }
+        finally
+        {
+            Console.SetOut(stdout);
+        }
     }
 
     // Fail fast on a bad path; the tools re-open the file per call afterwards.
@@ -389,7 +415,8 @@ static int Usage()
               (an existing --db is updated incrementally; --full rebuilds from scratch)
           report --db <path>
           export --db <path> --jsonl <path> [--include-packages]
-          serve --db <path>
+          serve --db <path> [--project <unity-project-path>]
+              (--project: analyze the project first when the database does not exist)
         """);
     return 1;
 }
