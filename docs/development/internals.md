@@ -70,6 +70,15 @@ Non-obvious facts about Unity's file formats and about how the analyzer handles 
 - **Invariant: update result == fresh full build, row for row** (`GraphUpdaterTests` compares rowid-independent dumps).
 - A db with a different `user_version` (or not SQLite) makes `TryOpenForUpdate` return null → `analyze` rebuilds. `CreateWriter` is one transaction, so a failed update rolls back.
 
+## Per-project data directory (`--data-dir`)
+
+- `ProjectDataStore` (`src/Analyzer/Storage`): `<data-dir>/<hash>/graph.db` plus `<data-dir>/index.json` (`hash → {name, path, lastUsed}`). The Claude Code plugin passes `${CLAUDE_PLUGIN_DATA}` (`~/.claude/plugins/data/<id>/`, survives plugin updates, deleted on uninstall).
+- Hash = SHA-256 of the normalized absolute path (`GetFullPath`, trailing separators trimmed, lower-cased on Windows only), first 12 hex chars. The index is the source of truth, not the hash: a registered path keeps its folder; a new path whose prefix is taken gets 16, 20, … chars. Tests force collisions through the injectable hash function.
+- Every read-modify-write of `index.json` holds `index.lock` (exclusive `FileShare.None`, 10 s timeout) and commits via temp file + rename, because several sessions can start at once. A corrupt index is moved to `index.json.corrupt` and rebuilt.
+- `Prune(retention)` runs on every `analyze`/`serve` start with `--data-dir`: deletes entries with `lastUsed` older than the retention (default 30 days) and hash-named folders missing from the index whose newest file is older than that. Keys read from the index are matched against `^[0-9a-f]{12,64}$` before they are used as a path segment, and non-hash folders are never touched. A folder that cannot be deleted keeps its entry for the next run.
+- `serve` touches `lastUsed` every 6 hours so a long session is not pruned by another one. Prune/touch failures are warnings; only an unusable data dir is an error.
+- `serve --project` analyzes first when the db file does not exist, with stdout redirected to stderr for the duration (stdout is the MCP transport).
+
 ## Export and MCP
 
 - memory.jsonl: entities then relations, both sorted (identical graph ⇒ identical bytes); UTF-8 without BOM, `\n`, `UnsafeRelaxedJsonEscaping`. Relations carry a non-standard `ref_count` field, which the MCP memory server round-trips harmlessly. Default export keeps PackageCache assets as targets only; folders without edges are dropped.

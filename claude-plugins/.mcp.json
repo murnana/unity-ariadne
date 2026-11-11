@@ -2,7 +2,7 @@
   "mcpServers": {
     "unity-ariadne": {
       "command": "ariadne",
-      "args": ["serve", "--db", "${CLAUDE_PROJECT_DIR}/graph.db", "--project", "${CLAUDE_PROJECT_DIR}"]
+      "args": ["serve", "--data-dir", "${CLAUDE_PLUGIN_DATA}", "--project", "${CLAUDE_PROJECT_DIR}"]
     }
   }
 }
