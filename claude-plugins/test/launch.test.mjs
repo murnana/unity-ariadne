@@ -6,7 +6,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, test } from 'node:test';
 
 import { ProjectDataStore } from '../scripts/lib/store.mjs';
-import { ensureDatabase, retentionDays } from '../scripts/launch.mjs';
+import { ensureDatabase, parseArgs, retentionDays } from '../scripts/launch.mjs';
 
 const LAUNCH = new URL('../scripts/launch.mjs', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const DAY = 24 * 60 * 60 * 1000;
@@ -24,6 +24,22 @@ describe('retentionDays', () => {
     for (const bad of ['0', '-1', '1.5', 'abc']) {
       assert.throws(() => retentionDays({ ARIADNE_RETENTION_DAYS: bad }), /ARIADNE_RETENTION_DAYS/);
     }
+  });
+});
+
+describe('parseArgs', () => {
+  test('reads the flags', () => {
+    assert.deepEqual(parseArgs([]), { update: false, dataDir: undefined, project: undefined });
+    assert.deepEqual(parseArgs(['--update', '--data-dir', '/d', '--project', '/p']), {
+      update: true,
+      dataDir: '/d',
+      project: '/p',
+    });
+  });
+
+  test('rejects unknown flags and a flag without its value', () => {
+    assert.throws(() => parseArgs(['--nope']), /unexpected argument '--nope'/);
+    assert.throws(() => parseArgs(['--project']), /unexpected argument '--project'/);
   });
 });
 
@@ -174,10 +190,28 @@ esac
     assert.ok(!fs.existsSync(dataDir));
   });
 
-  test('refuses to run without CLAUDE_PLUGIN_DATA', () => {
+  test('refuses to run without a data directory', () => {
     const r = run({ CLAUDE_PLUGIN_DATA: '' });
     assert.notEqual(r.status, 0);
-    assert.match(r.stderr, /CLAUDE_PLUGIN_DATA/);
+    assert.match(r.stderr, /no data directory/);
+  });
+
+  test('--data-dir and --project win over the environment (as the update-graph skill passes them)', () => {
+    const elsewhere = path.join(root, 'elsewhere');
+    const r = spawnSync(process.execPath, [LAUNCH, '--update', '--data-dir', dataDir, '--project', project], {
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PLUGIN_DATA: elsewhere, CLAUDE_PROJECT_DIR: path.join(root, 'Nope'), ARIADNE_BIN: fake },
+    });
+
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(Object.values(new ProjectDataStore(dataDir).entries()).map((e) => e.name), ['MyGame']);
+    assert.ok(!fs.existsSync(elsewhere));
+  });
+
+  test('rejects an unknown argument', () => {
+    const r = spawnSync(process.execPath, [LAUNCH, '--bogus'], { encoding: 'utf8', env: process.env });
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /unexpected argument '--bogus'/);
   });
 });
 

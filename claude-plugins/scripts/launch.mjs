@@ -5,11 +5,13 @@
 // start, cleans up data of projects that were not used for a while, then runs `ariadne serve`.
 // ariadne itself knows nothing about any of this.
 //
-// `node launch.mjs --update` is for people: it builds the database (first time) or updates it
+// `node launch.mjs --update [--data-dir <dir>] [--project <dir>]` is for people and for the
+// update-graph skill: it builds the database (first time) or updates it
 // incrementally, prints the analyze summary and exits without starting the server. Use it to
 // pre-build a big project before the first Claude Code start, or to refresh after code changes.
 //
-// Environment (set by Claude Code): CLAUDE_PLUGIN_DATA, CLAUDE_PROJECT_DIR.
+// The data directory and the project come from --data-dir / --project, else from the environment
+// Claude Code sets for the MCP server: CLAUDE_PLUGIN_DATA, CLAUDE_PROJECT_DIR.
 // Optional: ARIADNE_RETENTION_DAYS (default 30), ARIADNE_BIN (path of the ariadne executable).
 //
 // stdout belongs to the MCP transport: everything this script prints goes to stderr.
@@ -85,12 +87,35 @@ export function updateDatabase({ ariadne, projectDir, dbPath }) {
   return result.status ?? 1;
 }
 
+/** `--update`, `--data-dir <dir>`, `--project <dir>`; anything else is an error. */
+export function parseArgs(argv) {
+  const options = { update: false, dataDir: undefined, project: undefined };
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === '--update') {
+      options.update = true;
+    } else if ((arg === '--data-dir' || arg === '--project') && i + 1 < argv.length) {
+      options[arg === '--data-dir' ? 'dataDir' : 'project'] = argv[++i];
+    } else {
+      throw new Error(`unexpected argument '${arg}'`);
+    }
+  }
+  return options;
+}
+
 function main() {
-  const dataDir = process.env.CLAUDE_PLUGIN_DATA;
-  const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  let options;
+  try {
+    options = parseArgs(process.argv.slice(2));
+  } catch (e) {
+    fail(`${e.message}\nusage: launch.mjs [--update] [--data-dir <dir>] [--project <dir>]`);
+  }
+
+  const dataDir = options.dataDir || process.env.CLAUDE_PLUGIN_DATA;
+  const projectDir = options.project || process.env.CLAUDE_PROJECT_DIR || process.cwd();
   const ariadne = process.env.ARIADNE_BIN || 'ariadne';
 
-  if (!dataDir) fail('CLAUDE_PLUGIN_DATA is not set; run this through Claude Code');
+  if (!dataDir) fail('no data directory: pass --data-dir, or run this through Claude Code (CLAUDE_PLUGIN_DATA)');
   if (!fs.existsSync(path.join(projectDir, 'Assets'))) {
     fail(`'${projectDir}' does not look like a Unity project (no Assets/ directory); open Claude Code at the project root`);
   }
@@ -119,7 +144,7 @@ function main() {
     console.error(`unity-ariadne: warning: cleanup failed: ${e.message}`);
   }
 
-  if (process.argv.includes('--update')) {
+  if (options.update) {
     process.exit(updateDatabase({ ariadne, projectDir, dbPath }));
   }
 

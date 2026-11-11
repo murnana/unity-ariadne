@@ -55,16 +55,22 @@
 - `index.json` が壊れたり失われたりして項目から外れた、ハッシュ名のフォルダも、中のファイルが保持期間を超えて古くなれば削除します。ハッシュ名でないフォルダには触れません
 - 掃除に失敗しても(たとえば他のプロセスが使用中で削除できなくても)サーバーは起動します。削除できなかったデータは次回に再試行します
 
-### グラフの作成・更新(`--update`)
+### グラフの作成・更新(`update-graph` スキル / `--update`)
 
-自動で作られるのは**初回だけ**で、既存のグラフは自動では更新されません。コードを変更したときや、大きなプロジェクトを事前に作っておきたいときは、Unity プロジェクトのルートで起動スクリプトを `--update` 付きで実行してください。保存先(ハッシュのフォルダ)は自動で決まるので、パスを調べる必要はありません。
+自動で作られるのは**初回だけ**で、既存のグラフは自動では更新されません。コードやアセットを変更したときは、次のどちらかで更新します。
 
-- `graph.db` が無ければ作り、あれば**差分更新**して終了します。MCP サーバーは起動せず、稼働中の MCP サーバーの再起動も不要です
-- `<スクリプト>` は `find ~/.claude/plugins -name launch.mjs` で探せます(プラグインを更新するとパスが変わります)
+**Claude Code に頼む(おすすめ)**: プラグインの `update-graph` スキルを使います。「グラフを更新して」と頼むか、`/unity-ariadne:update-graph` を実行してください。アセットやスクリプトを変更した直後に MCP ツールの結果が実際と合わないときは、Claude が自分でこのスキルを使うこともあります。内容は次の `--update` の実行と、結果の報告です。
+
+**自分で実行する**: Unity プロジェクトのルートで、起動スクリプトを `--update` 付きで実行します。大きなプロジェクトを、Claude Code を開く前に作っておきたいときにも使えます。
 
 ```sh
-CLAUDE_PLUGIN_DATA=~/.claude/plugins/data/unity-ariadne-murnana-claude-code-plugin CLAUDE_PROJECT_DIR="$PWD" node <スクリプト> --update
+node <スクリプト> --update --data-dir ~/.claude/plugins/data/unity-ariadne-murnana-claude-code-plugin --project .
 ```
+
+- `<スクリプト>` は `find ~/.claude/plugins -name launch.mjs` で探せます(プラグインを更新するとパスが変わります)。Windows では `--data-dir` に `%USERPROFILE%\.claude\plugins\data\unity-ariadne-murnana-claude-code-plugin` を指定します
+- 保存先(ハッシュのフォルダ)は自動で決まるので、パスを調べる必要はありません
+- `graph.db` が無ければ作り、あれば**差分更新**して終了します。MCP サーバーは起動せず、稼働中の MCP サーバーの再起動も不要です(ツールは呼び出しごとに DB を開き直します)
+- 更新に失敗しても、それまでの DB は残ります
 
 ## 使用する環境変数
 
@@ -94,7 +100,7 @@ claude mcp add unity-ariadne -- ariadne serve --db <graph.dbの絶対パス>
   4. 原因が分からないときは、Unity プロジェクトのルートで起動スクリプトを手動で実行すると、エラーメッセージが読めます。`ariadne serve` が起動して待機状態になれば成功です(Ctrl+C で止めます)
 
      ```sh
-     CLAUDE_PLUGIN_DATA=~/.claude/plugins/data/unity-ariadne-murnana-claude-code-plugin CLAUDE_PROJECT_DIR="$PWD" node <スクリプト>
+     node <スクリプト> --data-dir ~/.claude/plugins/data/unity-ariadne-murnana-claude-code-plugin --project .
      ```
 
 - `ariadne` が見つからない → インストーラーで入れたあと、ターミナルと Claude Code を再起動してください
