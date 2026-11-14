@@ -7,6 +7,21 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-14
+
+### Added
+
+- Claude Code プラグインが `graph.db` をプロジェクトごとに自動で作成・管理するようにした。起動スクリプト `claude-plugins/scripts/launch.mjs` が `${CLAUDE_PLUGIN_DATA}` 配下に保存し、初回は `ariadne analyze` で作成し、30 日(`ARIADNE_RETENTION_DAYS` で変更可)使われていないプロジェクトを削除する。ariadne 本体は変更していない。**利用者の PC に Node.js(20.12 以降)が必要になる。** https://github.com/murnana/unity-ariadne/pull/38
+- グラフを作成・差分更新して差分の内訳を報告する `update-graph` スキル(`/unity-ariadne:update-graph`)を追加した。 https://github.com/murnana/unity-ariadne/pull/38
+
+### Changed
+
+- GitHub Actions でのリリースタグの自動作成をやめ、タグは手動で push する手順に戻した(`GITHUB_TOKEN` でのタグ作成が HTTP 422 で失敗するため)。 https://github.com/murnana/unity-ariadne/pull/37
+
+### Fixed
+
+- `update-graph` スキルの `Code layer: re-analyzed` の説明を、実際の再解析条件(`.cs` の変更、アセットパス集合の変化、Addressables グループの変更)に合わせた。 https://github.com/murnana/unity-ariadne/pull/39
+
 ## [0.1.3] - 2026-11-09
 
 ### Fixed
@@ -31,6 +46,7 @@
 
 - macOS 向け pkg をリリースワークフローでビルドすると `installer/macos/build-pkg.sh` が `Permission denied` で失敗していたのを修正した。 https://github.com/murnana/unity-ariadne/pull/25
 
-[Unreleased]: https://github.com/murnana/unity-ariadne/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/murnana/unity-ariadne/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/murnana/unity-ariadne/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/murnana/unity-ariadne/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/murnana/unity-ariadne/compare/v0.1.0...v0.1.2
