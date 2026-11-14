@@ -71,16 +71,10 @@ Apple Developer ID 署名+notarization が必要で、アカウントと証明�
 
 ## リリース手順
 
-アプリのバージョンは `claude-plugins/.claude-plugin/plugin.json` の `version` が唯一の正です。タグは CI が自動で切ります。
-
-1. `develop` で `claude-plugins/.claude-plugin/plugin.json` の `version` をリリースするバージョン(`X.Y.Z`、プレリリースなら `X.Y.Z-rc1` など)に更新する PR を作ってマージし、`dotnet test` が green であることを確認する。
-2. `develop` → `main` の Pull Request を作成してマージする。
-3. `main` への push で `ci.yml` が走り、`test` / `third-party-notices` が green になると、`tag-release` ジョブが
-   `plugin.json` の `version` から `vX.Y.Z` タグをマージコミットに作成し、`release.yml` をそのタグを ref にして起動する
-   (`GITHUB_TOKEN` によるタグ作成は他のワークフローを起動しないため、`workflow_dispatch` で明示的に起動している)。
-   **同名のタグが既にあれば何もしません**(バージョンを上げずに `main` へマージした場合)。
-   - タグ保護のルールセットがある場合は、GitHub Actions がタグを作成できるよう bypass に追加しておく。
-   - 手動で `git tag vX.Y.Z && git push origin vX.Y.Z` してもこれまでどおり `release.yml` が発火する(`tag-release` はタグの存在を見てスキップする)。
+1. `develop` で `claude-plugins/.claude-plugin/plugin.json` の `version` をリリースするバージョン(タグから `v` を除いた値)に更新する PR を作ってマージし、`dotnet test` が green であることを確認する。**タグと一致しないと `verify-plugin-version` ジョブが失敗します。**
+2. `develop` → `main` の Pull Request を作成してマージする(マージ後、`main` の CI が green であることを確認する)。
+3. `main` の最新を取得し、`git tag vX.Y.Z && git push origin vX.Y.Z` — これだけで `release.yml` が発火します。
+   GitHub Actions(`GITHUB_TOKEN`)からのタグ作成は HTTP 422 で失敗したため、タグは手動で作成します。
 4. Actions の実行結果を確認する。GitHub Release はイミュータブルリリース(公開後はアセットの追加も、タグ名の再利用もできない)のため、
    `package-and-release` が下書き(draft)で作成し、インストーラーとプラグイン zip を添付したあと、最後の `publish-release` ジョブが公開する。
    公開された Release に、ソース zip・MSI・pkg・プラグイン zip(と `.sha256`)が揃っていることを確認する。

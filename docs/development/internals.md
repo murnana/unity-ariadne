@@ -70,6 +70,15 @@ Non-obvious facts about Unity's file formats and about how the analyzer handles 
 - **Invariant: update result == fresh full build, row for row** (`GraphUpdaterTests` compares rowid-independent dumps).
 - A db with a different `user_version` (or not SQLite) makes `TryOpenForUpdate` return null → `analyze` rebuilds. `CreateWriter` is one transaction, so a failed update rolls back.
 
+## Claude Code plugin launcher (not part of `ariadne`)
+
+- `claude-plugins/scripts/launch.mjs` (+ `lib/store.mjs`, Node ≥ 20.12, no dependencies) is the plugin's MCP `command`. `ariadne serve --db` still only opens an existing file; location, first build and cleanup are plugin concerns, so the plugin works with any `ariadne` that has `serve --db`.
+- Layout: `${CLAUDE_PLUGIN_DATA}/<hash>/graph.db` + `index.json` (`hash → {name, path, lastUsed}`). Hash = SHA-256 of the normalized absolute path (trailing separators trimmed, lower-cased on Windows only), first 12 hex chars. The index, not the hash, is the source of truth: a registered path keeps its folder; a new path whose prefix is taken gets 16, 20, … chars. Tests force collisions through the injectable hash.
+- Every read-modify-write of `index.json` holds `index.lock` (exclusive create, 10 s timeout, locks older than 30 s are stale) and commits via temp file + rename. A corrupt index is moved to `index.json.corrupt` and rebuilt.
+- `prune` runs on every launch: drops entries with `lastUsed` older than `ARIADNE_RETENTION_DAYS` (default 30) and hash-named folders missing from the index whose newest file is that old. Index keys are matched against `^[0-9a-f]{12,64}$` before being used as a path segment; other folders are never touched. A folder that cannot be deleted keeps its entry. Failures are warnings only.
+- First start: `ariadne analyze <project> --db <db>.building`, renamed on success (a failed run never leaves a db that a later start would serve). The analyze summary goes to stderr: stdout is the MCP transport, and `serve` inherits stdin/stdout directly. A 6-hourly timer refreshes `lastUsed` for long sessions. `launch.mjs --update` (for humans and the `update-graph` skill) builds or incrementally updates the db and exits without serving; `--data-dir`/`--project` override the environment because skill bash does not get `CLAUDE_PLUGIN_*` (only skill text is substituted) and `VAR=x cmd` does not work in PowerShell; a timed-out MCP start kills the launcher and its analyze, so big projects are pre-built this way.
+- Tests: `cd claude-plugins && node --test` (CI runs it on all three OSes; the fake-`ariadne` tests need a POSIX shell and skip on Windows).
+
 ## Export and MCP
 
 - memory.jsonl: entities then relations, both sorted (identical graph ⇒ identical bytes); UTF-8 without BOM, `\n`, `UnsafeRelaxedJsonEscaping`. Relations carry a non-standard `ref_count` field, which the MCP memory server round-trips harmlessly. Default export keeps PackageCache assets as targets only; folders without edges are dropped.
