@@ -22,7 +22,8 @@ unity-ariadne のグラフ(SQLite の `graph.db`)を差分更新します。プ�
 2. 出力の次の行を読み取り、結果を短く報告します。
    - `Incremental update: N added, N changed, N moved, N removed, N unchanged` → 差分更新の内訳
    - `database ready: <path>` → DB を新しく作った(初回)
-   - `Code layer: re-analyzed (global resolution)` → .cs の変更で C# 由来の参照を全体で再解析した(正常です)
+   - `Code layer: re-analyzed (global resolution)` → C# 由来の参照を全体で再解析した(正常です)。.cs の変更だけでなく、アセットの追加・削除・移動(.cs 以外やフォルダも含む)や Addressables グループの変更でも出ます
+   - `Code layer: unchanged` → C# 由来の参照は再解析しなかった(差分なし、または .cs 以外のファイルの内容だけが変わったとき)
 
 3. 更新後、ユーザーが調べたかったこと(参照元の確認や影響範囲など)があれば、unity-ariadne の MCP ツールで続けます。
 
