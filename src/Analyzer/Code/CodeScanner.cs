@@ -14,8 +14,14 @@ public sealed record CodeRef(string ToGuid, long ToFileId, string PropertyPath, 
 /// <param name="ObjectName">Name for the MonoScript object row: the file's first non-nested declared type.</param>
 public sealed record ScriptRefs(string Guid, string? ObjectName, IReadOnlyList<CodeRef> Refs);
 
+/// <summary>Declared types and documented members of one script (schema v3 code_symbols).</summary>
+public sealed record ScriptSymbols(string Guid, IReadOnlyList<CodeSymbol> Symbols);
+
 public sealed class CodeScanResult
 {
+    /// <summary>Scripts that declare at least one symbol, ordered by script path.</summary>
+    public required IReadOnlyList<ScriptSymbols> Symbols { get; init; }
+
     /// <summary>Scripts that produced at least one resolved ref, ordered by script path.</summary>
     public required IReadOnlyList<ScriptRefs> Scripts { get; init; }
 
@@ -143,6 +149,10 @@ public static class CodeScanner
 
         return new CodeScanResult
         {
+            Symbols = scripts
+                .Select((script, i) => new ScriptSymbols(script.Guid, models[i].Symbols))
+                .Where(s => s.Symbols.Count > 0)
+                .ToList(),
             Scripts = results,
             ScriptFileCount = scripts.Count,
             DeclaredTypeCount = models.Sum(m => m.DeclaredTypes.Count),

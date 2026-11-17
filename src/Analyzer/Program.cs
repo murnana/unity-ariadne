@@ -137,6 +137,9 @@ static int Analyze(string[] args)
             $"{summary.NonLiteralAddressablesLoadCount} non-literal Addressables keys");
     }
 
+    Console.WriteLine(
+        $"Code symbols: {summary.CodeSymbolCount} ({summary.DocumentedSymbolCount} with XML doc comments)");
+
     Console.WriteLine($"ProjectSettings references: {summary.SettingsRefCount} in {summary.SettingsFileCount} files");
     foreach (var (kind, count) in summary.SettingsKindCounts
                  .OrderByDescending(p => p.Value)
@@ -371,7 +374,8 @@ static async Task<int> Serve(string[] args)
                 "Names accept a project-relative path, a unique file name, or a GUID. " +
                 "Nodes are typed by asset type (Scene, Prefab, Script, Material, ...) and edges by ref kind " +
                 "(uses_script, prefab_instance, inherits, ...): describe_ontology lists both, traverse " +
-                "follows typed paths, search_nodes filters by type. " +
+                "follows typed paths, search_nodes filters by type. Folder and file names and C# XML doc " +
+                "comments are clues too: search_keywords searches them, list_folders shows the folder taxonomy. " +
                 "Re-run analyze to refresh the graph; tools always read the current database file.";
         })
         .WithStdioServerTransport()

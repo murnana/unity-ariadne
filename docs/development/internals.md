@@ -60,6 +60,8 @@ Non-obvious facts about Unity's file formats and about how the analyzer handles 
 - Serialized-field rule: public or `[SerializeField]`/`[SerializeReference]`, never static/const/readonly; everything else is `nonserialized_field`.
 - `Resources.Load*` literals match any asset under any `Resources/` folder, extension stripped, case-insensitive (folders included). `Addressables.Load*/InstantiateAsync/DownloadDependenciesAsync` literal keys match address + label tables of every group **case-sensitively**; instance calls on AssetReference fields are skipped (already an asset-layer edge).
 - Roslyn's `Microsoft.CodeAnalysis.RefKind` clashes with our `RefKind` — alias it.
+- `code_symbols` (schema v3, keyword-search clues): every declared type of every .cs (even without refs or docs) plus members (method/constructor/property/indexer/field/event/enum member/operator) that carry an XML doc comment. Doc text = `<summary>` + `<remarks>` (the whole comment when it has neither), `<see cref>`/`<paramref name>`/langword replaced by their names, whitespace collapsed, capped at 1000 chars. Both `///` and `/** */` work because the default `DocumentationMode.Parse` structures doc trivia. The table belongs to the code layer: written by `WriteCodeRefs`, cleared by `DeleteCodeLayer`, so a doc-only edit (a .cs hash change) refreshes it with the rest of the layer.
+- Readers (`serve`, `export`) must tolerate a pre-v3 db without `code_symbols` (`GraphDatabase.HasCodeSymbols`): the plugin serves an existing db until the next analyze rebuilds it.
 
 ## Database and incremental update
 

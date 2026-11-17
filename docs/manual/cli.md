@@ -75,6 +75,8 @@ JSON asset references (embedded_json): ...
 Code references: ... from N of M scripts
   skipped: ... ambiguous type names, ... non-literal Resources.Load
                                   ← 解決できず意図的にスキップした参照(limitations.md)
+Code symbols: 5210 (1834 with XML doc comments)
+                                  ← キーワード検索用に記録した C# の型と、XML ドキュメントコメント付きのメンバー(schema.md の code_symbols)
 ProjectSettings references: ...
 Unresolved GUIDs: 83 (details: report --db graph.db)
 Wrote graph.db (86729 refs)

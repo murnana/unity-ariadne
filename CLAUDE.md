@@ -46,7 +46,7 @@ If `dotnet` is not on PATH: `export PATH="$HOME/.dotnet:$PATH"` (.NET 10).
 
 ## Schema and ref_kinds
 
-See `docs/manual/schema.md` (tables `assets` / `objects` / `refs` / `settings_files`, views `asset_edges` / `unresolved_guids`, and the full ref_kind table). The classifier lives in `src/Analyzer/Yaml/RefKindClassifier.cs`, constants in `RefKind.cs`.
+See `docs/manual/schema.md` (tables `assets` / `objects` / `refs` / `code_symbols` / `settings_files`, views `asset_edges` / `unresolved_guids`, and the full ref_kind table). The classifier lives in `src/Analyzer/Yaml/RefKindClassifier.cs`, constants in `RefKind.cs`.
 
 ## Session workflow
 

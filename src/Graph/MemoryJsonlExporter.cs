@@ -80,10 +80,11 @@ public static class MemoryJsonlExporter
 
         var included = CollectIncludedAssets(assets.Values, edges, options);
         var (outgoing, incoming) = AggregateCounts(edges);
+        var declarations = ReadTypeDeclarations(db);
 
         foreach (var asset in included)
         {
-            var line = new EntityLine("entity", asset.Name, asset.AssetType, BuildObservations(asset, outgoing, incoming));
+            var line = new EntityLine("entity", asset.Name, asset.AssetType, BuildObservations(asset, outgoing, incoming, declarations));
             output.WriteLine(JsonSerializer.Serialize(line, JsonOptions));
         }
 
@@ -160,7 +161,8 @@ public static class MemoryJsonlExporter
     private static IReadOnlyList<string> BuildObservations(
         AssetRow asset,
         Dictionary<string, (long Refs, HashSet<string> Partners)> outgoing,
-        Dictionary<string, (long Refs, HashSet<string> Partners)> incoming)
+        Dictionary<string, (long Refs, HashSet<string> Partners)> incoming,
+        Dictionary<string, List<string>> declarations)
     {
         var observations = new List<string>();
         if (asset.Path is not null && asset.Guid != asset.Path)
@@ -184,7 +186,48 @@ public static class MemoryJsonlExporter
             observations.Add($"incoming: {inCounts.Refs} refs from {inCounts.Partners.Count} assets");
         }
 
+        if (declarations.TryGetValue(asset.Guid, out var declared))
+        {
+            observations.AddRange(declared);
+        }
+
         return observations;
+    }
+
+    /// <summary>
+    /// "declares class Game.Enemy: &lt;doc summary&gt;" per type declared in a script
+    /// (schema v3 code_symbols; documented members stay in SQLite / MCP search only).
+    /// </summary>
+    private static Dictionary<string, List<string>> ReadTypeDeclarations(GraphDatabase db)
+    {
+        var declarations = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        if (!db.HasCodeSymbols)
+        {
+            return declarations; // written before schema v3
+        }
+
+        using var command = db.Connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT a.guid, s.kind, s.symbol, s.doc FROM code_symbols s
+            JOIN assets a ON a.id = s.asset_id
+            WHERE s.kind IN ('class', 'struct', 'interface', 'enum', 'record', 'delegate')
+            ORDER BY s.rowid
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var guid = reader.GetString(0);
+            if (!declarations.TryGetValue(guid, out var list))
+            {
+                declarations[guid] = list = [];
+            }
+
+            var line = $"declares {reader.GetString(1)} {reader.GetString(2)}";
+            list.Add(reader.IsDBNull(3) ? line : $"{line}: {reader.GetString(3)}");
+        }
+
+        return declarations;
     }
 
     private static Dictionary<string, AssetRow> ReadAssets(GraphDatabase db)

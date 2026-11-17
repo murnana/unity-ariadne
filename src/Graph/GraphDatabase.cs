@@ -21,7 +21,7 @@ public sealed class GraphDatabase : IDisposable
     /// Stored in PRAGMA user_version; bump on any schema change. A database written by
     /// another version is rebuilt from scratch instead of updated incrementally.
     /// </summary>
-    public const int SchemaVersion = 2;
+    public const int SchemaVersion = 3;
 
     private const string Schema =
         """
@@ -68,6 +68,15 @@ public sealed class GraphDatabase : IDisposable
 
         CREATE VIEW unresolved_guids AS
           SELECT guid FROM assets WHERE path IS NULL;
+
+        CREATE TABLE code_symbols (   -- schema v3: declarations in .cs files, for keyword search
+          asset_id INTEGER NOT NULL REFERENCES assets(id),
+          symbol TEXT NOT NULL,       -- Namespace.Type or Namespace.Type.Member
+          kind TEXT NOT NULL,         -- class/struct/interface/enum/record/delegate/method/property/field/...
+          doc TEXT                    -- plain text of the XML doc comment (<summary> + <remarks>), or NULL
+        );
+
+        CREATE INDEX idx_code_symbols_asset ON code_symbols(asset_id);
 
         CREATE TABLE settings_files (  -- Phase 4b: every scanned ProjectSettings/*.asset,
           path TEXT PRIMARY KEY,       -- including ones without refs (those get no assets row,
@@ -166,6 +175,20 @@ public sealed class GraphDatabase : IDisposable
         db.Execute(Schema);
         db.Execute($"PRAGMA user_version = {SchemaVersion}");
         return db;
+    }
+
+    /// <summary>
+    /// False for databases written before schema v3 (no code_symbols table). Readers that
+    /// only query — serve, export — must keep working on those until the next analyze.
+    /// </summary>
+    public bool HasCodeSymbols
+    {
+        get
+        {
+            using var command = Connection.CreateCommand();
+            command.CommandText = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'code_symbols'";
+            return command.ExecuteScalar() is not null;
+        }
     }
 
     /// <summary>One transaction with prepared inserts; dispose without Commit rolls back.</summary>

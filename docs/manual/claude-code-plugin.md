@@ -74,7 +74,7 @@ node <スクリプト> --update --data-dir ~/.claude/plugins/data/unity-ariadne-
 
 ### オントロジー検索(`search-graph` スキル)
 
-グラフのノードにはアセットの種類(Scene / Prefab / Script / Material …)、エッジには参照の種類(`uses_script` / `prefab_instance` / `inherits` …)が付いています。`search-graph` スキルは、質問をこの「種類と関係の連鎖」に翻訳して、MCP ツールの `describe_ontology` と `traverse` で検索します。結果には、なぜそのアセットが当てはまるのかを示す参照経路が付きます。
+グラフのノードにはアセットの種類(Scene / Prefab / Script / Material …)、エッジには参照の種類(`uses_script` / `prefab_instance` / `inherits` …)が付いています。`search-graph` スキルは、質問をこの「種類と関係の連鎖」に翻訳して、MCP ツールの `describe_ontology` と `traverse` で検索します。出発点や絞り込みには、**ファイル名・フォルダー名と、C# の XML ドキュメントコメント**(`/// <summary>`)も手がかりとして使います(`search_keywords` / `list_folders`)。結果には、なぜそのアセットが当てはまるのか(参照経路や、どの名前・コメントに当たったか)が付きます。
 
 次のような質問をすると、Claude がこのスキルを使います(`/unity-ariadne:search-graph` で明示的に呼ぶこともできます)。
 
@@ -83,6 +83,10 @@ node <スクリプト> --update --data-dir ~/.claude/plugins/data/unity-ariadne-
 - 「`Fog.mat` を最終的に使っているシーンは?」
 - 「ビルドに含まれるシーンが使っているスクリプトは?」
 - 「どこからも参照されていないプレハブは?」
+- 「ボスの行動に関係するスクリプトと、それが付いたプレハブは?」(ドキュメントコメントに「ボス」とあるスクリプトから探します)
+- 「UI フォルダーのプレハブが使っているスクリプトは?」
+
+ドキュメントコメントと型名は `analyze` が記録します。この機能より前の ariadne で作った `graph.db` には入っていないため、`update-graph` で作り直してください(スキーマが変わったので自動でフル再構築になります)。
 
 ツールの仕様は [mcp-server.md](mcp-server.md) をご覧ください。
 

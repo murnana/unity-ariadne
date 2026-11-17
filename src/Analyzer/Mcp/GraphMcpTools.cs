@@ -24,6 +24,7 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
     private const int MaxAmbiguousCandidates = 10;
     private const int MaxSignatures = 12;
     private const int MaxSteps = 8;
+    private const int MaxFolderTypes = 6;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -147,6 +148,82 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         });
     }
 
+    [McpServerTool(Name = "search_keywords")]
+    [Description("Keyword search over every clue that names or describes an asset: file name, the " +
+                 "folder names on its path, and for C# scripts the declared type names, documented " +
+                 "member names and XML doc comment text (<summary>/<remarks>). Each keyword is a " +
+                 "case-insensitive substring; results are ranked by how many keywords hit, and say " +
+                 "where each hit (file name > type name > folder / member name > doc comment). Use it " +
+                 "to find candidates by concept (e.g. [\"enemy\", \"spawn\"] or Japanese words in doc " +
+                 "comments) before a typed traverse.")]
+    public string SearchKeywords(
+        [Description("Keywords; each is a case-insensitive substring. Whitespace splits a keyword")] string[] keywords,
+        [Description("Asset type to keep, e.g. Script, Prefab (case-insensitive)")] string? type = null,
+        [Description("Source to keep: Assets, Packages, PackageCache, ...")] string? source = null,
+        [Description("Keep only assets that hit every keyword")] bool match_all = false,
+        [Description("Maximum number of results (default 20, max 100)")] int limit = 20)
+    {
+        using var db = OpenDatabase();
+        var clampedLimit = Math.Clamp(limit, 1, 100);
+        var matches = GraphQueries.SearchByKeywords(
+            db, keywords ?? [], NullIfBlank(type), NullIfBlank(source), match_all);
+        return Serialize(new
+        {
+            Keywords = keywords,
+            TotalMatches = matches.Count,
+            Matches = matches
+                .Take(clampedLimit)
+                .Select(m => new
+                {
+                    Name = m.Asset.Name,
+                    Type = m.Asset.AssetType,
+                    m.Asset.Source,
+                    m.MatchedKeywords,
+                    m.Score,
+                    m.Clues,
+                    Declares = m.DeclaredTypes.Count > 0 ? m.DeclaredTypes : null,
+                    Doc = m.DocSnippet,
+                })
+                .ToList(),
+            Truncated = matches.Count > clampedLimit ? (bool?)true : null,
+            Warning = db.HasCodeSymbols
+                ? null
+                : "This graph was built by an older ariadne without C# type names and doc comments; " +
+                  "only file and folder names were searched. Re-run analyze (update-graph) to add them.",
+        });
+    }
+
+    [McpServerTool(Name = "list_folders")]
+    [Description("Lists the folders under a path with how many assets of which types each holds " +
+                 "(recursively). Folder names show how the project is organized (Characters/Enemies, " +
+                 "UI, Levels, ...) — use them as clues and as path_contains filters in traverse.")]
+    public string ListFolders(
+        [Description("Folder to list, e.g. Assets or Assets/Characters. Empty lists the top level")] string path = "Assets",
+        [Description("How many folder levels down to list (default 1, max 4)")] int depth = 1)
+    {
+        using var db = OpenDatabase();
+        var folders = GraphQueries.ListFolders(db, path ?? "", Math.Clamp(depth, 1, 4));
+        return Serialize(new
+        {
+            Path = path,
+            TotalFolders = folders.Count,
+            Folders = folders
+                .Take(MaxListedResults)
+                .Select(f => new
+                {
+                    f.Path,
+                    Assets = f.AssetCount,
+                    Types = f.ByType
+                        .OrderByDescending(t => t.Value)
+                        .ThenBy(t => t.Key, StringComparer.Ordinal)
+                        .Take(MaxFolderTypes)
+                        .ToDictionary(t => t.Key, t => t.Value),
+                })
+                .ToList(),
+            Truncated = folders.Count > MaxListedResults ? (bool?)true : null,
+        });
+    }
+
     [McpServerTool(Name = "describe_ontology")]
     [Description("Returns the vocabulary of this project's graph: every class (asset type) with its " +
                  "count per source, and every relation (ref kind) with its edge count and the " +
@@ -181,9 +258,10 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
 
     [McpServerTool(Name = "traverse")]
     [Description("Typed path query over the graph. Starts at one asset (start) or at every asset of " +
-                 "a class (start_type), then applies the steps in order; each step follows edges of " +
-                 "the given kinds in the given direction for up to max_hops hops and keeps only " +
-                 "assets of the given types. Returns the assets left after the last step, each with " +
+                 "a class (start_type, optionally narrowed by start_path_contains), then applies the " +
+                 "steps in order; each step follows edges of the given kinds in the given direction for " +
+                 "up to max_hops hops and keeps only assets of the given types (and path_contains " +
+                 "folder/file-name clues). Returns the assets left after the last step, each with " +
                  "one witness path ('A -[kind]-> B' = A references B, 'A <-[kind]- B' = B references " +
                  "A). Example: prefabs using a subclass of Enemy.cs = start Enemy.cs, steps " +
                  "[{direction:in, kinds:[inherits], max_hops:10, include_self:true}, " +
@@ -191,7 +269,9 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
     public string Traverse(
         [Description("Path steps, applied in order (1-8 steps)")] TraverseStep[] steps,
         [Description("Start asset: path, file name, or GUID. Give this or start_type")] string? start = null,
-        [Description("Start from every asset of this type instead, e.g. Scene")] string? start_type = null)
+        [Description("Start from every asset of this type instead, e.g. Scene")] string? start_type = null,
+        [Description("With start_type: keep only start assets whose path contains any of these " +
+                     "(case-insensitive), e.g. [\"Enemies/\"]")] string[]? start_path_contains = null)
     {
         if (steps is null || steps.Length is 0 or > MaxSteps)
         {
@@ -209,7 +289,7 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
             }
 
             parsedSteps.Add(new TraversalStep(
-                direction, step.Kinds, step.Types, step.MaxHops ?? 1, step.IncludeSelf ?? false));
+                direction, step.Kinds, step.Types, step.MaxHops ?? 1, step.IncludeSelf ?? false, step.PathContains));
         }
 
         start = NullIfBlank(start);
@@ -237,7 +317,7 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         else
         {
             startLabel = $"type:{start_type}";
-            startGuids = GraphQueries.AssetGuidsOfType(db, start_type!);
+            startGuids = GraphQueries.AssetGuidsOfType(db, start_type!, start_path_contains);
         }
 
         var ontology = GraphQueries.DescribeOntology(db);
@@ -392,4 +472,9 @@ public sealed record TraverseStep
                  "e.g. 'the class and all its subclasses'")]
     [JsonPropertyName("include_self")]
     public bool? IncludeSelf { get; init; }
+
+    [Description("Keep only end assets whose path contains any of these substrings (case-insensitive) " +
+                 "— folder or file-name clues, e.g. [\"/UI/\", \"Boss\"]")]
+    [JsonPropertyName("path_contains")]
+    public string[]? PathContains { get; init; }
 }

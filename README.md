@@ -40,7 +40,7 @@ dotnet run --project src/Analyzer -- serve --db graph.db                      # 
 claude mcp add unity-ariadne -- dotnet run --project <このリポジトリ>/src/Analyzer -- serve --db <graph.dbのパス>
 ```
 
-ツールは7つあります(`find_references` / `impact_analysis` / `get_neighbors` / `search_nodes` / `list_unresolved` / `describe_ontology` / `traverse`)。アセットの種類(Scene / Prefab / Script …)と参照の種類(`uses_script` / `inherits` …)で絞った型付きの経路検索もできます。アセット名はプロジェクト相対パス・(一意な)ファイル名・GUIDのいずれでも指定できます。ツール呼び出しごとにDBを読み直すため、`analyze` でグラフを作り直せばサーバー再起動なしで反映されます。詳細は [docs/manual/mcp-server.md](docs/manual/mcp-server.md) をご覧ください。
+ツールは9つあります(`find_references` / `impact_analysis` / `get_neighbors` / `search_nodes` / `list_unresolved` / `describe_ontology` / `traverse` / `search_keywords` / `list_folders`)。アセットの種類(Scene / Prefab / Script …)と参照の種類(`uses_script` / `inherits` …)で絞った型付きの経路検索や、ファイル名・フォルダー名・C# の XML ドキュメントコメントを手がかりにしたキーワード検索もできます。アセット名はプロジェクト相対パス・(一意な)ファイル名・GUIDのいずれでも指定できます。ツール呼び出しごとにDBを読み直すため、`analyze` でグラフを作り直せばサーバー再起動なしで反映されます。詳細は [docs/manual/mcp-server.md](docs/manual/mcp-server.md) をご覧ください。
 
 ## ドキュメント
 

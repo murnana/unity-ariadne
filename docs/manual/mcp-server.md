@@ -76,6 +76,36 @@ search_nodes(query = "", type = null, source = null, unreferenced = false, limit
 
 `limit` は 1–100 にクランプされます。`_` や `%` は検索文字列としてそのまま扱われます(LIKE ワイルドカードとして解釈されません)。
 
+### search_keywords — 名前・フォルダー・ドキュメントコメントでのキーワード検索
+
+```
+search_keywords(keywords, type = null, source = null, match_all = false, limit = 20)
+```
+
+アセットを名指し・説明しているあらゆる手がかりからキーワードで探します。各キーワードは大文字小文字無視の部分一致で、空白を含むキーワードは分割されます。
+
+| 手がかり | 重み | `clues` の表記 |
+|---|---|---|
+| ファイル名 | 4 | `enemy → file name: Enemy.cs` |
+| C# で宣言された型の名前 | 3 | `boss → class: Game.Boss` |
+| パス上のフォルダー名 | 2 | `enemies → folder: Enemies` |
+| XML ドキュメントコメント付きメンバーの名前 | 2 | `damage → method: Game.Enemy.TakeDamage` |
+| XML ドキュメントコメントの本文(`<summary>` / `<remarks>`) | 1 | `怒り → doc of Game.Boss.Enrage` |
+
+キーワードごとに最も強い手がかり 1 つだけを数え、**当たったキーワードの数 → 重みの合計 → パスの短さ**の順に並べます。`match_all: true` で全キーワードに当たったものだけに絞ります。`type` / `source` は `search_nodes` と同じです。
+
+返り値: `total_matches`、`matches[]`(`name` / `type` / `source` / `matched_keywords` / `score` / `clues` / `declares`(スクリプトが宣言している型、最大 3 件)/ `doc`(キーワードに当たったドキュメントコメントの抜粋))。ドキュメントコメントは日本語でも検索できます。
+
+型名やドキュメントコメントは `analyze` が C# から抜き出して `code_symbols` テーブルに入れたものです([schema.md](schema.md))。古い ariadne で作った DB にはこの情報が無いため、ファイル名とフォルダー名だけで検索し、`warning` で作り直しを促します。
+
+### list_folders — フォルダー構成の一覧
+
+```
+list_folders(path = "Assets", depth = 1)
+```
+
+`path` の下のフォルダーを `depth` 階層(1–4)まで列挙し、それぞれに含まれる(サブフォルダーを含む)アセット数と、多い種類の上位 6 件を返します。`path` を空にすると最上位(`Assets` / `Packages` / `ProjectSettings` …)です。フォルダー名からプロジェクトの整理の仕方(`Characters/Enemies`、`UI`、`Levels` …)を読み取り、`traverse` の `path_contains` に使うための道具です。
+
 ### describe_ontology — 語彙(種類と関係)の一覧
 
 ```
@@ -94,10 +124,10 @@ describe_ontology()
 ### traverse — 型付き経路クエリ
 
 ```
-traverse(steps, start = null, start_type = null)
+traverse(steps, start = null, start_type = null, start_path_contains = null)
 ```
 
-`start`(アセット 1 つ。名前の指定方法は他のツールと同じ)か `start_type`(その種類の全アセット)のどちらか一方から出発し、`steps` を順に適用します。最後のステップのあとに残ったアセットが結果です。
+`start`(アセット 1 つ。名前の指定方法は他のツールと同じ)か `start_type`(その種類の全アセット。`start_path_contains` を付けると、パスにそのいずれかを含むものだけ)のどちらか一方から出発し、`steps` を順に適用します。最後のステップのあとに残ったアセットが結果です。
 
 各ステップ:
 
@@ -108,6 +138,7 @@ traverse(steps, start = null, start_type = null)
 | `types` | このステップの終点に許すアセットの種類の配列。省略すると任意。複数ホップの途中のアセットは種類を問いません |
 | `max_hops` | 最大ホップ数(既定 1、1–10 にクランプ)。`inherits` のクラス階層や `prefab_instance` の入れ子のような推移的な関係に使います |
 | `include_self` | ステップの出発点そのもの(0 ホップ)も、種類が合えば結果に残します(「そのクラスと全サブクラス」など) |
+| `path_contains` | このステップの終点を、パスにいずれかの文字列を含むアセットに絞ります(大文字小文字無視)。フォルダー名・ファイル名の手がかりに使います(例: `["/UI/"]`) |
 
 返り値: `start`、`start_count`(`start_type` のとき)、`total_matches`、`matches[]`(`name` / `type` / `source` / `path`)。`path` は出発点からの根拠の経路を 1 本だけ示します(幅優先なので、各ステップで最短のもの)。`A -[kind]-> B` は A が B を参照、`A <-[kind]- B` は B が A を参照、の意味です。
 
@@ -152,6 +183,9 @@ list_unresolved()
 | このクラスかそのサブクラスが付いたプレハブは? | `traverse`(`inherits` を `in` に 10 ホップ → `uses_script` を `in` に 1 ホップ、終点 `Prefab`) |
 | このマテリアルが最終的に入っているシーンは? | `traverse`(`in` に数ホップ、終点 `Scene`) |
 | このプロジェクトにどんな種類・関係があるか | `describe_ontology` |
+| 「ボス」に関係するスクリプトやアセットは? | `search_keywords`(`["boss", "ボス"]`) |
+| このプロジェクトのフォルダー構成は? | `list_folders` |
+| UI フォルダーのプレハブが使っているスクリプトは? | `traverse`(`start_type: "Prefab"`, `start_path_contains: ["/UI/"]` → `uses_script` を `out`) |
 | プロジェクトの参照切れを棚卸ししたい | `list_unresolved` |
 
 [効果測定](../development/benchmark.md)では、逆依存を問うタスク(影響範囲調査・未使用アセット探し)でグラフが特に効く(トークン 79〜88% 削減)ことがわかっています。コードシンボルの検索は grep のほうが速く、グラフの価値は grep の効かない GUID 参照層にあります。

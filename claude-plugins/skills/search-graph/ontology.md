@@ -55,6 +55,20 @@
 
 上位の概念(「描画系のアセット」など)で絞りたいときは、`types` にこの表の複数のクラスを並べます(例: `types: ["Shader", "ShaderGraph"]`)。
 
+## 名前と意味の手がかり
+
+グラフのノードには、型と関係のほかに次の手がかりが付いています。`search_keywords` はこれらをまとめて検索します。
+
+| 手がかり | どこから | 強さ(`search_keywords` の重み) |
+|---|---|---|
+| ファイル名 | アセットのパス | 4 |
+| 宣言された型の名前(class / struct / interface / enum / record / delegate) | C# スクリプトの中身 | 3 |
+| フォルダー名 | アセットのパス | 2 |
+| XML ドキュメントコメント付きメンバーの名前(method / property / field / event / enum_member …) | C# スクリプトの中身 | 2 |
+| XML ドキュメントコメントの本文(`<summary>` / `<remarks>`) | C# スクリプトの中身 | 1 |
+
+型は宣言されていれば必ず記録されますが、メンバーはドキュメントコメントがあるものだけです。`<see cref="Spawner"/>` のような参照は `Spawner` という語として本文に残るので、コメント中で言及されている型名でも検索できます。
+
 ## 出どころ(source)
 
 `Assets`(プロジェクト自身)/ `Packages`(埋め込みパッケージ)/ `PackageCache`(取得したパッケージ)/ `ProjectSettings` / `BuiltIn`(Unity 組み込みリソース)/ `Unresolved`(参照切れ。結果では `dangling: true`)。`search_nodes` の `source` で絞れます。

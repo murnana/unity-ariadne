@@ -20,8 +20,8 @@ public sealed class McpServerTests : IAsyncLifetime
 {
     private static readonly string[] ExpectedToolNames =
     [
-        "describe_ontology", "find_references", "get_neighbors", "impact_analysis", "list_unresolved",
-        "search_nodes", "traverse",
+        "describe_ontology", "find_references", "get_neighbors", "impact_analysis", "list_folders",
+        "list_unresolved", "search_keywords", "search_nodes", "traverse",
     ];
 
     private readonly string _dbPath =
@@ -220,6 +220,36 @@ public sealed class McpServerTests : IAsyncLifetime
         var good = new object[] { new Dictionary<string, object?> { ["direction"] = "in" } };
         var noStart = await CallAsync("traverse", new() { ["steps"] = good });
         Assert.Equal("invalid_start", noStart.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task SearchKeywordsAndListFoldersRoundTripOverMcp()
+    {
+        var search = await CallAsync("search_keywords", new() { ["keywords"] = new[] { "materials" } });
+        var match = Assert.Single(search.GetProperty("matches").EnumerateArray());
+        Assert.Equal("Assets/Materials/Sky.mat", match.GetProperty("name").GetString());
+        Assert.Equal("materials → folder: Materials", match.GetProperty("clues")[0].GetString());
+
+        var folders = await CallAsync("list_folders", new());
+        Assert.Equal(
+            ["Assets/Materials", "Assets/Prefabs", "Assets/Scenes"],
+            folders.GetProperty("folders").EnumerateArray().Select(f => f.GetProperty("path").GetString()));
+    }
+
+    [Fact]
+    public async Task TraverseFiltersByPathOverMcp()
+    {
+        var steps = new object[]
+        {
+            new Dictionary<string, object?> { ["direction"] = "out", ["path_contains"] = new[] { "/Materials/" } },
+        };
+        var result = await CallAsync("traverse", new()
+        {
+            ["start_type"] = "Prefab", ["start_path_contains"] = new[] { "hero" }, ["steps"] = steps,
+        });
+        Assert.Equal(1, result.GetProperty("start_count").GetInt32());
+        Assert.Equal("Assets/Materials/Sky.mat",
+            Assert.Single(result.GetProperty("matches").EnumerateArray()).GetProperty("name").GetString());
     }
 
     private async Task<JsonElement> CallAsync(string tool, Dictionary<string, object?> arguments)

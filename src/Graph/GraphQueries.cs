@@ -68,7 +68,9 @@ public enum TraversalDirection
 /// restricted to <paramref name="Kinds"/> (null/empty = any kind), for 1 to
 /// <paramref name="MaxHops"/> hops; only assets whose type is in <paramref name="Types"/>
 /// (null/empty = any type) end the step. Intermediate assets of a multi-hop step are not
-/// type-checked. <paramref name="IncludeSelf"/> also keeps the step's starting assets
+/// type-checked. <paramref name="PathContains"/> further restricts the step's end assets to
+/// paths containing any of the given substrings (case-insensitive) — folder or file-name clues.
+/// <paramref name="IncludeSelf"/> also keeps the step's starting assets
 /// (zero hops) when they match <paramref name="Types"/> — e.g. "the class and all its subclasses".
 /// </summary>
 public sealed record TraversalStep(
@@ -76,7 +78,19 @@ public sealed record TraversalStep(
     IReadOnlyCollection<string>? Kinds = null,
     IReadOnlyCollection<string>? Types = null,
     int MaxHops = 1,
-    bool IncludeSelf = false);
+    bool IncludeSelf = false,
+    IReadOnlyCollection<string>? PathContains = null);
+
+/// <summary>
+/// An asset found by keyword search. <paramref name="Clues"/> says where each keyword hit
+/// (file name, folder, type name, member name, doc comment), best hit per keyword.
+/// </summary>
+public sealed record KeywordMatch(
+    AssetNode Asset, int MatchedKeywords, int Score, IReadOnlyList<string> Clues,
+    IReadOnlyList<string> DeclaredTypes, string? DocSnippet);
+
+/// <summary>A folder under the listed root, with how many assets of which types it holds (recursively).</summary>
+public sealed record FolderSummary(string Path, long AssetCount, IReadOnlyDictionary<string, long> ByType);
 
 /// <summary>One hop of a witness path: the edge kind, its direction, and the asset reached.</summary>
 public sealed record PathHop(string RefKind, TraversalDirection Direction, string Asset);
@@ -358,6 +372,7 @@ public static class GraphQueries
         {
             var kinds = ToSet(step.Kinds);
             var types = ToSet(step.Types);
+            var pathParts = step.PathContains?.Where(p => p.Length > 0).ToList();
             var maxHops = Math.Clamp(step.MaxHops, 1, 10);
             var next = new Dictionary<string, (string Start, List<PathHop> Path)>(StringComparer.Ordinal);
 
@@ -365,7 +380,7 @@ public static class GraphQueries
             {
                 foreach (var (guid, witness) in current)
                 {
-                    if (TypeMatches(assets[guid], types))
+                    if (EndMatches(assets[guid], types, pathParts))
                     {
                         next.TryAdd(guid, witness);
                     }
@@ -398,7 +413,7 @@ public static class GraphQueries
                             discovered.Add(neighbor);
                         }
 
-                        if (TypeMatches(assets[neighbor], types))
+                        if (EndMatches(assets[neighbor], types, pathParts))
                         {
                             next.TryAdd(neighbor, reached);
                         }
@@ -445,8 +460,11 @@ public static class GraphQueries
                 ? null
                 : new HashSet<string>(values, StringComparer.OrdinalIgnoreCase);
 
-        static bool TypeMatches(AssetNode asset, HashSet<string>? types) =>
-            types is null || types.Contains(asset.AssetType);
+        static bool EndMatches(AssetNode asset, HashSet<string>? types, List<string>? pathParts) =>
+            (types is null || types.Contains(asset.AssetType))
+            && (pathParts is null || pathParts.Count == 0
+                || (asset.Path is not null
+                    && pathParts.Any(p => asset.Path.Contains(p, StringComparison.OrdinalIgnoreCase))));
     }
 
     /// <summary>
@@ -488,20 +506,244 @@ public static class GraphQueries
         return results;
     }
 
-    /// <summary>GUIDs of every asset of the given type (case-insensitive).</summary>
-    public static IReadOnlyList<string> AssetGuidsOfType(GraphDatabase db, string assetType)
+    /// <summary>
+    /// GUIDs of every asset of the given type (case-insensitive), optionally only those
+    /// whose path contains any of <paramref name="pathContains"/> (case-insensitive).
+    /// </summary>
+    public static IReadOnlyList<string> AssetGuidsOfType(
+        GraphDatabase db, string assetType, IReadOnlyCollection<string>? pathContains = null)
     {
+        var parts = pathContains?.Where(p => p.Length > 0).ToList() ?? [];
         var results = new List<string>();
         using var command = db.Connection.CreateCommand();
-        command.CommandText = "SELECT guid FROM assets WHERE asset_type = $type COLLATE NOCASE";
+        command.CommandText = "SELECT guid, path FROM assets WHERE asset_type = $type COLLATE NOCASE";
         command.Parameters.AddWithValue("$type", assetType);
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
-            results.Add(reader.GetString(0));
+            var path = reader.IsDBNull(1) ? null : reader.GetString(1);
+            if (parts.Count == 0
+                || (path is not null && parts.Any(p => path.Contains(p, StringComparison.OrdinalIgnoreCase))))
+            {
+                results.Add(reader.GetString(0));
+            }
         }
 
         return results;
+    }
+
+    private const int FileNameWeight = 4;
+    private const int TypeNameWeight = 3;
+    private const int FolderWeight = 2;
+    private const int MemberNameWeight = 2;
+    private const int DocWeight = 1;
+    private const int DocSnippetRadius = 60;
+
+    private static readonly HashSet<string> TypeSymbolKinds = new(StringComparer.Ordinal)
+    {
+        "class", "struct", "interface", "enum", "record", "delegate", "type",
+    };
+
+    /// <summary>
+    /// Keyword search over everything that names or describes an asset: its file name,
+    /// the folders on its path, and — for scripts — declared type names, documented member
+    /// names and XML doc comment text (code_symbols). Each keyword is a case-insensitive
+    /// substring and counts once, at its strongest hit (file name 4, type name 3, folder 2,
+    /// member name 2, doc comment 1). Ranked by number of keywords hit, then score, then
+    /// shorter path. <paramref name="matchAll"/> keeps only assets hitting every keyword.
+    /// </summary>
+    public static IReadOnlyList<KeywordMatch> SearchByKeywords(
+        GraphDatabase db, IReadOnlyList<string> keywords, string? assetType, string? source, bool matchAll)
+    {
+        var terms = keywords
+            .SelectMany(k => k.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (terms.Count == 0)
+        {
+            return [];
+        }
+
+        var symbols = new Dictionary<string, List<(string Symbol, string Kind, string? Doc)>>(StringComparer.Ordinal);
+        if (db.HasCodeSymbols)
+        {
+            using var command = db.Connection.CreateCommand();
+            command.CommandText =
+                """
+                SELECT a.guid, s.symbol, s.kind, s.doc FROM code_symbols s
+                JOIN assets a ON a.id = s.asset_id
+                ORDER BY s.rowid
+                """;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var guid = reader.GetString(0);
+                if (!symbols.TryGetValue(guid, out var list))
+                {
+                    symbols[guid] = list = [];
+                }
+
+                list.Add((reader.GetString(1), reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetString(3)));
+            }
+        }
+
+        var results = new List<KeywordMatch>();
+        using (var command = db.Connection.CreateCommand())
+        {
+            command.CommandText =
+                """
+                SELECT guid, path, asset_type, source FROM assets
+                WHERE path IS NOT NULL
+                  AND ($type IS NULL OR asset_type = $type COLLATE NOCASE)
+                  AND ($source IS NULL OR source = $source COLLATE NOCASE)
+                """;
+            command.Parameters.AddWithValue("$type", (object?)assetType ?? DBNull.Value);
+            command.Parameters.AddWithValue("$source", (object?)source ?? DBNull.Value);
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var asset = ReadAssetNode(reader);
+                symbols.TryGetValue(asset.Guid, out var assetSymbols);
+                var match = MatchKeywords(asset, assetSymbols ?? [], terms);
+                if (match is not null && (!matchAll || match.MatchedKeywords == terms.Count))
+                {
+                    results.Add(match);
+                }
+            }
+        }
+
+        return results
+            .OrderByDescending(m => m.MatchedKeywords)
+            .ThenByDescending(m => m.Score)
+            .ThenBy(m => m.Asset.Name.Length)
+            .ThenBy(m => m.Asset.Name, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static KeywordMatch? MatchKeywords(
+        AssetNode asset, List<(string Symbol, string Kind, string? Doc)> symbols, List<string> terms)
+    {
+        var path = asset.Path!;
+        var slash = path.LastIndexOf('/');
+        var fileName = path[(slash + 1)..];
+        var folders = slash < 0 ? [] : path[..slash].Split('/');
+
+        var clues = new List<string>();
+        var matched = 0;
+        var score = 0;
+        string? snippet = null;
+        foreach (var term in terms)
+        {
+            var (weight, clue) = (0, "");
+            if (Has(fileName, term))
+            {
+                (weight, clue) = (FileNameWeight, $"file name: {fileName}");
+            }
+
+            foreach (var (symbol, kind, doc) in symbols)
+            {
+                var name = symbol[(symbol.LastIndexOf('.') + 1)..];
+                var isType = TypeSymbolKinds.Contains(kind);
+                if (isType && weight < TypeNameWeight && Has(name, term))
+                {
+                    (weight, clue) = (TypeNameWeight, $"{kind}: {symbol}");
+                }
+                else if (!isType && weight < MemberNameWeight && Has(name, term))
+                {
+                    (weight, clue) = (MemberNameWeight, $"{kind}: {symbol}");
+                }
+                else if (doc is not null && weight < DocWeight && Has(doc, term))
+                {
+                    (weight, clue) = (DocWeight, $"doc of {symbol}");
+                }
+
+                if (doc is not null && snippet is null && Has(doc, term))
+                {
+                    snippet = $"{symbol}: {Excerpt(doc, term)}";
+                }
+            }
+
+            if (weight < FolderWeight && folders.FirstOrDefault(f => Has(f, term)) is { } folder)
+            {
+                (weight, clue) = (FolderWeight, $"folder: {folder}");
+            }
+
+            if (weight > 0)
+            {
+                matched++;
+                score += weight;
+                clues.Add($"{term} → {clue}");
+            }
+        }
+
+        if (matched == 0)
+        {
+            return null;
+        }
+
+        var declared = symbols.Where(s => TypeSymbolKinds.Contains(s.Kind)).Select(s => s.Symbol).Take(3).ToList();
+        return new KeywordMatch(asset, matched, score, clues, declared, snippet);
+
+        static bool Has(string text, string term) => text.Contains(term, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string Excerpt(string doc, string term)
+    {
+        var index = doc.IndexOf(term, StringComparison.OrdinalIgnoreCase);
+        var start = Math.Max(0, index - DocSnippetRadius);
+        var end = Math.Min(doc.Length, index + term.Length + DocSnippetRadius);
+        return (start > 0 ? "…" : "") + doc[start..end] + (end < doc.Length ? "…" : "");
+    }
+
+    /// <summary>
+    /// The folder taxonomy under <paramref name="root"/> ("" = the top level: Assets,
+    /// Packages, ProjectSettings, …): every folder <paramref name="depth"/> levels down,
+    /// with the number of (non-folder) assets below it and their counts per type.
+    /// </summary>
+    public static IReadOnlyList<FolderSummary> ListFolders(GraphDatabase db, string root, int depth)
+    {
+        var prefix = root.Trim('/');
+        var groups = new SortedDictionary<string, Dictionary<string, long>>(StringComparer.Ordinal);
+        using var command = db.Connection.CreateCommand();
+        command.CommandText = "SELECT path, asset_type FROM assets WHERE path IS NOT NULL AND asset_type <> 'Folder'";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var path = reader.GetString(0);
+            string rest;
+            if (prefix.Length == 0)
+            {
+                rest = path;
+            }
+            else if (path.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                rest = path[(prefix.Length + 1)..];
+            }
+            else
+            {
+                continue;
+            }
+
+            var segments = rest.Split('/');
+            if (segments.Length < 2)
+            {
+                continue; // a file directly in root, not inside a sub-folder
+            }
+
+            var folder = string.Join("/", segments.Take(Math.Min(depth, segments.Length - 1)));
+            var key = prefix.Length == 0 ? folder : $"{path[..prefix.Length]}/{folder}";
+            if (!groups.TryGetValue(key, out var byType))
+            {
+                groups[key] = byType = new Dictionary<string, long>(StringComparer.Ordinal);
+            }
+
+            var type = reader.GetString(1);
+            byType[type] = byType.GetValueOrDefault(type) + 1;
+        }
+
+        return groups
+            .Select(g => new FolderSummary(g.Key, g.Value.Values.Sum(), g.Value))
+            .ToList();
     }
 
     private static (Dictionary<string, AssetNode> Assets, List<(string From, string To, string Kind)> Edges)

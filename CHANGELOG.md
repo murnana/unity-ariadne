@@ -11,6 +11,8 @@
 
 - グラフをオントロジー(クラス = アセットの種類、関係 = 参照の種類)として検索する `search-graph` スキル(`/unity-ariadne:search-graph`)を追加した。「`Enemy.cs` かそのサブクラスが付いたプレハブ」「このマテリアルが最終的に入っているシーン」のような、型と関係の連鎖で絞る質問に、根拠の参照経路つきで答える。
 - MCP ツール `describe_ontology`(プロジェクトに実在するアセットの種類と参照の種類、参照の種類ごとの `From型->To型` の組み合わせ)と `traverse`(参照の種類・向き・ホップ数・終点の種類を指定した型付き経路クエリ)を追加した。
+- ファイル名・フォルダー名・C# の XML ドキュメントコメントを手がかりにする MCP ツール `search_keywords`(どの手がかりに当たったかつきのキーワード検索。日本語のコメントも検索できる)と `list_folders`(フォルダー構成と種類別のアセット数)を追加し、`traverse` に `path_contains` / `start_path_contains` でのパス絞り込みを追加した。`search-graph` スキルもこれらを手がかりに使う。
+- `analyze` が C# の型宣言と、XML ドキュメントコメント(`<summary>` / `<remarks>`)付きのメンバーを新しい `code_symbols` テーブルに記録するようにした。memory.jsonl ではスクリプトのエンティティに `declares class X: <要約>` の observation として出力する。**スキーマを v3 に上げたため、既存の `graph.db` は次の `analyze` でフル再構築される。**
 - MCP ツール `search_nodes` に、アセットの種類(`type`)・出どころ(`source`)での絞り込みと、どこからも参照されていないアセットだけを返す `unreferenced` を追加した。`query` は省略できるようになった。
 
 ## [0.2.0] - 2026-11-14
