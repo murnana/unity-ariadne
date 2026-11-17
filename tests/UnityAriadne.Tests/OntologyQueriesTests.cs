@@ -173,14 +173,14 @@ public class OntologyQueriesTests : IDisposable
         // "怒り" only occurs in a member doc comment of Boss.cs.
         var byDoc = Assert.Single(GraphQueries.SearchByKeywords(_db, ["怒り"], null, null, matchAll: false));
         Assert.Equal("Assets/Scripts/Boss.cs", byDoc.Asset.Name);
-        Assert.Equal(["怒り → doc of Game.Boss.Enrage"], byDoc.Clues);
+        Assert.Equal(["怒り → doc of Game.Boss.Enrage"], byDoc.Clues.Select(c => c.ToString()));
         Assert.Equal("Game.Boss.Enrage: 体力が半分を切ったら怒り状態に移る", byDoc.DocSnippet);
         Assert.Equal(["Game.Boss"], byDoc.DeclaredTypes);
 
         // A folder name is a clue: every prefab under Prefabs/, ranked shortest path first.
         var byFolder = GraphQueries.SearchByKeywords(_db, ["prefabs"], "Prefab", null, matchAll: false);
         Assert.Equal(3, byFolder.Count);
-        Assert.All(byFolder, m => Assert.Equal(["prefabs → folder: Prefabs"], m.Clues));
+        Assert.All(byFolder, m => Assert.Equal(["prefabs → folder: Prefabs"], m.Clues.Select(c => c.ToString())));
 
         // A whitespace-separated keyword is split; file-name hits outrank a member-name hit.
         var ranked = GraphQueries.SearchByKeywords(_db, ["boss damage"], null, null, matchAll: false);
@@ -188,11 +188,11 @@ public class OntologyQueriesTests : IDisposable
             ["Assets/Scripts/Boss.cs", "Assets/Materials/Boss.mat", "Assets/Prefabs/Boss.prefab",
              "Assets/Scripts/FinalBoss.cs", "Assets/Scripts/Enemy.cs"],
             ranked.Select(m => m.Asset.Name));
-        Assert.Equal(["damage → method: Game.Enemy.TakeDamage"], ranked[^1].Clues);
+        Assert.Equal(["damage → method: Game.Enemy.TakeDamage"], ranked[^1].Clues.Select(c => c.ToString()));
 
         var both = GraphQueries.SearchByKeywords(_db, ["敵", "enemy"], null, null, matchAll: true);
         var enemy = Assert.Single(both);
-        Assert.Equal(["敵 → doc of Game.Enemy", "enemy → file name: Enemy.cs"], enemy.Clues);
+        Assert.Equal(["敵 → doc of Game.Enemy", "enemy → file name: Enemy.cs"], enemy.Clues.Select(c => c.ToString()));
         Assert.Empty(GraphQueries.SearchByKeywords(_db, ["  "], null, null, matchAll: false));
     }
 
@@ -241,7 +241,7 @@ public class OntologyQueriesTests : IDisposable
 
         Assert.False(db.HasCodeSymbols);
         var match = Assert.Single(GraphQueries.SearchByKeywords(db, ["enemies"], null, null, matchAll: false));
-        Assert.Equal(["enemies → folder: Enemies"], match.Clues);
+        Assert.Equal(["enemies → folder: Enemies"], match.Clues.Select(c => c.ToString()));
         Assert.Single(MemoryJsonlExporterTests.Export(db, new ExportOptions()).Lines);
     }
 }

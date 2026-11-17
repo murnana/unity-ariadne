@@ -86,8 +86,38 @@ public sealed record TraversalStep(
 /// (file name, folder, type name, member name, doc comment), best hit per keyword.
 /// </summary>
 public sealed record KeywordMatch(
-    AssetNode Asset, int MatchedKeywords, int Score, IReadOnlyList<string> Clues,
+    AssetNode Asset, int MatchedKeywords, int Score, IReadOnlyList<KeywordClue> Clues,
     IReadOnlyList<string> DeclaredTypes, string? DocSnippet);
+
+/// <summary>Where a keyword hit an asset.</summary>
+public enum ClueKind
+{
+    FileName,
+    TypeName,
+    Folder,
+    MemberName,
+    DocComment,
+}
+
+/// <summary>
+/// One keyword hit: the keyword, where it hit, and what it hit — the file name, the folder
+/// name, or the symbol (with its <paramref name="SymbolKind"/>: class, method, ...).
+/// </summary>
+public sealed record KeywordClue(string Term, ClueKind Kind, string Target, string? SymbolKind = null)
+{
+    public string Render(Lang lang) => Kind switch
+    {
+        ClueKind.FileName => $"{Term} → {lang.Pick("file name", "ファイル名")}: {Target}",
+        ClueKind.Folder => $"{Term} → {lang.Pick("folder", "フォルダー")}: {Target}",
+        ClueKind.TypeName or ClueKind.MemberName => lang == Lang.Ja
+            ? $"{Term} → {(Kind == ClueKind.TypeName ? "型名" : "メンバー名")} ({SymbolKind}): {Target}"
+            : $"{Term} → {SymbolKind}: {Target}",
+        _ => lang == Lang.Ja ? $"{Term} → {Target} のドキュメントコメント" : $"{Term} → doc of {Target}",
+    };
+
+    /// <summary>The English rendering.</summary>
+    public override string ToString() => Render(Lang.En);
+}
 
 /// <summary>A folder under the listed root, with how many assets of which types it holds (recursively).</summary>
 public sealed record FolderSummary(string Path, long AssetCount, IReadOnlyDictionary<string, long> ByType);
@@ -482,11 +512,11 @@ public static class GraphQueries
         return guids;
     }
 
-    /// <summary>True when no parts are given, or the asset's path contains any of them (case-insensitive).</summary>
+    /// <summary>True when no parts are given, or the asset's path contains any of them (folded, see <see cref="TextMatch"/>).</summary>
     internal static bool PathMatches(AssetNode asset, IReadOnlyCollection<string>? parts) =>
         parts is null || parts.Count == 0
         || (asset.Path is not null
-            && parts.Any(p => p.Length > 0 && asset.Path.Contains(p, StringComparison.OrdinalIgnoreCase)));
+            && parts.Any(p => p.Length > 0 && TextMatch.Contains(asset.Path, p)));
 
     /// <summary>
     /// Typed node search: assets of the given type and/or source whose path contains
@@ -545,7 +575,7 @@ public static class GraphQueries
         {
             var path = reader.IsDBNull(1) ? null : reader.GetString(1);
             if (parts.Count == 0
-                || (path is not null && parts.Any(p => path.Contains(p, StringComparison.OrdinalIgnoreCase))))
+                || (path is not null && parts.Any(p => TextMatch.Contains(path, p))))
             {
                 results.Add(reader.GetString(0));
             }
@@ -682,51 +712,67 @@ public static class GraphQueries
         var fileName = path[(slash + 1)..];
         var folders = slash < 0 ? [] : path[..slash].Split('/');
 
-        var clues = new List<string>();
+        // Fold every searchable text once per asset (TextMatch: width, case, kana).
+        var foldedFileName = TextMatch.Fold(fileName);
+        var foldedFolders = folders.Select(TextMatch.Fold).ToList();
+        var foldedSymbols = symbols
+            .Select(s => (Name: TextMatch.Fold(s.Symbol[(s.Symbol.LastIndexOf('.') + 1)..]),
+                Doc: s.Doc is null ? null : TextMatch.Fold(s.Doc)))
+            .ToList();
+
+        var clues = new List<KeywordClue>();
         var matched = 0;
         var score = 0;
         string? snippet = null;
         foreach (var term in terms)
         {
-            var (weight, clue) = (0, "");
-            if (Has(fileName, term))
+            var foldedTerm = TextMatch.Fold(term);
+            var weight = 0;
+            KeywordClue? clue = null;
+            if (TextMatch.IndexOf(foldedFileName, foldedTerm) >= 0)
             {
-                (weight, clue) = (FileNameWeight, $"file name: {fileName}");
+                (weight, clue) = (FileNameWeight, new KeywordClue(term, ClueKind.FileName, fileName));
             }
 
-            foreach (var (symbol, kind, doc) in symbols)
+            for (var i = 0; i < symbols.Count; i++)
             {
-                var name = symbol[(symbol.LastIndexOf('.') + 1)..];
+                var (symbol, kind, doc) = symbols[i];
+                var (name, foldedDoc) = foldedSymbols[i];
                 var isType = TypeSymbolKinds.Contains(kind);
-                if (isType && weight < TypeNameWeight && Has(name, term))
+                var docIndex = foldedDoc is null ? -1 : TextMatch.IndexOf(foldedDoc, foldedTerm);
+                if (isType && weight < TypeNameWeight && TextMatch.IndexOf(name, foldedTerm) >= 0)
                 {
-                    (weight, clue) = (TypeNameWeight, $"{kind}: {symbol}");
+                    (weight, clue) = (TypeNameWeight, new KeywordClue(term, ClueKind.TypeName, symbol, kind));
                 }
-                else if (!isType && weight < MemberNameWeight && Has(name, term))
+                else if (!isType && weight < MemberNameWeight && TextMatch.IndexOf(name, foldedTerm) >= 0)
                 {
-                    (weight, clue) = (MemberNameWeight, $"{kind}: {symbol}");
+                    (weight, clue) = (MemberNameWeight, new KeywordClue(term, ClueKind.MemberName, symbol, kind));
                 }
-                else if (doc is not null && weight < DocWeight && Has(doc, term))
+                else if (docIndex >= 0 && weight < DocWeight)
                 {
-                    (weight, clue) = (DocWeight, $"doc of {symbol}");
+                    (weight, clue) = (DocWeight, new KeywordClue(term, ClueKind.DocComment, symbol, kind));
                 }
 
-                if (doc is not null && snippet is null && Has(doc, term))
+                if (docIndex >= 0 && snippet is null)
                 {
-                    snippet = $"{symbol}: {Excerpt(doc, term)}";
+                    snippet = $"{symbol}: {Excerpt(TextMatch.Display(doc!), docIndex, foldedTerm.Length)}";
                 }
             }
 
-            if (weight < FolderWeight && folders.FirstOrDefault(f => Has(f, term)) is { } folder)
+            if (weight < FolderWeight)
             {
-                (weight, clue) = (FolderWeight, $"folder: {folder}");
+                var folderIndex = foldedFolders.FindIndex(f => TextMatch.IndexOf(f, foldedTerm) >= 0);
+                if (folderIndex >= 0)
+                {
+                    (weight, clue) = (FolderWeight, new KeywordClue(term, ClueKind.Folder, folders[folderIndex]));
+                }
             }
 
-            if (weight > 0)
+            if (clue is not null)
             {
                 matched++;
                 score += weight;
-                clues.Add($"{term} → {clue}");
+                clues.Add(clue);
             }
         }
 
@@ -737,20 +783,16 @@ public static class GraphQueries
 
         var declared = symbols.Where(s => TypeSymbolKinds.Contains(s.Kind)).Select(s => s.Symbol).Take(3).ToList();
         return new KeywordMatch(asset, matched, score, clues, declared, snippet);
-
-        // Substring match, plus the one English plural substring matching misses:
-        // "enemy" must find the folder "Enemies" ("boss" → "Bosses" already works).
-        static bool Has(string text, string term) =>
-            text.Contains(term, StringComparison.OrdinalIgnoreCase)
-            || (term.Length > 2 && term.EndsWith('y')
-                && text.Contains(term[..^1] + "ie", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string Excerpt(string doc, string term)
+    /// <summary>
+    /// The doc text around a hit. <paramref name="doc"/> is the NFKC (display) form, in which
+    /// <paramref name="index"/> (found in the folded form, same length) is valid.
+    /// </summary>
+    private static string Excerpt(string doc, int index, int length)
     {
-        var index = Math.Max(0, doc.IndexOf(term, StringComparison.OrdinalIgnoreCase));
         var start = Math.Max(0, index - DocSnippetRadius);
-        var end = Math.Min(doc.Length, index + term.Length + DocSnippetRadius);
+        var end = Math.Min(doc.Length, index + length + DocSnippetRadius);
         return (start > 0 ? "…" : "") + doc[start..end] + (end < doc.Length ? "…" : "");
     }
 

@@ -184,8 +184,14 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
                  "out (A -> B) and in (B <- A), whether chaining it is meaningful (transitive), its edge " +
                  "count and the 'FromType->ToType' signatures it actually connects. Use it to pick type " +
                  "and relation names for search.")]
-    public string DescribeOntology()
+    public string DescribeOntology(
+        [Description("Language of the relation meanings: en (default) or ja")] string? lang = null)
     {
+        if (!LangExtensions.TryParse(lang, out var language))
+        {
+            return Serialize(new { Error = "invalid_lang", Hint = $"Unknown lang '{lang}'. Use en or ja." });
+        }
+
         using var db = OpenDatabase();
         var ontology = GraphQueries.DescribeOntology(db);
         return Serialize(new
@@ -204,8 +210,8 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
                 {
                     Kind = r.RefKind,
                     Layer = Meaning(r.RefKind)?.Layer,
-                    Out = Meaning(r.RefKind)?.Out,
-                    In = Meaning(r.RefKind)?.In,
+                    Out = Meaning(r.RefKind)?.OutIn(language),
+                    In = Meaning(r.RefKind)?.InIn(language),
                     Transitive = Meaning(r.RefKind)?.Transitive,
                     r.Edges,
                     r.RefCount,
@@ -234,7 +240,8 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         "and 'relaxed' says how. Each match carries its evidence: 'path' ('A -[kind]-> B' = A references " +
         "B, 'A <-[kind]- B' = B references A), keyword 'clues' and 'doc' excerpt (as 'from_clues' / " +
         "'from_doc' when they belong to the start 'from' the path came from), 'declares' (C# types), and 'notes' on folder conventions (Editor/, Resources/, ...); " +
-        "'relations' explains every relation used in the paths. Example — prefabs using Enemy.cs or a " +
+        "'relations' explains every relation used in the paths. Keywords are matched ignoring case, " +
+        "full-width/half-width and hiragana/katakana differences; pass lang: ja for Japanese explanations. Example — prefabs using Enemy.cs or a " +
         "subclass: from {asset: \"Enemy.cs\"}, steps [{direction: in, kinds: [inherits], max_hops: 10, " +
         "include_self: true}, {direction: in, kinds: [uses_script], types: [Prefab]}].")]
     public string Search(
@@ -243,7 +250,9 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         SearchStep[]? steps = null,
         [Description("Keep only results that nothing references (unused-asset candidates)")] bool unreferenced = false,
         [Description("Maximum number of matches listed (default 20, max 200)")] int limit = GraphSearch.DefaultLimit,
-        [Description("Relax the steps automatically when nothing matches (default true)")] bool relax = true)
+        [Description("Relax the steps automatically when nothing matches (default true)")] bool relax = true,
+        [Description("Language of the explanations (relations, notes, clue labels, relaxed, warnings, hints): " +
+                     "en (default) or ja. Use ja when answering in Japanese")] string? lang = null)
     {
         using var db = OpenDatabase();
         return GraphSearch.RunJson(db, new SearchQuery
@@ -253,6 +262,7 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
             Unreferenced = unreferenced,
             Limit = limit,
             Relax = relax,
+            Lang = lang,
         });
     }
 

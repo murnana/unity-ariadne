@@ -155,4 +155,38 @@ public class GraphSearchTests : IDisposable
         var warned = Run("""{"from": {"asset": "Enemy.cs"}, "relax": false, "steps": [{"direction": "in", "kinds": ["inherit"]}]}""");
         Assert.Contains("'inherit'", warned.GetProperty("warnings")[0].GetString());
     }
+
+    [Theory]
+    [InlineData("ぼす")]        // hiragana for katakana ボス
+    [InlineData("ﾎﾞｽ")]        // half-width katakana
+    [InlineData("ＢＯＳＳ")]    // full-width Latin
+    public void KeywordsIgnoreKanaAndWidthDifferences(string keyword)
+    {
+        var result = Run("""{"from": {"keywords": [KEYWORD], "types": ["Script"]}}"""
+            .Replace("KEYWORD", JsonSerializer.Serialize(keyword)));
+        Assert.Equal(["Assets/Game/Scripts/Boss.cs"], Names(result));
+    }
+
+    [Fact]
+    public void JapaneseOutputLocalizesExplanationsButNotNames()
+    {
+        var result = Run("""
+            {"lang": "ja", "from": {"keywords": ["ボス"], "types": ["Script"]},
+             "steps": [{"direction": "in", "kinds": ["uses_script"], "types": ["Prefab"], "path_contains": ["/Nowhere/"]}]}
+            """);
+
+        var match = Assert.Single(result.GetProperty("matches").EnumerateArray());
+        Assert.Equal("Prefab", match.GetProperty("type").GetString());
+        Assert.Equal("ボス → Game.Boss のドキュメントコメント", match.GetProperty("from_clues")[0].GetString());
+        Assert.Contains("コンポーネント", result.GetProperty("relations").GetProperty("uses_script").GetString());
+        Assert.Equal(["ステップ: path_contains を外した"],
+            result.GetProperty("relaxed").EnumerateArray().Select(r => r.GetString()));
+
+        var notes = Run("""{"lang": "ja-JP", "from": {"types": ["Prefab"]}, "unreferenced": true}""");
+        Assert.StartsWith("Resources フォルダー", notes.GetProperty("matches")[0].GetProperty("notes")[0].GetString());
+
+        Assert.Equal("invalid_lang", Run("""{"lang": "fr", "from": {"types": ["Prefab"]}}""").GetProperty("error").GetString());
+        Assert.Contains("一致するアセットがありません",
+            Run("""{"lang": "ja", "from": {"asset": "Nope.cs"}}""").GetProperty("hint").GetString());
+    }
 }

@@ -79,7 +79,7 @@ search_nodes(query = "", type = null, source = null, unreferenced = false, limit
 ### search — オントロジー検索(種類・関係・名前・意味)
 
 ```
-search(from, steps = null, unreferenced = false, limit = 20, relax = true)
+search(from, steps = null, unreferenced = false, limit = 20, relax = true, lang = null)
 ```
 
 グラフを、ノードの型(アセットの種類)とエッジの型(参照の種類)を持つオントロジーとして検索します。**種類・関係の連鎖・場所・概念を組み合わせた質問は、このツール 1 回で答えられるように作ってあります。** 同じ機能を CLI の `ariadne search` でも使えます([cli.md](cli.md))。
@@ -113,7 +113,14 @@ search(from, steps = null, unreferenced = false, limit = 20, relax = true)
 | XML ドキュメントコメント付きメンバーの名前 | 2 | `damage → method: Game.Enemy.TakeDamage` |
 | XML ドキュメントコメントの本文(`<summary>` / `<remarks>`) | 1 | `怒り → doc of Game.Boss.Enrage` |
 
-英語の複数形 `-ies` は単数形の `-y` でも当たります(`enemy` → `Enemies`)。日本語のコメントもそのまま検索できます。型名とドキュメントコメントは `analyze` が `code_symbols` テーブルに記録したものです([schema.md](schema.md))。
+照合の前に、キーワードと照合先の両方の表記を揃えます。
+
+- **全角・半角**(Unicode の NFKC 正規化): `ＢＯＳＳ` = `BOSS`、`ﾎﾞｽ` = `ボス`、`①` = `1`
+- **大文字・小文字**
+- **ひらがな・カタカナ**: `ぼす` = `ボス`、`きゃらくたー` = `キャラクター`
+- **英語の複数形 `-ies`**: 単数形の `-y` でも当たります(`enemy` → `Enemies`)
+
+日本語のファイル名・フォルダー名・コメントもそのまま検索できます。ただし形態素解析はしないため、活用の違い(`攻撃した` と `攻撃する`)や同義語(`敵` と `エネミー`)は吸収しません。語幹(`攻撃`)を使うか、複数のキーワードを渡してください。`path_contains` も同じ規則で照合します。型名とドキュメントコメントは `analyze` が `code_symbols` テーブルに記録したものです([schema.md](schema.md))。
 
 `steps` の各要素:
 
@@ -152,6 +159,8 @@ search(from: {keywords: ["ボス", "boss"], types: ["Script"]},
     from_doc:   "Game.Boss: ボスの行動を制御する"
 ```
 
+`lang` に `ja` を指定すると(`ja-JP` なども可)、人が読む説明文 — `relations`、`notes`、`clues` / `from_clues` の見出し(`ファイル名` / `フォルダー` / `型名` / `メンバー名` / `… のドキュメントコメント`)、`relaxed`、`warnings`、エラーの `hint` — が日本語になります。フィールド名、アセット名、種類名(`Prefab` など)、関係名(`uses_script` など)、エラーコードは言語によらず英語のままです。既定は `en` で、それ以外の値は `invalid_lang` エラーです。
+
 エラー: `from` が無い(`invalid_query`)、`asset` と条件の両方または両方とも無い(`invalid_start`)、`direction` が不正(`invalid_direction`)、ステップが 9 個以上(`invalid_steps`)、`asset` が見つからない(`not_found`)、複数に当たる(`ambiguous`、`candidates` 付き)。いずれも `hint` が付きます。
 
 否定(「A だが B ではないもの」)は、A と B をそれぞれ検索して差を取ってください。Unity 組み込みコンポーネント単位の条件(「Light を持つプレハブ」)は扱えません([schema.md](schema.md) の `objects.class_id` を直接引いてください)。
@@ -167,7 +176,7 @@ list_folders(path = "Assets", depth = 1)
 ### describe_ontology — 語彙(種類と関係)の一覧
 
 ```
-describe_ontology()
+describe_ontology(lang = null)
 ```
 
 グラフの語彙を返します。種類と関係の件数・組み合わせは**そのプロジェクトに実在するもの**、意味は ariadne が持つ定義です。
@@ -175,7 +184,7 @@ describe_ontology()
 - `classes[]`: `type`(アセットの種類)、`category`(Placement / Code / Data / Rendering / Geometry / Animation / Effects / Audio/Video / UI / Physics/Lighting / Settings / Folder / Unresolved / Other)、`count`、`by_source`
 - `relations[]`: `kind`(ref_kind)、`layer`(`asset` / `code`)、`out`(`A -[kind]-> B` の読み方)、`in`(逆にたどると何が見つかるか)、`transitive`(`max_hops` で何段もたどる意味があるか)、`edges`、`ref_count`、`signatures`(`"Prefab->Script: 120"` のような、実際に結んでいる種類の組み合わせ。多い順に最大 12 件、残りは `more_signatures`)
 
-`search` の `types` / `kinds` に使う名前と、関係の向きを確かめるのに使います。
+`lang: "ja"` で `out` / `in` の説明が日本語になります。`search` の `types` / `kinds` に使う名前と、関係の向きを確かめるのに使います。
 
 ### list_unresolved — 参照切れ GUID 一覧
 

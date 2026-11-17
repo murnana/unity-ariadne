@@ -394,6 +394,7 @@ static int Search(string[] args)
     string? dbPath = null;
     string? queryText = null;
     string? queryFile = null;
+    string? lang = null;
 
     for (var i = 0; i < args.Length; i++)
     {
@@ -408,6 +409,9 @@ static int Search(string[] args)
             case "--query-file" when i + 1 < args.Length:
                 queryFile = args[++i];
                 break;
+            case "--lang" when i + 1 < args.Length:
+                lang = args[++i];
+                break;
             default:
                 Console.Error.WriteLine($"error: unexpected argument '{args[i]}'");
                 return 1;
@@ -416,7 +420,7 @@ static int Search(string[] args)
 
     if (dbPath is null || (queryText is null) == (queryFile is null))
     {
-        Console.Error.WriteLine("usage: search --db <path> (--query <json> | --query-file <path or ->)");
+        Console.Error.WriteLine("usage: search --db <path> (--query <json> | --query-file <path or ->) [--lang en|ja]");
         return 1;
     }
 
@@ -439,6 +443,11 @@ static int Search(string[] args)
     {
         Console.Error.WriteLine("error: the query is empty");
         return 1;
+    }
+
+    if (lang is not null)
+    {
+        query = query with { Lang = lang }; // --lang wins over the query's own "lang"
     }
 
     GraphDatabase db;
@@ -474,7 +483,7 @@ static int Usage()
           report --db <path>
           export --db <path> --jsonl <path> [--include-packages]
           serve --db <path>
-          search --db <path> (--query <json> | --query-file <path or ->)
+          search --db <path> (--query <json> | --query-file <path or ->) [--lang en|ja]
               (ontology search; same JSON query and answer as the MCP search tool)
         """);
     return 1;

@@ -251,6 +251,23 @@ public sealed class McpServerTests : IAsyncLifetime
             .Single(c => c.GetProperty("type").GetString() == "Scene").GetProperty("category").GetString());
     }
 
+    [Fact]
+    public async Task SearchAndDescribeOntologySpeakJapaneseOverMcp()
+    {
+        var result = await CallAsync("search", new()
+        {
+            ["from"] = new Dictionary<string, object?> { ["keywords"] = new[] { "ＨＥＲＯ" } },
+            ["lang"] = "ja",
+        });
+        Assert.Equal("ＨＥＲＯ → ファイル名: Hero.prefab",
+            Assert.Single(result.GetProperty("matches").EnumerateArray()).GetProperty("clues")[0].GetString());
+
+        var ontology = await CallAsync("describe_ontology", new() { ["lang"] = "ja" });
+        var generic = ontology.GetProperty("relations").EnumerateArray()
+            .Single(r => r.GetProperty("kind").GetString() == "generic");
+        Assert.Contains("シリアライズ", generic.GetProperty("out").GetString());
+    }
+
     private async Task<JsonElement> CallAsync(string tool, Dictionary<string, object?> arguments)
     {
         var result = await _client!.CallToolAsync(tool, arguments);
