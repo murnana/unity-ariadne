@@ -369,6 +369,9 @@ static async Task<int> Serve(string[] args)
             options.ServerInstructions =
                 "Asset-level dependency graph of a Unity project (built by unity-ariadne analyze). " +
                 "Names accept a project-relative path, a unique file name, or a GUID. " +
+                "Nodes are typed by asset type (Scene, Prefab, Script, Material, ...) and edges by ref kind " +
+                "(uses_script, prefab_instance, inherits, ...): describe_ontology lists both, traverse " +
+                "follows typed paths, search_nodes filters by type. " +
                 "Re-run analyze to refresh the graph; tools always read the current database file.";
         })
         .WithStdioServerTransport()

@@ -20,7 +20,8 @@ public sealed class McpServerTests : IAsyncLifetime
 {
     private static readonly string[] ExpectedToolNames =
     [
-        "find_references", "get_neighbors", "impact_analysis", "list_unresolved", "search_nodes",
+        "describe_ontology", "find_references", "get_neighbors", "impact_analysis", "list_unresolved",
+        "search_nodes", "traverse",
     ];
 
     private readonly string _dbPath =
@@ -88,7 +89,7 @@ public sealed class McpServerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ServerExposesTheFivePlannedTools()
+    public async Task ServerExposesThePlannedTools()
     {
         var tools = await _client!.ListToolsAsync();
         Assert.Equal(ExpectedToolNames, tools.Select(t => t.Name).Order(StringComparer.Ordinal));
@@ -144,6 +145,81 @@ public sealed class McpServerTests : IAsyncLifetime
         var result = await CallAsync("search_nodes", new() { ["query"] = "hero" });
         var match = Assert.Single(result.GetProperty("matches").EnumerateArray());
         Assert.Equal("Assets/Prefabs/Hero.prefab", match.GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task SearchNodesFiltersByTypeOverMcp()
+    {
+        var result = await CallAsync("search_nodes", new() { ["type"] = "material" });
+        var match = Assert.Single(result.GetProperty("matches").EnumerateArray());
+        Assert.Equal("Assets/Materials/Sky.mat", match.GetProperty("name").GetString());
+
+        var unreferenced = await CallAsync("search_nodes", new() { ["unreferenced"] = true, ["source"] = "Assets" });
+        Assert.Equal(
+            "Assets/Scenes/Main.unity",
+            Assert.Single(unreferenced.GetProperty("matches").EnumerateArray()).GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task DescribeOntologyRoundTripsOverMcp()
+    {
+        var result = await CallAsync("describe_ontology", new());
+
+        var prefab = result.GetProperty("classes").EnumerateArray()
+            .Single(c => c.GetProperty("type").GetString() == "Prefab");
+        Assert.Equal(1, prefab.GetProperty("count").GetInt32());
+        Assert.Equal(1, prefab.GetProperty("by_source").GetProperty("Assets").GetInt32());
+
+        var generic = result.GetProperty("relations").EnumerateArray()
+            .Single(r => r.GetProperty("kind").GetString() == "generic");
+        Assert.Equal(2, generic.GetProperty("edges").GetInt32());
+        Assert.Contains("Prefab->Material: 1",
+            generic.GetProperty("signatures").EnumerateArray().Select(s => s.GetString()));
+    }
+
+    [Fact]
+    public async Task TraverseRoundTripsOverMcp()
+    {
+        var steps = new object[]
+        {
+            new Dictionary<string, object?> { ["direction"] = "in", ["max_hops"] = 3, ["types"] = new[] { "Scene" } },
+        };
+        var result = await CallAsync("traverse", new() { ["start"] = "Sky.mat", ["steps"] = steps });
+
+        Assert.Equal("Assets/Materials/Sky.mat", result.GetProperty("start").GetString());
+        var match = Assert.Single(result.GetProperty("matches").EnumerateArray());
+        Assert.Equal("Assets/Scenes/Main.unity", match.GetProperty("name").GetString());
+        Assert.Equal(
+            "Assets/Materials/Sky.mat <-[generic]- Assets/Prefabs/Hero.prefab <-[prefab_instance]- Assets/Scenes/Main.unity",
+            match.GetProperty("path").GetString());
+        Assert.False(result.TryGetProperty("warnings", out _));
+    }
+
+    [Fact]
+    public async Task TraverseFromATypeWarnsAboutUnknownTerms()
+    {
+        var steps = new object[]
+        {
+            new Dictionary<string, object?> { ["direction"] = "out", ["kinds"] = new[] { "uses_scirpt" } },
+        };
+        var result = await CallAsync("traverse", new() { ["start_type"] = "Prefab", ["steps"] = steps });
+
+        Assert.Equal(1, result.GetProperty("start_count").GetInt32());
+        Assert.Equal(0, result.GetProperty("total_matches").GetInt32());
+        Assert.Contains("uses_scirpt",
+            Assert.Single(result.GetProperty("warnings").EnumerateArray()).GetString());
+    }
+
+    [Fact]
+    public async Task TraverseRejectsBadArguments()
+    {
+        var steps = new object[] { new Dictionary<string, object?> { ["direction"] = "sideways" } };
+        var badDirection = await CallAsync("traverse", new() { ["start"] = "Sky.mat", ["steps"] = steps });
+        Assert.Equal("invalid_direction", badDirection.GetProperty("error").GetString());
+
+        var good = new object[] { new Dictionary<string, object?> { ["direction"] = "in" } };
+        var noStart = await CallAsync("traverse", new() { ["steps"] = good });
+        Assert.Equal("invalid_start", noStart.GetProperty("error").GetString());
     }
 
     private async Task<JsonElement> CallAsync(string tool, Dictionary<string, object?> arguments)

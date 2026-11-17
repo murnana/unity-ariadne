@@ -89,7 +89,7 @@ Unity プロジェクトのディレクトリで Claude Code を起動し、次�
 
    > Assets/Materials/Fog.mat を参照しているアセットは?(find_references)
 
-使える 5 ツール(`find_references` / `impact_analysis` / `get_neighbors` / `search_nodes` / `list_unresolved`)と活用パターンは [mcp-server.md](mcp-server.md) をご覧ください。
+使える 7 ツール(`find_references` / `impact_analysis` / `get_neighbors` / `search_nodes` / `list_unresolved` / `describe_ontology` / `traverse`)と活用パターンは [mcp-server.md](mcp-server.md) をご覧ください。
 
 ## 6. 日常の運用
 
