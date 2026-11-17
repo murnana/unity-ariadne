@@ -91,17 +91,18 @@ public class OntologyQueriesTests : IDisposable
             new TraversalStep(TraversalDirection.In, Kinds: ["uses_script"], Types: ["Prefab"]),
         ]);
 
+        // Discovery order: Grunt.prefab is one hop from Enemy.cs, Boss.prefab two.
         Assert.Equal(
-            ["Assets/Prefabs/Boss.prefab", "Assets/Prefabs/Grunt.prefab"],
+            ["Assets/Prefabs/Grunt.prefab", "Assets/Prefabs/Boss.prefab"],
             matches.Select(m => m.Asset.Name));
-        var boss = matches[0];
-        Assert.Equal("Assets/Scripts/Enemy.cs", boss.Start);
+        var boss = matches[1];
+        Assert.Equal("Assets/Scripts/Enemy.cs", boss.Start.Name);
         Assert.Equal(
             [("inherits", TraversalDirection.In, "Assets/Scripts/Boss.cs"),
              ("uses_script", TraversalDirection.In, "Assets/Prefabs/Boss.prefab")],
             boss.Path.Select(h => (h.RefKind, h.Direction, h.Asset)));
         // Grunt.prefab is reached directly from Enemy.cs (the zero-hop include_self).
-        Assert.Equal("uses_script", Assert.Single(matches[1].Path).RefKind);
+        Assert.Equal("uses_script", Assert.Single(matches[0].Path).RefKind);
     }
 
     [Fact]
@@ -126,7 +127,7 @@ public class OntologyQueriesTests : IDisposable
             [new TraversalStep(TraversalDirection.Out, Kinds: ["inherits"])]);
         Assert.Equal(
             ["Assets/Scripts/Boss.cs", "Assets/Scripts/Enemy.cs"],
-            bases.Select(m => m.Asset.Name));
+            bases.Select(m => m.Asset.Name).Order(StringComparer.Ordinal));
     }
 
     [Fact]

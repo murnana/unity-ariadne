@@ -74,17 +74,15 @@ node <スクリプト> --update --data-dir ~/.claude/plugins/data/unity-ariadne-
 
 ### オントロジー検索(`search-graph` スキル)
 
-グラフのノードにはアセットの種類(Scene / Prefab / Script / Material …)、エッジには参照の種類(`uses_script` / `prefab_instance` / `inherits` …)が付いています。`search-graph` スキルは、質問をこの「種類と関係の連鎖」に翻訳して、MCP ツールの `describe_ontology` と `traverse` で検索します。出発点や絞り込みには、**ファイル名・フォルダー名と、C# の XML ドキュメントコメント**(`/// <summary>`)も手がかりとして使います(`search_keywords` / `list_folders`)。結果には、なぜそのアセットが当てはまるのか(参照経路や、どの名前・コメントに当たったか)が付きます。
+グラフのノードにはアセットの種類(Scene / Prefab / Script / Material …)、エッジには参照の種類(`uses_script` / `prefab_instance` / `inherits` …)が付いています。`search-graph` スキルは、質問をこの「種類と関係の連鎖」と「名前・概念の手がかり」(ファイル名・フォルダー名・C# の XML ドキュメントコメント)のクエリに直し、ariadne の `search` ツールを呼んで、返ってきた根拠(参照経路、当たった名前・コメント、Editor / Resources などの注記)を添えて答えます。**検索そのものは ariadne が行い、スキルは呼び出すだけです**。同じ検索は `ariadne search` コマンドでも使えます([cli.md](cli.md))。
 
 次のような質問をすると、Claude がこのスキルを使います(`/unity-ariadne:search-graph` で明示的に呼ぶこともできます)。
 
 - 「`Enemy.cs` かそのサブクラスがコンポーネントとして付いているプレハブは?」
-- 「`Hero.prefab` が置かれているシーンは?(ネストしたプレハブ経由も含めて)」
-- 「`Fog.mat` を最終的に使っているシーンは?」
-- 「ビルドに含まれるシーンが使っているスクリプトは?」
-- 「どこからも参照されていないプレハブは?」
 - 「ボスの行動に関係するスクリプトと、それが付いたプレハブは?」(ドキュメントコメントに「ボス」とあるスクリプトから探します)
+- 「`Hero.prefab` が置かれているシーンは?(ネストしたプレハブ経由も含めて)」
 - 「UI フォルダーのプレハブが使っているスクリプトは?」
+- 「どこからも参照されていないプレハブは?」
 
 ドキュメントコメントと型名は `analyze` が記録します。この機能より前の ariadne で作った `graph.db` には入っていないため、`update-graph` で作り直してください(スキーマが変わったので自動でフル再構築になります)。
 

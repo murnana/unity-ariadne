@@ -15,6 +15,7 @@ Non-obvious facts about Unity's file formats and about how the analyzer handles 
 | Code layer (Roslyn syntax only) | `Code/CSharpSourceParser`, `Code/CodeScanner`, `Code/AddressableGroupScanner` |
 | Full build / incremental update | `Storage/GraphBuilder`, `Storage/GraphUpdater`, `Storage/ContentHasher` |
 | Schema, writer, queries, export | `src/Graph/` — `GraphDatabase`, `GraphWriter`, `GraphQueries`, `MemoryJsonlExporter` |
+| Ontology search (MCP `search` + CLI `search`) | `src/Graph/GraphSearch.cs` (query model, start ranking, relaxation, evidence), `Ontology.cs` (relation meanings, type categories, folder-convention notes) |
 | MCP server | `Mcp/GraphMcpTools` + `serve` in `Program.cs` |
 
 ## Scanning and .meta files
@@ -62,6 +63,14 @@ Non-obvious facts about Unity's file formats and about how the analyzer handles 
 - Roslyn's `Microsoft.CodeAnalysis.RefKind` clashes with our `RefKind` — alias it.
 - `code_symbols` (schema v3, keyword-search clues): every declared type of every .cs (even without refs or docs) plus members (method/constructor/property/indexer/field/event/enum member/operator) that carry an XML doc comment. Doc text = `<summary>` + `<remarks>` (the whole comment when it has neither), `<see cref>`/`<paramref name>`/langword replaced by their names, whitespace collapsed, capped at 1000 chars. Both `///` and `/** */` work because the default `DocumentationMode.Parse` structures doc trivia. The table belongs to the code layer: written by `WriteCodeRefs`, cleared by `DeleteCodeLayer`, so a doc-only edit (a .cs hash change) refreshes it with the rest of the layer.
 - Readers (`serve`, `export`) must tolerate a pre-v3 db without `code_symbols` (`GraphDatabase.HasCodeSymbols`): the plugin serves an existing db until the next analyze rebuilds it.
+
+## Ontology search
+
+- One engine for both front ends: `GraphSearch.Run` takes a `SearchQuery` (the MCP tool's arguments, or the CLI's `--query` JSON — snake_case, `JsonPropertyName` on the records) and returns the JSON both print. The Claude Code skill holds no search logic: it only translates the question into a query.
+- Starts with keywords are ranked (`GraphQueries.RankByKeywords`) and `Traverse` visits starts in that order, so a match's witness path comes from the most relevant start that reaches it; results keep discovery order.
+- Relaxation is cumulative and only runs while the (unreferenced-filtered) result is empty: start `match_all` → any, start `path_contains` dropped, then steps' `path_contains` dropped → kinds dropped → `max_hops` ≥ 5. Direction is never flipped (that changes the meaning); the answer says so instead.
+- Keyword matching is a case-insensitive substring match plus one plural rule (`-y` also matches `-ie…`, so `enemy` finds `Enemies`). No tokenizer: Japanese doc comments work as plain substrings.
+- `Ontology.cs` is the fixed half of the ontology (relation meanings, type categories, folder notes); keep it in sync with `RefKind.cs` and `AssetTypeClassifier`.
 
 ## Database and incremental update
 

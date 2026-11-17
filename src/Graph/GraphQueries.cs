@@ -95,8 +95,8 @@ public sealed record FolderSummary(string Path, long AssetCount, IReadOnlyDictio
 /// <summary>One hop of a witness path: the edge kind, its direction, and the asset reached.</summary>
 public sealed record PathHop(string RefKind, TraversalDirection Direction, string Asset);
 
-/// <summary>An asset reached by a typed path query, with one witness path from a start asset.</summary>
-public sealed record TraversalMatch(AssetNode Asset, string Start, IReadOnlyList<PathHop> Path);
+/// <summary>An asset reached by a typed path query, with one witness path from the start asset it came from.</summary>
+public sealed record TraversalMatch(AssetNode Asset, AssetNode Start, IReadOnlyList<PathHop> Path);
 
 /// <summary>
 /// Read-only asset-level graph queries for the MCP server (Phase 4). All queries work
@@ -348,23 +348,26 @@ public static class GraphQueries
     /// <summary>
     /// Typed path query: starting from <paramref name="startGuids"/>, applies each step in
     /// turn (see <see cref="TraversalStep"/>); the assets left after the last step are the
-    /// matches, each with the first witness path found (breadth-first, so a shortest one per
-    /// step). Kind and type names compare case-insensitively. Results are ordered by name.
+    /// matches, each with the first witness path found. The search is breadth-first and
+    /// visits starts in the given order, so an earlier start wins ties — callers order
+    /// starts by relevance. Kind and type names compare case-insensitively. Matches come
+    /// back in discovery order (by start order, then hop distance).
     /// </summary>
     public static IReadOnlyList<TraversalMatch> Traverse(
-        GraphDatabase db, IReadOnlyCollection<string> startGuids, IReadOnlyList<TraversalStep> steps)
+        GraphDatabase db, IReadOnlyList<string> startGuids, IReadOnlyList<TraversalStep> steps)
     {
         var (assets, edges) = LoadTypedGraph(db);
         var forward = edges.ToLookup(e => e.From, StringComparer.Ordinal);
         var reverse = edges.ToLookup(e => e.To, StringComparer.Ordinal);
 
-        // guid → (start name, witness path so far)
-        var current = new Dictionary<string, (string Start, List<PathHop> Path)>(StringComparer.Ordinal);
+        // Ordered frontier of (guid, start guid, witness path so far).
+        var current = new List<(string Guid, string Start, List<PathHop> Path)>();
+        var seenStarts = new HashSet<string>(StringComparer.Ordinal);
         foreach (var guid in startGuids)
         {
-            if (assets.TryGetValue(guid, out var start))
+            if (assets.ContainsKey(guid) && seenStarts.Add(guid))
             {
-                current.TryAdd(guid, (start.Name, []));
+                current.Add((guid, guid, []));
             }
         }
 
@@ -374,15 +377,16 @@ public static class GraphQueries
             var types = ToSet(step.Types);
             var pathParts = step.PathContains?.Where(p => p.Length > 0).ToList();
             var maxHops = Math.Clamp(step.MaxHops, 1, 10);
-            var next = new Dictionary<string, (string Start, List<PathHop> Path)>(StringComparer.Ordinal);
+            var next = new List<(string Guid, string Start, List<PathHop> Path)>();
+            var inNext = new HashSet<string>(StringComparer.Ordinal);
 
             if (step.IncludeSelf)
             {
-                foreach (var (guid, witness) in current)
+                foreach (var entry in current)
                 {
-                    if (EndMatches(assets[guid], types, pathParts))
+                    if (EndMatches(assets[entry.Guid], types, pathParts) && inNext.Add(entry.Guid))
                     {
-                        next.TryAdd(guid, witness);
+                        next.Add(entry);
                     }
                 }
             }
@@ -390,9 +394,9 @@ public static class GraphQueries
             // Multi-source BFS. Each node is expanded once, with the witness it was first
             // given (a source keeps its own); a node is *reached* the first time an edge leads
             // to it — sources included, so "subclasses of any Script" finds scripts too.
-            var expanded = new Dictionary<string, (string Start, List<PathHop> Path)>(current, StringComparer.Ordinal);
+            var expanded = current.ToDictionary(c => c.Guid, c => (c.Start, c.Path), StringComparer.Ordinal);
             var reachedOnce = new HashSet<string>(StringComparer.Ordinal);
-            var frontier = current.Keys.OrderBy(g => assets[g].Name, StringComparer.Ordinal).ToList();
+            var frontier = current.Select(c => c.Guid).ToList();
             for (var hop = 1; hop <= maxHops && frontier.Count > 0; hop++)
             {
                 var discovered = new List<string>();
@@ -406,16 +410,15 @@ public static class GraphQueries
                             continue;
                         }
 
-                        var reached = (witness.Start,
-                            new List<PathHop>(witness.Path) { new(kind, direction, assets[neighbor].Name) });
-                        if (expanded.TryAdd(neighbor, reached))
+                        var path = new List<PathHop>(witness.Path) { new(kind, direction, assets[neighbor].Name) };
+                        if (expanded.TryAdd(neighbor, (witness.Start, path)))
                         {
                             discovered.Add(neighbor);
                         }
 
-                        if (EndMatches(assets[neighbor], types, pathParts))
+                        if (EndMatches(assets[neighbor], types, pathParts) && inNext.Add(neighbor))
                         {
-                            next.TryAdd(neighbor, reached);
+                            next.Add((neighbor, witness.Start, path));
                         }
                     }
                 }
@@ -431,8 +434,7 @@ public static class GraphQueries
         }
 
         return current
-            .Select(c => new TraversalMatch(assets[c.Key], c.Value.Start, c.Value.Path))
-            .OrderBy(m => m.Asset.Name, StringComparer.Ordinal)
+            .Select(c => new TraversalMatch(assets[c.Guid], assets[c.Start], c.Path))
             .ToList();
 
         IEnumerable<(string Neighbor, string Kind, TraversalDirection Direction)> Adjacent(
@@ -462,10 +464,29 @@ public static class GraphQueries
 
         static bool EndMatches(AssetNode asset, HashSet<string>? types, List<string>? pathParts) =>
             (types is null || types.Contains(asset.AssetType))
-            && (pathParts is null || pathParts.Count == 0
-                || (asset.Path is not null
-                    && pathParts.Any(p => asset.Path.Contains(p, StringComparison.OrdinalIgnoreCase))));
+            && PathMatches(asset, pathParts);
     }
+
+    /// <summary>GUIDs that at least one asset-level edge points at (corresponding_source does not count).</summary>
+    public static HashSet<string> ReferencedGuids(GraphDatabase db)
+    {
+        var guids = new HashSet<string>(StringComparer.Ordinal);
+        using var command = db.Connection.CreateCommand();
+        command.CommandText = $"SELECT DISTINCT to_guid FROM asset_edges WHERE ref_kind <> '{ExcludedRefKind}'";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            guids.Add(reader.GetString(0));
+        }
+
+        return guids;
+    }
+
+    /// <summary>True when no parts are given, or the asset's path contains any of them (case-insensitive).</summary>
+    internal static bool PathMatches(AssetNode asset, IReadOnlyCollection<string>? parts) =>
+        parts is null || parts.Count == 0
+        || (asset.Path is not null
+            && parts.Any(p => p.Length > 0 && asset.Path.Contains(p, StringComparison.OrdinalIgnoreCase)));
 
     /// <summary>
     /// Typed node search: assets of the given type and/or source whose path contains
@@ -507,7 +528,7 @@ public static class GraphQueries
     }
 
     /// <summary>
-    /// GUIDs of every asset of the given type (case-insensitive), optionally only those
+    /// GUIDs of every asset of the given type (case-insensitive), in path order, optionally only those
     /// whose path contains any of <paramref name="pathContains"/> (case-insensitive).
     /// </summary>
     public static IReadOnlyList<string> AssetGuidsOfType(
@@ -516,7 +537,8 @@ public static class GraphQueries
         var parts = pathContains?.Where(p => p.Length > 0).ToList() ?? [];
         var results = new List<string>();
         using var command = db.Connection.CreateCommand();
-        command.CommandText = "SELECT guid, path FROM assets WHERE asset_type = $type COLLATE NOCASE";
+        command.CommandText =
+            "SELECT guid, path FROM assets WHERE asset_type = $type COLLATE NOCASE ORDER BY path IS NULL, path, guid";
         command.Parameters.AddWithValue("$type", assetType);
         using var reader = command.ExecuteReader();
         while (reader.Read())
@@ -555,39 +577,7 @@ public static class GraphQueries
     public static IReadOnlyList<KeywordMatch> SearchByKeywords(
         GraphDatabase db, IReadOnlyList<string> keywords, string? assetType, string? source, bool matchAll)
     {
-        var terms = keywords
-            .SelectMany(k => k.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        if (terms.Count == 0)
-        {
-            return [];
-        }
-
-        var symbols = new Dictionary<string, List<(string Symbol, string Kind, string? Doc)>>(StringComparer.Ordinal);
-        if (db.HasCodeSymbols)
-        {
-            using var command = db.Connection.CreateCommand();
-            command.CommandText =
-                """
-                SELECT a.guid, s.symbol, s.kind, s.doc FROM code_symbols s
-                JOIN assets a ON a.id = s.asset_id
-                ORDER BY s.rowid
-                """;
-            using var reader = command.ExecuteReader();
-            while (reader.Read())
-            {
-                var guid = reader.GetString(0);
-                if (!symbols.TryGetValue(guid, out var list))
-                {
-                    symbols[guid] = list = [];
-                }
-
-                list.Add((reader.GetString(1), reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetString(3)));
-            }
-        }
-
-        var results = new List<KeywordMatch>();
+        var candidates = new List<AssetNode>();
         using (var command = db.Connection.CreateCommand())
         {
             command.CommandText =
@@ -602,13 +592,42 @@ public static class GraphQueries
             using var reader = command.ExecuteReader();
             while (reader.Read())
             {
-                var asset = ReadAssetNode(reader);
-                symbols.TryGetValue(asset.Guid, out var assetSymbols);
-                var match = MatchKeywords(asset, assetSymbols ?? [], terms);
-                if (match is not null && (!matchAll || match.MatchedKeywords == terms.Count))
-                {
-                    results.Add(match);
-                }
+                candidates.Add(ReadAssetNode(reader));
+            }
+        }
+
+        return RankByKeywords(db, candidates, keywords, matchAll);
+    }
+
+    /// <summary>Splits keywords on whitespace, drops blanks and duplicates (case-insensitive).</summary>
+    public static IReadOnlyList<string> NormalizeKeywords(IEnumerable<string> keywords) =>
+        keywords
+            .SelectMany(k => k.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    /// <summary>
+    /// The keyword ranking of <see cref="SearchByKeywords"/> over a given candidate set
+    /// (unresolved assets never match: they have no name).
+    /// </summary>
+    public static IReadOnlyList<KeywordMatch> RankByKeywords(
+        GraphDatabase db, IEnumerable<AssetNode> candidates, IReadOnlyList<string> keywords, bool matchAll)
+    {
+        var terms = NormalizeKeywords(keywords).ToList();
+        if (terms.Count == 0)
+        {
+            return [];
+        }
+
+        var symbols = LoadCodeSymbols(db);
+        var results = new List<KeywordMatch>();
+        foreach (var asset in candidates.Where(a => a.Path is not null))
+        {
+            symbols.TryGetValue(asset.Guid, out var assetSymbols);
+            var match = MatchKeywords(asset, assetSymbols ?? [], terms);
+            if (match is not null && (!matchAll || match.MatchedKeywords == terms.Count))
+            {
+                results.Add(match);
             }
         }
 
@@ -619,6 +638,41 @@ public static class GraphQueries
             .ThenBy(m => m.Asset.Name, StringComparer.Ordinal)
             .ToList();
     }
+
+    /// <summary>code_symbols grouped by asset GUID, in source order (empty before schema v3).</summary>
+    internal static Dictionary<string, List<(string Symbol, string Kind, string? Doc)>> LoadCodeSymbols(GraphDatabase db)
+    {
+        var symbols = new Dictionary<string, List<(string Symbol, string Kind, string? Doc)>>(StringComparer.Ordinal);
+        if (!db.HasCodeSymbols)
+        {
+            return symbols;
+        }
+
+        using var command = db.Connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT a.guid, s.symbol, s.kind, s.doc FROM code_symbols s
+            JOIN assets a ON a.id = s.asset_id
+            ORDER BY s.rowid
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var guid = reader.GetString(0);
+            if (!symbols.TryGetValue(guid, out var list))
+            {
+                symbols[guid] = list = [];
+            }
+
+            list.Add((reader.GetString(1), reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetString(3)));
+        }
+
+        return symbols;
+    }
+
+    /// <summary>Names of the types a script declares (code_symbols), in source order.</summary>
+    internal static IReadOnlyList<string> DeclaredTypes(List<(string Symbol, string Kind, string? Doc)> symbols) =>
+        symbols.Where(s => TypeSymbolKinds.Contains(s.Kind)).Select(s => s.Symbol).ToList();
 
     private static KeywordMatch? MatchKeywords(
         AssetNode asset, List<(string Symbol, string Kind, string? Doc)> symbols, List<string> terms)
@@ -684,12 +738,17 @@ public static class GraphQueries
         var declared = symbols.Where(s => TypeSymbolKinds.Contains(s.Kind)).Select(s => s.Symbol).Take(3).ToList();
         return new KeywordMatch(asset, matched, score, clues, declared, snippet);
 
-        static bool Has(string text, string term) => text.Contains(term, StringComparison.OrdinalIgnoreCase);
+        // Substring match, plus the one English plural substring matching misses:
+        // "enemy" must find the folder "Enemies" ("boss" → "Bosses" already works).
+        static bool Has(string text, string term) =>
+            text.Contains(term, StringComparison.OrdinalIgnoreCase)
+            || (term.Length > 2 && term.EndsWith('y')
+                && text.Contains(term[..^1] + "ie", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string Excerpt(string doc, string term)
     {
-        var index = doc.IndexOf(term, StringComparison.OrdinalIgnoreCase);
+        var index = Math.Max(0, doc.IndexOf(term, StringComparison.OrdinalIgnoreCase));
         var start = Math.Max(0, index - DocSnippetRadius);
         var end = Math.Min(doc.Length, index + term.Length + DocSnippetRadius);
         return (start > 0 ? "…" : "") + doc[start..end] + (end < doc.Length ? "…" : "");

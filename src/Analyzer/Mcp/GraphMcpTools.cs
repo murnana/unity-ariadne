@@ -23,7 +23,6 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
     private const int MaxListedResults = 200;
     private const int MaxAmbiguousCandidates = 10;
     private const int MaxSignatures = 12;
-    private const int MaxSteps = 8;
     private const int MaxFolderTypes = 6;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -148,55 +147,10 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         });
     }
 
-    [McpServerTool(Name = "search_keywords")]
-    [Description("Keyword search over every clue that names or describes an asset: file name, the " +
-                 "folder names on its path, and for C# scripts the declared type names, documented " +
-                 "member names and XML doc comment text (<summary>/<remarks>). Each keyword is a " +
-                 "case-insensitive substring; results are ranked by how many keywords hit, and say " +
-                 "where each hit (file name > type name > folder / member name > doc comment). Use it " +
-                 "to find candidates by concept (e.g. [\"enemy\", \"spawn\"] or Japanese words in doc " +
-                 "comments) before a typed traverse.")]
-    public string SearchKeywords(
-        [Description("Keywords; each is a case-insensitive substring. Whitespace splits a keyword")] string[] keywords,
-        [Description("Asset type to keep, e.g. Script, Prefab (case-insensitive)")] string? type = null,
-        [Description("Source to keep: Assets, Packages, PackageCache, ...")] string? source = null,
-        [Description("Keep only assets that hit every keyword")] bool match_all = false,
-        [Description("Maximum number of results (default 20, max 100)")] int limit = 20)
-    {
-        using var db = OpenDatabase();
-        var clampedLimit = Math.Clamp(limit, 1, 100);
-        var matches = GraphQueries.SearchByKeywords(
-            db, keywords ?? [], NullIfBlank(type), NullIfBlank(source), match_all);
-        return Serialize(new
-        {
-            Keywords = keywords,
-            TotalMatches = matches.Count,
-            Matches = matches
-                .Take(clampedLimit)
-                .Select(m => new
-                {
-                    Name = m.Asset.Name,
-                    Type = m.Asset.AssetType,
-                    m.Asset.Source,
-                    m.MatchedKeywords,
-                    m.Score,
-                    m.Clues,
-                    Declares = m.DeclaredTypes.Count > 0 ? m.DeclaredTypes : null,
-                    Doc = m.DocSnippet,
-                })
-                .ToList(),
-            Truncated = matches.Count > clampedLimit ? (bool?)true : null,
-            Warning = db.HasCodeSymbols
-                ? null
-                : "This graph was built by an older ariadne without C# type names and doc comments; " +
-                  "only file and folder names were searched. Re-run analyze (update-graph) to add them.",
-        });
-    }
-
     [McpServerTool(Name = "list_folders")]
     [Description("Lists the folders under a path with how many assets of which types each holds " +
                  "(recursively). Folder names show how the project is organized (Characters/Enemies, " +
-                 "UI, Levels, ...) — use them as clues and as path_contains filters in traverse.")]
+                 "UI, Levels, ...) — use them as clues and as path_contains filters in search.")]
     public string ListFolders(
         [Description("Folder to list, e.g. Assets or Assets/Characters. Empty lists the top level")] string path = "Assets",
         [Description("How many folder levels down to list (default 1, max 4)")] int depth = 1)
@@ -226,9 +180,10 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
 
     [McpServerTool(Name = "describe_ontology")]
     [Description("Returns the vocabulary of this project's graph: every class (asset type) with its " +
-                 "count per source, and every relation (ref kind) with its edge count and the " +
-                 "'FromType->ToType' signatures it actually connects. Call it first to plan a typed " +
-                 "query with traverse or search_nodes.")]
+                 "category and count per source, and every relation (ref kind) with its meaning read " +
+                 "out (A -> B) and in (B <- A), whether chaining it is meaningful (transitive), its edge " +
+                 "count and the 'FromType->ToType' signatures it actually connects. Use it to pick type " +
+                 "and relation names for search.")]
     public string DescribeOntology()
     {
         using var db = OpenDatabase();
@@ -236,12 +191,22 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         return Serialize(new
         {
             Classes = ontology.Classes
-                .Select(c => new { Type = c.AssetType, c.Count, c.BySource })
+                .Select(c => new
+                {
+                    Type = c.AssetType,
+                    Category = OntologyGlossary.CategoryOf(c.AssetType),
+                    c.Count,
+                    c.BySource,
+                })
                 .ToList(),
             Relations = ontology.Relations
                 .Select(r => new
                 {
                     Kind = r.RefKind,
+                    Layer = Meaning(r.RefKind)?.Layer,
+                    Out = Meaning(r.RefKind)?.Out,
+                    In = Meaning(r.RefKind)?.In,
+                    Transitive = Meaning(r.RefKind)?.Transitive,
                     r.Edges,
                     r.RefCount,
                     Signatures = r.Signatures
@@ -256,91 +221,38 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         });
     }
 
-    [McpServerTool(Name = "traverse")]
-    [Description("Typed path query over the graph. Starts at one asset (start) or at every asset of " +
-                 "a class (start_type, optionally narrowed by start_path_contains), then applies the " +
-                 "steps in order; each step follows edges of the given kinds in the given direction for " +
-                 "up to max_hops hops and keeps only assets of the given types (and path_contains " +
-                 "folder/file-name clues). Returns the assets left after the last step, each with " +
-                 "one witness path ('A -[kind]-> B' = A references B, 'A <-[kind]- B' = B references " +
-                 "A). Example: prefabs using a subclass of Enemy.cs = start Enemy.cs, steps " +
-                 "[{direction:in, kinds:[inherits], max_hops:10, include_self:true}, " +
-                 "{direction:in, kinds:[uses_script], types:[Prefab]}].")]
-    public string Traverse(
-        [Description("Path steps, applied in order (1-8 steps)")] TraverseStep[] steps,
-        [Description("Start asset: path, file name, or GUID. Give this or start_type")] string? start = null,
-        [Description("Start from every asset of this type instead, e.g. Scene")] string? start_type = null,
-        [Description("With start_type: keep only start assets whose path contains any of these " +
-                     "(case-insensitive), e.g. [\"Enemies/\"]")] string[]? start_path_contains = null)
+    [McpServerTool(Name = "search")]
+    [Description(
+        "Ontology search over the Unity project graph — the one call for questions like 'prefabs that use " +
+        "a subclass of Enemy', 'scripts about boss behaviour and the prefabs they are on', 'unused prefabs " +
+        "in the UI folder'. Nodes are typed by asset type (Scene, Prefab, Script, Material, ...), edges by " +
+        "relation (uses_script, prefab_instance, inherits, generic, ...; describe_ontology lists them with " +
+        "meanings). 'from' picks the start: one asset, or assets filtered by types / source / path_contains " +
+        "and ranked by keywords (matched against file names, folder names, C# type and member names and " +
+        "XML doc comments). 'steps' then follow typed relations in order (omit them to just list the " +
+        "starts). If nothing matches, the steps are relaxed (path filters, then relation kinds, then reach) " +
+        "and 'relaxed' says how. Each match carries its evidence: 'path' ('A -[kind]-> B' = A references " +
+        "B, 'A <-[kind]- B' = B references A), keyword 'clues' and 'doc' excerpt (as 'from_clues' / " +
+        "'from_doc' when they belong to the start 'from' the path came from), 'declares' (C# types), and 'notes' on folder conventions (Editor/, Resources/, ...); " +
+        "'relations' explains every relation used in the paths. Example — prefabs using Enemy.cs or a " +
+        "subclass: from {asset: \"Enemy.cs\"}, steps [{direction: in, kinds: [inherits], max_hops: 10, " +
+        "include_self: true}, {direction: in, kinds: [uses_script], types: [Prefab]}].")]
+    public string Search(
+        [Description("Start: {asset} or any of {keywords, match_all, types, source, path_contains}")] SearchStart from,
+        [Description("Typed path steps applied in order (0-8). Omit to return the start assets themselves")]
+        SearchStep[]? steps = null,
+        [Description("Keep only results that nothing references (unused-asset candidates)")] bool unreferenced = false,
+        [Description("Maximum number of matches listed (default 20, max 200)")] int limit = GraphSearch.DefaultLimit,
+        [Description("Relax the steps automatically when nothing matches (default true)")] bool relax = true)
     {
-        if (steps is null || steps.Length is 0 or > MaxSteps)
-        {
-            return Error("invalid_steps", $"Give 1-{MaxSteps} steps.");
-        }
-
-        var parsedSteps = new List<TraversalStep>();
-        foreach (var step in steps)
-        {
-            if (!Enum.TryParse<TraversalDirection>(step.Direction, ignoreCase: true, out var direction)
-                || !Enum.IsDefined(direction))
-            {
-                return Error("invalid_direction",
-                    $"Unknown direction '{step.Direction}'. Use out (dependencies), in (referrers) or both.");
-            }
-
-            parsedSteps.Add(new TraversalStep(
-                direction, step.Kinds, step.Types, step.MaxHops ?? 1, step.IncludeSelf ?? false, step.PathContains));
-        }
-
-        start = NullIfBlank(start);
-        start_type = NullIfBlank(start_type);
-        if ((start is null) == (start_type is null))
-        {
-            return Error("invalid_start", "Give exactly one of start and start_type.");
-        }
-
         using var db = OpenDatabase();
-        string startLabel;
-        IReadOnlyCollection<string> startGuids;
-
-        if (start is not null)
+        return GraphSearch.RunJson(db, new SearchQuery
         {
-            var resolved = GraphQueries.ResolveAssets(db, start);
-            if (resolved.Count != 1)
-            {
-                return ResolutionError(start, resolved);
-            }
-
-            startLabel = resolved[0].Name;
-            startGuids = [resolved[0].Guid];
-        }
-        else
-        {
-            startLabel = $"type:{start_type}";
-            startGuids = GraphQueries.AssetGuidsOfType(db, start_type!, start_path_contains);
-        }
-
-        var ontology = GraphQueries.DescribeOntology(db);
-        var warnings = UnknownTerms(parsedSteps, start_type, ontology);
-        var matches = GraphQueries.Traverse(db, startGuids, parsedSteps);
-        return Serialize(new
-        {
-            Start = startLabel,
-            StartCount = start_type is null ? (int?)null : startGuids.Count,
-            TotalMatches = matches.Count,
-            Matches = matches
-                .Take(MaxListedResults)
-                .Select(m => new
-                {
-                    Name = m.Asset.Name,
-                    Type = m.Asset.AssetType,
-                    m.Asset.Source,
-                    Dangling = m.Asset.Path is null ? (bool?)true : null,
-                    Path = FormatPath(m),
-                })
-                .ToList(),
-            Truncated = matches.Count > MaxListedResults ? (bool?)true : null,
-            Warnings = warnings.Count > 0 ? warnings : null,
+            From = from,
+            Steps = steps,
+            Unreferenced = unreferenced,
+            Limit = limit,
+            Relax = relax,
         });
     }
 
@@ -394,43 +306,8 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
                 Hint = "Multiple assets matched. Call again with one of the candidate paths.",
             });
 
-    private static string Error(string error, string hint) => Serialize(new { Error = error, Hint = hint });
-
-    /// <summary>
-    /// Kinds and types the steps name that do not occur in this graph. Not an error — the
-    /// project may simply have none — but usually a typo, so the caller is told.
-    /// </summary>
-    private static List<string> UnknownTerms(
-        IEnumerable<TraversalStep> steps, string? startType, Ontology ontology)
-    {
-        var knownKinds = ontology.Relations.Select(r => r.RefKind).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var knownTypes = ontology.Classes.Select(c => c.AssetType).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var unknownKinds = steps.SelectMany(s => s.Kinds ?? []).Where(k => !knownKinds.Contains(k));
-        var unknownTypes = steps.SelectMany(s => s.Types ?? [])
-            .Append(startType)
-            .OfType<string>()
-            .Where(t => !knownTypes.Contains(t));
-        return unknownKinds.Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(k => $"ref kind '{k}' has no edges in this graph")
-            .Concat(unknownTypes.Distinct(StringComparer.OrdinalIgnoreCase)
-                .Select(t => $"asset type '{t}' has no assets in this graph"))
-            .Select(w => w + " (see describe_ontology)")
-            .ToList();
-    }
-
-    private static string FormatPath(TraversalMatch match)
-    {
-        var builder = new System.Text.StringBuilder(match.Start);
-        foreach (var hop in match.Path)
-        {
-            builder.Append(hop.Direction == TraversalDirection.Out
-                ? $" -[{hop.RefKind}]-> "
-                : $" <-[{hop.RefKind}]- ");
-            builder.Append(hop.Asset);
-        }
-
-        return builder.ToString();
-    }
+    private static RelationMeaning? Meaning(string kind) =>
+        OntologyGlossary.Relations.TryGetValue(kind, out var meaning) ? meaning : null;
 
     private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
@@ -446,35 +323,3 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
     private static string Serialize(object value) => JsonSerializer.Serialize(value, JsonOptions);
 }
 
-/// <summary>One step of the traverse tool, as the MCP client sends it.</summary>
-public sealed record TraverseStep
-{
-    [Description("out = follow references to what the asset uses (dependencies); in = to what uses " +
-                 "the asset (referrers); both = either way")]
-    [JsonPropertyName("direction")]
-    public required string Direction { get; init; }
-
-    [Description("Ref kinds (relations) to follow, e.g. [\"inherits\"]. Omit for any kind")]
-    [JsonPropertyName("kinds")]
-    public string[]? Kinds { get; init; }
-
-    [Description("Asset types (classes) an asset must have to end this step, e.g. [\"Prefab\"]. " +
-                 "Omit for any type. Intermediate assets of a multi-hop step are not checked")]
-    [JsonPropertyName("types")]
-    public string[]? Types { get; init; }
-
-    [Description("Follow up to this many hops (default 1, max 10) — e.g. 10 with kinds [inherits] " +
-                 "walks the whole class hierarchy")]
-    [JsonPropertyName("max_hops")]
-    public int? MaxHops { get; init; }
-
-    [Description("Also keep the assets this step starts from (zero hops) if their type matches — " +
-                 "e.g. 'the class and all its subclasses'")]
-    [JsonPropertyName("include_self")]
-    public bool? IncludeSelf { get; init; }
-
-    [Description("Keep only end assets whose path contains any of these substrings (case-insensitive) " +
-                 "— folder or file-name clues, e.g. [\"/UI/\", \"Boss\"]")]
-    [JsonPropertyName("path_contains")]
-    public string[]? PathContains { get; init; }
-}

@@ -12,6 +12,7 @@ dotnet run --project src/Analyzer -- analyze <unity-project-path> --db graph.db 
 dotnet run --project src/Analyzer -- export --db graph.db --jsonl out.jsonl       # --include-packages for PackageCache nodes+edges
 dotnet run --project src/Analyzer -- report --db graph.db                         # unresolved GUIDs
 dotnet run --project src/Analyzer -- serve --db graph.db                          # MCP server (stdio)
+dotnet run --project src/Analyzer -- search --db graph.db --query '{"from":{"keywords":["boss"]}}'  # ontology search (same JSON as the MCP search tool)
 (cd claude-plugins && node --test)             # plugin launcher tests (Node.js)
 ```
 
@@ -22,7 +23,7 @@ If `dotnet` is not on PATH: `export PATH="$HOME/.dotnet:$PATH"` (.NET 10).
 - `src/Graph` — SQLite schema, writer, queries, jsonl exporter (Microsoft.Data.Sqlite)
 - `src/Analyzer` — CLI, scanners and parsers (YamlDotNet, Roslyn), MCP server. References Graph
 - `tests/UnityAriadne.Tests` — xUnit. References both projects
-- `claude-plugins/` — Claude Code plugin. `scripts/launch.mjs` (Node, no deps) picks the per-project db folder under `${CLAUDE_PLUGIN_DATA}`, builds it on first start, prunes old projects, then runs `ariadne serve --db`. All of that lives here, not in `ariadne`. `skills/update-graph` runs `launch.mjs --update`; `skills/search-graph` teaches typed (ontology) queries with the `describe_ontology` / `traverse` MCP tools
+- `claude-plugins/` — Claude Code plugin. `scripts/launch.mjs` (Node, no deps) picks the per-project db folder under `${CLAUDE_PLUGIN_DATA}`, builds it on first start, prunes old projects, then runs `ariadne serve --db`. All of that lives here, not in `ariadne`. `skills/update-graph` runs `launch.mjs --update`; `skills/search-graph` only turns a question into one call of the `search` MCP tool and reports its evidence — the search logic itself lives in `src/Graph/GraphSearch.cs` (shared by MCP `search` and `ariadne search`)
 - `installer/` — MSI (WiX) / pkg builders used by `.github/workflows/release.yml` (tag push and manual run only)
 - `docs/manual/` — user manuals; keep in sync when CLI options, MCP tools, ref_kinds or the schema change
 - `docs/development/` — internals, fixtures, benchmark, release process
