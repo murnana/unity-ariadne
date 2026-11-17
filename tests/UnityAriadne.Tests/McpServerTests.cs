@@ -20,7 +20,8 @@ public sealed class McpServerTests : IAsyncLifetime
 {
     private static readonly string[] ExpectedToolNames =
     [
-        "find_references", "get_neighbors", "impact_analysis", "list_unresolved", "search_nodes",
+        "describe_ontology", "find_references", "get_neighbors", "impact_analysis", "list_folders",
+        "list_unresolved", "search", "search_nodes",
     ];
 
     private readonly string _dbPath =
@@ -88,7 +89,7 @@ public sealed class McpServerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ServerExposesTheFivePlannedTools()
+    public async Task ServerExposesThePlannedTools()
     {
         var tools = await _client!.ListToolsAsync();
         Assert.Equal(ExpectedToolNames, tools.Select(t => t.Name).Order(StringComparer.Ordinal));
@@ -144,6 +145,121 @@ public sealed class McpServerTests : IAsyncLifetime
         var result = await CallAsync("search_nodes", new() { ["query"] = "hero" });
         var match = Assert.Single(result.GetProperty("matches").EnumerateArray());
         Assert.Equal("Assets/Prefabs/Hero.prefab", match.GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task SearchNodesFiltersByTypeOverMcp()
+    {
+        var result = await CallAsync("search_nodes", new() { ["type"] = "material" });
+        var match = Assert.Single(result.GetProperty("matches").EnumerateArray());
+        Assert.Equal("Assets/Materials/Sky.mat", match.GetProperty("name").GetString());
+
+        var unreferenced = await CallAsync("search_nodes", new() { ["unreferenced"] = true, ["source"] = "Assets" });
+        Assert.Equal(
+            "Assets/Scenes/Main.unity",
+            Assert.Single(unreferenced.GetProperty("matches").EnumerateArray()).GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task DescribeOntologyRoundTripsOverMcp()
+    {
+        var result = await CallAsync("describe_ontology", new());
+
+        var prefab = result.GetProperty("classes").EnumerateArray()
+            .Single(c => c.GetProperty("type").GetString() == "Prefab");
+        Assert.Equal(1, prefab.GetProperty("count").GetInt32());
+        Assert.Equal(1, prefab.GetProperty("by_source").GetProperty("Assets").GetInt32());
+
+        var generic = result.GetProperty("relations").EnumerateArray()
+            .Single(r => r.GetProperty("kind").GetString() == "generic");
+        Assert.Equal(2, generic.GetProperty("edges").GetInt32());
+        Assert.Contains("Prefab->Material: 1",
+            generic.GetProperty("signatures").EnumerateArray().Select(s => s.GetString()));
+    }
+
+    [Fact]
+    public async Task SearchRoundTripsOverMcp()
+    {
+        var steps = new object[]
+        {
+            new Dictionary<string, object?> { ["direction"] = "in", ["max_hops"] = 3, ["types"] = new[] { "Scene" } },
+        };
+        var result = await CallAsync("search", new()
+        {
+            ["from"] = new Dictionary<string, object?> { ["asset"] = "Sky.mat" },
+            ["steps"] = steps,
+        });
+
+        Assert.Equal("Assets/Materials/Sky.mat", result.GetProperty("start").GetProperty("assets")[0].GetString());
+        var match = Assert.Single(result.GetProperty("matches").EnumerateArray());
+        Assert.Equal("Assets/Scenes/Main.unity", match.GetProperty("name").GetString());
+        Assert.Equal(
+            "Assets/Materials/Sky.mat <-[generic]- Assets/Prefabs/Hero.prefab <-[prefab_instance]- Assets/Scenes/Main.unity",
+            match.GetProperty("path").GetString());
+        Assert.StartsWith("A -[generic]-> B:",
+            result.GetProperty("relations").GetProperty("generic").GetString());
+        Assert.False(result.TryGetProperty("relaxed", out _));
+    }
+
+    [Fact]
+    public async Task SearchByKeywordsAndPathOverMcp()
+    {
+        var steps = new object[] { new Dictionary<string, object?> { ["direction"] = "out", ["types"] = new[] { "Material" } } };
+        var result = await CallAsync("search", new()
+        {
+            ["from"] = new Dictionary<string, object?> { ["keywords"] = new[] { "hero" }, ["types"] = new[] { "Prefab" } },
+            ["steps"] = steps,
+        });
+
+        var match = Assert.Single(result.GetProperty("matches").EnumerateArray());
+        Assert.Equal("Assets/Materials/Sky.mat", match.GetProperty("name").GetString());
+        Assert.Equal("hero → file name: Hero.prefab", match.GetProperty("from_clues")[0].GetString());
+    }
+
+    [Fact]
+    public async Task SearchRejectsBadArgumentsOverMcp()
+    {
+        var steps = new object[] { new Dictionary<string, object?> { ["direction"] = "sideways" } };
+        var badDirection = await CallAsync("search", new()
+        {
+            ["from"] = new Dictionary<string, object?> { ["asset"] = "Sky.mat" }, ["steps"] = steps,
+        });
+        Assert.Equal("invalid_direction", badDirection.GetProperty("error").GetString());
+
+        var noStart = await CallAsync("search", new() { ["from"] = new Dictionary<string, object?>() });
+        Assert.Equal("invalid_start", noStart.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task ListFoldersRoundTripsOverMcp()
+    {
+        var folders = await CallAsync("list_folders", new());
+        Assert.Equal(
+            ["Assets/Materials", "Assets/Prefabs", "Assets/Scenes"],
+            folders.GetProperty("folders").EnumerateArray().Select(f => f.GetProperty("path").GetString()));
+    }
+
+    [Fact]
+    public async Task DescribeOntologyExplainsRelations()
+    {
+        var result = await CallAsync("describe_ontology", new());
+        var instance = result.GetProperty("relations").EnumerateArray()
+            .Single(r => r.GetProperty("kind").GetString() == "prefab_instance");
+        Assert.True(instance.GetProperty("transitive").GetBoolean());
+        Assert.Contains("places", instance.GetProperty("out").GetString());
+        Assert.Equal("Placement", result.GetProperty("classes").EnumerateArray()
+            .Single(c => c.GetProperty("type").GetString() == "Scene").GetProperty("category").GetString());
+    }
+
+    [Fact]
+    public async Task SearchFoldsFullWidthKeywordsOverMcp()
+    {
+        var result = await CallAsync("search", new()
+        {
+            ["from"] = new Dictionary<string, object?> { ["keywords"] = new[] { "ＨＥＲＯ" } },
+        });
+        Assert.Equal("ＨＥＲＯ → file name: Hero.prefab",
+            Assert.Single(result.GetProperty("matches").EnumerateArray()).GetProperty("clues")[0].GetString());
     }
 
     private async Task<JsonElement> CallAsync(string tool, Dictionary<string, object?> arguments)

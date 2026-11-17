@@ -18,7 +18,7 @@
 |---|---|
 | `name` | アセットのプロジェクト相対パス。**未解決 GUID の場合は GUID そのもの** |
 | `entityType` | `assets.asset_type`(Material / Prefab / Scene / ...) |
-| `observations` | `guid: ...` / `source: ...` / 未解決なら dangling reference の説明 / `outgoing: N refs to M assets` / `incoming: ...` |
+| `observations` | `guid: ...` / `source: ...` / 未解決なら dangling reference の説明 / `outgoing: N refs to M assets` / `incoming: ...` / C# スクリプトなら宣言している型ごとに `declares class Game.Enemy: <XML ドキュメントコメントの要約>`(コメントが無ければ `: ...` なし。メンバーのコメントは含みません) |
 
 ## relation 行
 

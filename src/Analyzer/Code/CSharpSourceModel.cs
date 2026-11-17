@@ -8,6 +8,16 @@ namespace UnityAriadne.Analyzer.Code;
 public sealed record DeclaredType(string Name, string FullName, string Namespace, bool IsNested);
 
 /// <summary>
+/// A declaration worth searching for (schema v3 code_symbols): every declared type, plus
+/// members that carry an XML documentation comment.
+/// </summary>
+/// <param name="Symbol">Dotted name: namespace + type chain (+ member), e.g. <c>Game.Enemy.TakeDamage</c>.</param>
+/// <param name="Kind">class / struct / interface / enum / record / delegate / method / constructor /
+/// property / indexer / field / event / enum_member / operator.</param>
+/// <param name="Doc">Plain text of the doc comment's &lt;summary&gt; and &lt;remarks&gt;, or null.</param>
+public sealed record CodeSymbol(string Symbol, string Kind, string? Doc);
+
+/// <summary>
 /// One type-name occurrence the parser extracted (Phase 2), before resolution against the
 /// project-wide declared-type index.
 /// </summary>
@@ -29,6 +39,9 @@ public sealed class CSharpSourceModel
     public List<DeclaredType> DeclaredTypes { get; } = [];
 
     public List<TypeRefSite> TypeRefs { get; } = [];
+
+    /// <summary>Declared types and documented members, in source order.</summary>
+    public List<CodeSymbol> Symbols { get; } = [];
 
     public List<ResourceLoadSite> ResourceLoads { get; } = [];
 

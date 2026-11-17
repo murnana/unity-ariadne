@@ -20,6 +20,7 @@ public sealed class GraphWriter : IDisposable
     private readonly SqliteCommand _deleteAssetObjects;
     private readonly SqliteCommand _deleteAsset;
     private readonly SqliteCommand _setSettingsFile;
+    private readonly SqliteCommand _insertCodeSymbol;
     private bool _committed;
 
     internal GraphWriter(SqliteConnection connection)
@@ -47,6 +48,9 @@ public sealed class GraphWriter : IDisposable
         _deleteAsset = Prepare(connection,
             "DELETE FROM assets WHERE id = $id",
             "$id");
+        _insertCodeSymbol = Prepare(connection,
+            "INSERT INTO code_symbols (asset_id, symbol, kind, doc) VALUES ($assetId, $symbol, $kind, $doc)",
+            "$assetId", "$symbol", "$kind", "$doc");
         _setSettingsFile = Prepare(connection,
             "INSERT OR REPLACE INTO settings_files (path, file_hash) VALUES ($path, $fileHash)",
             "$path", "$fileHash");
@@ -71,6 +75,13 @@ public sealed class GraphWriter : IDisposable
     {
         SetParameters(_insertRef, fromObjectId, toGuid, toFileId, propertyPath, refKind);
         _insertRef.ExecuteNonQuery();
+    }
+
+    /// <summary>Adds one code_symbols row (a declared type, or a documented member) of a script.</summary>
+    public void AddCodeSymbol(long assetId, string symbol, string kind, string? doc)
+    {
+        SetParameters(_insertCodeSymbol, assetId, symbol, kind, doc);
+        _insertCodeSymbol.ExecuteNonQuery();
     }
 
     /// <summary>Rewrites an existing assets row in place (rename, resolve, unresolve).</summary>
@@ -108,7 +119,7 @@ public sealed class GraphWriter : IDisposable
     public void ClearSettingsFiles() => Execute("DELETE FROM settings_files");
 
     /// <summary>
-    /// Deletes every Phase 2 MonoScript object (and its refs) so the code layer can be
+    /// Deletes every Phase 2 MonoScript object (and its refs) and every code_symbols row so the code layer can be
     /// rewritten wholesale — code-ref resolution is global (declared-type index,
     /// Resources/ path set), so it is never updated per file.
     /// </summary>
@@ -124,6 +135,7 @@ public sealed class GraphWriter : IDisposable
               SELECT o.id FROM objects o
               JOIN assets a ON a.id = o.asset_id
               WHERE o.file_id = 11500000 AND o.class_id = 115 AND a.asset_type = 'Script');
+            DELETE FROM code_symbols;
             """);
     }
 

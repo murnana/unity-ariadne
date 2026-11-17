@@ -116,6 +116,21 @@ public static class GraphBuilder
         summary.UnresolvedAddressablesLoadCount = result.UnresolvedAddressablesLoadCount;
         summary.NonLiteralAddressablesLoadCount = result.NonLiteralAddressablesLoadCount;
 
+        // Types always, members only when documented (schema v3). Part of the code layer:
+        // rewritten wholesale together with the code refs.
+        foreach (var script in result.Symbols)
+        {
+            foreach (var symbol in script.Symbols)
+            {
+                writer.AddCodeSymbol(assetIds[script.Guid], symbol.Symbol, symbol.Kind, symbol.Doc);
+                summary.CodeSymbolCount++;
+                if (symbol.Doc is not null)
+                {
+                    summary.DocumentedSymbolCount++;
+                }
+            }
+        }
+
         foreach (var script in result.Scripts)
         {
             var objectId = writer.AddObject(

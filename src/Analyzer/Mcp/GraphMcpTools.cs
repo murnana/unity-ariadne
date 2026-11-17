@@ -11,7 +11,7 @@ namespace UnityAriadne.Analyzer.Mcp;
 public sealed record GraphMcpOptions(string DbPath);
 
 /// <summary>
-/// The five MCP tools of the serve command (Phase 4). Each call opens the database
+/// The MCP tools of the serve command. Each call opens the database
 /// read-only and closes it again: a single shared SqliteConnection is not safe under
 /// concurrent tool calls, and a fresh open always sees the current file even after
 /// `analyze` deleted and rebuilt it. Results are compact JSON; list-shaped answers are
@@ -22,6 +22,8 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
 {
     private const int MaxListedResults = 200;
     private const int MaxAmbiguousCandidates = 10;
+    private const int MaxSignatures = 12;
+    private const int MaxFolderTypes = 6;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -113,24 +115,146 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         });
 
     [McpServerTool(Name = "search_nodes")]
-    [Description("Case-insensitive substring search over asset paths (or an exact GUID), shortest " +
-                 "paths first. Use this to find the exact path when a name is ambiguous or unknown.")]
+    [Description("Finds assets by path substring (case-insensitive) or exact GUID, shortest paths " +
+                 "first, optionally restricted to one asset type (class) and/or source. Use it to find " +
+                 "the exact path of a name, or to list instances of a class (e.g. type=Scene, empty " +
+                 "query). unreferenced=true keeps only assets nothing references. Call " +
+                 "describe_ontology for the type and source names present in this project.")]
     public string SearchNodes(
-        [Description("Substring of an asset path, or a GUID")] string query,
+        [Description("Substring of an asset path, or a GUID. Empty matches every path")] string query = "",
+        [Description("Asset type to keep, e.g. Prefab, Material, Script (case-insensitive)")] string? type = null,
+        [Description("Source to keep: Assets, Packages, PackageCache, ProjectSettings, BuiltIn or Unresolved")]
+        string? source = null,
+        [Description("Keep only assets that no other asset references")] bool unreferenced = false,
         [Description("Maximum number of results (default 20, max 100)")] int limit = 20)
     {
         using var db = OpenDatabase();
         var clampedLimit = Math.Clamp(limit, 1, 100);
         // Fetch one extra row so truncation is detectable.
-        var matches = GraphQueries.SearchNodes(db, query, clampedLimit + 1);
+        var matches = GraphQueries.FindAssets(
+            db, query, NullIfBlank(type), NullIfBlank(source), unreferenced, clampedLimit + 1);
         return Serialize(new
         {
             Query = query,
+            Type = NullIfBlank(type),
+            Source = NullIfBlank(source),
+            Unreferenced = unreferenced ? (bool?)true : null,
             Matches = matches
                 .Take(clampedLimit)
                 .Select(Describe)
                 .ToList(),
             Truncated = matches.Count > clampedLimit ? (bool?)true : null,
+        });
+    }
+
+    [McpServerTool(Name = "list_folders")]
+    [Description("Lists the folders under a path with how many assets of which types each holds " +
+                 "(recursively). Folder names show how the project is organized (Characters/Enemies, " +
+                 "UI, Levels, ...) — use them as clues and as path_contains filters in search.")]
+    public string ListFolders(
+        [Description("Folder to list, e.g. Assets or Assets/Characters. Empty lists the top level")] string path = "Assets",
+        [Description("How many folder levels down to list (default 1, max 4)")] int depth = 1)
+    {
+        using var db = OpenDatabase();
+        var folders = GraphQueries.ListFolders(db, path ?? "", Math.Clamp(depth, 1, 4));
+        return Serialize(new
+        {
+            Path = path,
+            TotalFolders = folders.Count,
+            Folders = folders
+                .Take(MaxListedResults)
+                .Select(f => new
+                {
+                    f.Path,
+                    Assets = f.AssetCount,
+                    Types = f.ByType
+                        .OrderByDescending(t => t.Value)
+                        .ThenBy(t => t.Key, StringComparer.Ordinal)
+                        .Take(MaxFolderTypes)
+                        .ToDictionary(t => t.Key, t => t.Value),
+                })
+                .ToList(),
+            Truncated = folders.Count > MaxListedResults ? (bool?)true : null,
+        });
+    }
+
+    [McpServerTool(Name = "describe_ontology")]
+    [Description("Returns the vocabulary of this project's graph: every class (asset type) with its " +
+                 "category and count per source, and every relation (ref kind) with its meaning read " +
+                 "out (A -> B) and in (B <- A), whether chaining it is meaningful (transitive), its edge " +
+                 "count and the 'FromType->ToType' signatures it actually connects. Use it to pick type " +
+                 "and relation names for search.")]
+    public string DescribeOntology()
+    {
+        using var db = OpenDatabase();
+        var ontology = GraphQueries.DescribeOntology(db);
+        return Serialize(new
+        {
+            Classes = ontology.Classes
+                .Select(c => new
+                {
+                    Type = c.AssetType,
+                    Category = OntologyGlossary.CategoryOf(c.AssetType),
+                    c.Count,
+                    c.BySource,
+                })
+                .ToList(),
+            Relations = ontology.Relations
+                .Select(r => new
+                {
+                    Kind = r.RefKind,
+                    Layer = Meaning(r.RefKind)?.Layer,
+                    Out = Meaning(r.RefKind)?.Out,
+                    In = Meaning(r.RefKind)?.In,
+                    Transitive = Meaning(r.RefKind)?.Transitive,
+                    r.Edges,
+                    r.RefCount,
+                    Signatures = r.Signatures
+                        .Take(MaxSignatures)
+                        .Select(sig => $"{sig.FromType}->{sig.ToType}: {sig.Edges}")
+                        .ToList(),
+                    MoreSignatures = r.Signatures.Count > MaxSignatures
+                        ? (int?)(r.Signatures.Count - MaxSignatures)
+                        : null,
+                })
+                .ToList(),
+        });
+    }
+
+    [McpServerTool(Name = "search")]
+    [Description(
+        "Ontology search over the Unity project graph — the one call for questions like 'prefabs that use " +
+        "a subclass of Enemy', 'scripts about boss behaviour and the prefabs they are on', 'unused prefabs " +
+        "in the UI folder'. Nodes are typed by asset type (Scene, Prefab, Script, Material, ...), edges by " +
+        "relation (uses_script, prefab_instance, inherits, generic, ...; describe_ontology lists them with " +
+        "meanings). 'from' picks the start: one asset, or assets filtered by types / source / path_contains " +
+        "and ranked by keywords (matched against file names, folder names, C# type and member names and " +
+        "XML doc comments). 'steps' then follow typed relations in order (omit them to just list the " +
+        "starts). If nothing matches, the steps are relaxed (path filters, then relation kinds, then reach) " +
+        "and 'relaxed' says how. Each match carries its evidence: 'path' ('A -[kind]-> B' = A references " +
+        "B, 'A <-[kind]- B' = B references A), keyword 'clues' and 'doc' excerpt (as 'from_clues' / " +
+        "'from_doc' when they belong to the start 'from' the path came from), 'declares' (C# types), and 'notes' on folder conventions (Editor/, Resources/, ...); " +
+        "'relations' explains every relation used in the paths. Keywords are matched ignoring case, " +
+        "full-width/half-width and hiragana/katakana differences; names, clues and doc excerpts come back " +
+        "unchanged in their own language (Japanese, Korean, Chinese, ...). Example — prefabs using Enemy.cs or a " +
+        "subclass: from {asset: \"Enemy.cs\"}, steps [{direction: in, kinds: [inherits], max_hops: 10, " +
+        "include_self: true}, {direction: in, kinds: [uses_script], types: [Prefab]}].")]
+    public string Search(
+        [Description("Start: {asset} or any of {keywords, match_all, types, source, path_contains}")] SearchStart from,
+        [Description("Typed path steps applied in order (0-8). Omit to return the start assets themselves")]
+        SearchStep[]? steps = null,
+        [Description("Keep only results that nothing references (unused-asset candidates)")] bool unreferenced = false,
+        [Description("Maximum number of matches listed (default 20, max 200)")] int limit = GraphSearch.DefaultLimit,
+        [Description("Relax the steps automatically when nothing matches (default true)")] bool relax = true)
+    {
+        using var db = OpenDatabase();
+        return GraphSearch.RunJson(db, new SearchQuery
+        {
+            From = from,
+            Steps = steps,
+            Unreferenced = unreferenced,
+            Limit = limit,
+            Relax = relax,
         });
     }
 
@@ -164,25 +288,30 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
     {
         using var db = OpenDatabase();
         var matches = GraphQueries.ResolveAssets(db, name);
-        return matches.Count switch
-        {
-            1 => answer(db, matches[0]),
-            0 => Serialize(new
+        return matches.Count == 1 ? answer(db, matches[0]) : ResolutionError(name, matches);
+    }
+
+    private static string ResolutionError(string name, IReadOnlyList<AssetNode> matches) =>
+        matches.Count == 0
+            ? Serialize(new
             {
                 Error = "not_found",
                 Name = name,
                 Hint = "No asset matched this path, file name, or GUID. Try search_nodes with a substring.",
-            }),
-            _ => Serialize(new
+            })
+            : Serialize(new
             {
                 Error = "ambiguous",
                 Name = name,
                 CandidateCount = matches.Count,
                 Candidates = matches.Take(MaxAmbiguousCandidates).Select(m => m.Name).ToList(),
                 Hint = "Multiple assets matched. Call again with one of the candidate paths.",
-            }),
-        };
-    }
+            });
+
+    private static RelationMeaning? Meaning(string kind) =>
+        OntologyGlossary.Relations.TryGetValue(kind, out var meaning) ? meaning : null;
+
+    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     private static object Describe(AssetNode asset) => new
     {
@@ -195,3 +324,4 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
 
     private static string Serialize(object value) => JsonSerializer.Serialize(value, JsonOptions);
 }
+

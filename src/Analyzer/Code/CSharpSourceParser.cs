@@ -60,6 +60,7 @@ public static class CSharpSourceParser
                     break;
                 case BaseTypeDeclarationSyntax typeDeclaration:
                     AddDeclaredType(typeDeclaration, typeDeclaration.Identifier.Text, model);
+                    AddSymbol(typeDeclaration, typeDeclaration.Identifier.Text, TypeKind(typeDeclaration), always: true, model);
                     if (typeDeclaration is TypeDeclarationSyntax { BaseList: not null } withBases)
                     {
                         AddBaseTypes(withBases, model);
@@ -68,9 +69,38 @@ public static class CSharpSourceParser
                     break;
                 case DelegateDeclarationSyntax delegateDeclaration:
                     AddDeclaredType(delegateDeclaration, delegateDeclaration.Identifier.Text, model);
+                    AddSymbol(delegateDeclaration, delegateDeclaration.Identifier.Text, "delegate", always: true, model);
                     break;
                 case FieldDeclarationSyntax field:
                     AddField(field, model);
+                    AddSymbol(field, string.Join(", ", field.Declaration.Variables.Select(v => v.Identifier.Text)),
+                        "field", always: false, model);
+                    break;
+                case EventFieldDeclarationSyntax eventField:
+                    AddSymbol(eventField,
+                        string.Join(", ", eventField.Declaration.Variables.Select(v => v.Identifier.Text)),
+                        "event", always: false, model);
+                    break;
+                case MethodDeclarationSyntax method:
+                    AddSymbol(method, method.Identifier.Text, "method", always: false, model);
+                    break;
+                case ConstructorDeclarationSyntax constructor:
+                    AddSymbol(constructor, constructor.Identifier.Text, "constructor", always: false, model);
+                    break;
+                case PropertyDeclarationSyntax property:
+                    AddSymbol(property, property.Identifier.Text, "property", always: false, model);
+                    break;
+                case EventDeclarationSyntax eventDeclaration:
+                    AddSymbol(eventDeclaration, eventDeclaration.Identifier.Text, "event", always: false, model);
+                    break;
+                case IndexerDeclarationSyntax indexer:
+                    AddSymbol(indexer, "this[]", "indexer", always: false, model);
+                    break;
+                case OperatorDeclarationSyntax op:
+                    AddSymbol(op, "operator " + op.OperatorToken.Text, "operator", always: false, model);
+                    break;
+                case EnumMemberDeclarationSyntax enumMember:
+                    AddSymbol(enumMember, enumMember.Identifier.Text, "enum_member", always: false, model);
                     break;
                 case InvocationExpressionSyntax invocation:
                     AddInvocation(invocation, model);
@@ -108,6 +138,109 @@ public static class CSharpSourceParser
         var fullName = string.Join(".",
             new[] { namespaceName, declaringTypes, name }.Where(p => p.Length > 0));
         model.DeclaredTypes.Add(new DeclaredType(name, fullName, namespaceName, declaringTypes.Length > 0));
+    }
+
+    /// <summary>
+    /// Records a declaration for keyword search: types always (their names are clues even
+    /// undocumented), members only when they carry an XML doc comment.
+    /// </summary>
+    private static void AddSymbol(SyntaxNode declaration, string name, string kind, bool always, CSharpSourceModel model)
+    {
+        var doc = DocCommentText(declaration);
+        if (doc is null && !always)
+        {
+            return;
+        }
+
+        var (namespaceName, declaringTypes) = EnclosingScope(declaration);
+        var symbol = string.Join(".", new[] { namespaceName, declaringTypes, name }.Where(p => p.Length > 0));
+        model.Symbols.Add(new CodeSymbol(symbol, kind, doc));
+    }
+
+    private static string TypeKind(BaseTypeDeclarationSyntax declaration) => declaration switch
+    {
+        RecordDeclarationSyntax => "record",
+        ClassDeclarationSyntax => "class",
+        StructDeclarationSyntax => "struct",
+        InterfaceDeclarationSyntax => "interface",
+        EnumDeclarationSyntax => "enum",
+        _ => "type",
+    };
+
+    /// <summary>Longest doc text kept per symbol; the rest is rarely a search clue.</summary>
+    private const int MaxDocLength = 1000;
+
+    /// <summary>
+    /// Plain text of the declaration's XML doc comment (<c>///</c> or <c>/** */</c>):
+    /// &lt;summary&gt; then &lt;remarks&gt;, or the whole comment when it has neither.
+    /// &lt;see cref="X"/&gt; / &lt;paramref name="x"/&gt; / langword become their names;
+    /// whitespace is collapsed. Null when there is no doc comment or it is empty.
+    /// </summary>
+    internal static string? DocCommentText(SyntaxNode declaration)
+    {
+        var parts = new List<string>();
+        foreach (var trivia in declaration.GetLeadingTrivia())
+        {
+            if (trivia.GetStructure() is not DocumentationCommentTriviaSyntax doc)
+            {
+                continue;
+            }
+
+            var sections = doc.Content.OfType<XmlElementSyntax>()
+                .Where(e => e.StartTag.Name.LocalName.Text is "summary" or "remarks")
+                .ToList();
+            parts.Add(sections.Count > 0
+                ? string.Join(" ", sections.Select(e => XmlText(e.Content)))
+                : XmlText(doc.Content));
+        }
+
+        var text = string.Join(" ", string.Join(" ", parts)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        if (text.Length == 0)
+        {
+            return null;
+        }
+
+        return text.Length <= MaxDocLength ? text : text[..MaxDocLength] + "…";
+    }
+
+    private static string XmlText(SyntaxList<XmlNodeSyntax> content)
+    {
+        var builder = new System.Text.StringBuilder();
+        foreach (var node in content)
+        {
+            switch (node)
+            {
+                case XmlTextSyntax text:
+                    foreach (var token in text.TextTokens)
+                    {
+                        builder.Append(token.IsKind(SyntaxKind.XmlTextLiteralNewLineToken) ? " " : token.ValueText);
+                    }
+
+                    break;
+                case XmlElementSyntax element:
+                    builder.Append(' ').Append(XmlText(element.Content)).Append(' ');
+                    break;
+                case XmlEmptyElementSyntax empty:
+                    foreach (var attribute in empty.Attributes)
+                    {
+                        builder.Append(' ').Append(attribute switch
+                        {
+                            XmlCrefAttributeSyntax cref => cref.Cref.ToString(),
+                            XmlNameAttributeSyntax name => name.Identifier.ToString(),
+                            XmlTextAttributeSyntax text => string.Concat(text.TextTokens.Select(t => t.ValueText)),
+                            _ => "",
+                        }).Append(' ');
+                    }
+
+                    break;
+                case XmlCDataSectionSyntax cdata:
+                    builder.Append(string.Concat(cdata.TextTokens.Select(t => t.ValueText)));
+                    break;
+            }
+        }
+
+        return builder.ToString();
     }
 
     private static void AddBaseTypes(TypeDeclarationSyntax typeDeclaration, CSharpSourceModel model)

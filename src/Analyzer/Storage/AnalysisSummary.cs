@@ -52,6 +52,12 @@ public sealed class AnalysisSummary
     /// <summary>Kind → count over code refs.</summary>
     public IReadOnlyDictionary<string, long> CodeKindCounts => _codeKindCounts;
 
+    /// <summary>code_symbols rows written: declared types plus documented members (schema v3).</summary>
+    public long CodeSymbolCount { get; internal set; }
+
+    /// <summary>code_symbols rows that carry an XML doc comment.</summary>
+    public long DocumentedSymbolCount { get; internal set; }
+
     /// <summary>MonoScript object rows (file_id 11500000) created for scripts with code refs.</summary>
     public long ScriptObjectCount { get; internal set; }
 

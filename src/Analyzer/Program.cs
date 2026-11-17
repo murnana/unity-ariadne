@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -13,6 +14,7 @@ return args switch
     ["report", .. var rest] => Report(rest),
     ["export", .. var rest] => Export(rest),
     ["serve", .. var rest] => await Serve(rest),
+    ["search", .. var rest] => Search(rest),
     _ => Usage(),
 };
 
@@ -136,6 +138,9 @@ static int Analyze(string[] args)
             $"  skipped: {summary.UnresolvedAddressablesLoadCount} unresolved + " +
             $"{summary.NonLiteralAddressablesLoadCount} non-literal Addressables keys");
     }
+
+    Console.WriteLine(
+        $"Code symbols: {summary.CodeSymbolCount} ({summary.DocumentedSymbolCount} with XML doc comments)");
 
     Console.WriteLine($"ProjectSettings references: {summary.SettingsRefCount} in {summary.SettingsFileCount} files");
     foreach (var (kind, count) in summary.SettingsKindCounts
@@ -369,6 +374,12 @@ static async Task<int> Serve(string[] args)
             options.ServerInstructions =
                 "Asset-level dependency graph of a Unity project (built by unity-ariadne analyze). " +
                 "Names accept a project-relative path, a unique file name, or a GUID. " +
+                "Nodes are typed by asset type (Scene, Prefab, Script, Material, ...) and edges by ref kind " +
+                "(uses_script, prefab_instance, inherits, ...). For questions that combine types, relations, " +
+                "names or concepts, call search: it starts from an asset or from keyword/type/folder filters " +
+                "(keywords also match C# type names and XML doc comments), follows typed steps, relaxes them " +
+                "when nothing matches, and returns each result with its evidence. describe_ontology explains " +
+                "the vocabulary; list_folders shows how the project is organized. " +
                 "Re-run analyze to refresh the graph; tools always read the current database file.";
         })
         .WithStdioServerTransport()
@@ -376,6 +387,79 @@ static async Task<int> Serve(string[] args)
 
     await builder.Build().RunAsync();
     return 0;
+}
+
+static int Search(string[] args)
+{
+    string? dbPath = null;
+    string? queryText = null;
+    string? queryFile = null;
+
+    for (var i = 0; i < args.Length; i++)
+    {
+        switch (args[i])
+        {
+            case "--db" when i + 1 < args.Length:
+                dbPath = args[++i];
+                break;
+            case "--query" when i + 1 < args.Length:
+                queryText = args[++i];
+                break;
+            case "--query-file" when i + 1 < args.Length:
+                queryFile = args[++i];
+                break;
+            default:
+                Console.Error.WriteLine($"error: unexpected argument '{args[i]}'");
+                return 1;
+        }
+    }
+
+    if (dbPath is null || (queryText is null) == (queryFile is null))
+    {
+        Console.Error.WriteLine("usage: search --db <path> (--query <json> | --query-file <path or ->)");
+        return 1;
+    }
+
+    SearchQuery? query;
+    try
+    {
+        // Read the file as UTF-8 explicitly: Japanese keywords must survive any console code page.
+        queryText ??= queryFile == "-"
+            ? new StreamReader(Console.OpenStandardInput(), Encoding.UTF8).ReadToEnd()
+            : File.ReadAllText(queryFile!, Encoding.UTF8);
+        query = JsonSerializer.Deserialize<SearchQuery>(queryText, GraphSearch.JsonOptions);
+    }
+    catch (Exception e) when (e is JsonException or IOException or UnauthorizedAccessException)
+    {
+        Console.Error.WriteLine($"error: cannot read the query: {e.Message}");
+        return 1;
+    }
+
+    if (query is null)
+    {
+        Console.Error.WriteLine("error: the query is empty");
+        return 1;
+    }
+
+    GraphDatabase db;
+    try
+    {
+        db = GraphDatabase.OpenFile(dbPath);
+    }
+    catch (FileNotFoundException)
+    {
+        Console.Error.WriteLine($"error: database not found: {dbPath}");
+        return 1;
+    }
+
+    using (db)
+    {
+        var json = GraphSearch.RunJson(db, query, new JsonSerializerOptions(GraphSearch.JsonOptions) { WriteIndented = true });
+        using var stdout = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false));
+        stdout.WriteLine(json);
+        // The same JSON as the MCP search tool; an "error" member means the query was rejected.
+        return JsonDocument.Parse(json).RootElement.TryGetProperty("error", out _) ? 1 : 0;
+    }
 }
 
 static int Usage()
@@ -390,6 +474,8 @@ static int Usage()
           report --db <path>
           export --db <path> --jsonl <path> [--include-packages]
           serve --db <path>
+          search --db <path> (--query <json> | --query-file <path or ->)
+              (ontology search; same JSON query and answer as the MCP search tool)
         """);
     return 1;
 }

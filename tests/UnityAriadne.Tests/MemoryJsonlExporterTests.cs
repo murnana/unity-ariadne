@@ -70,6 +70,27 @@ public class MemoryJsonlExporterTests
         Assert.DoesNotContain(lines, l => l.Contains("\"Assets/Orphan\""));
     }
 
+    /// <summary>Schema v3: declared types (with their doc summary) become observations; members do not.</summary>
+    [Fact]
+    public void ScriptEntitiesCarryTypeDeclarationsAsObservations()
+    {
+        using var db = GraphDatabase.CreateInMemory();
+        using (var writer = db.CreateWriter())
+        {
+            var script = writer.AddAsset("eeee", "Assets/Enemy.cs", "Script", "Assets");
+            writer.AddCodeSymbol(script, "Game.Enemy", "class", "敵の基底クラス");
+            writer.AddCodeSymbol(script, "Game.Enemy.TakeDamage", "method", "Applies damage.");
+            writer.AddCodeSymbol(script, "Game.Enemy.State", "enum", null);
+            writer.Commit();
+        }
+
+        var (lines, _) = Export(db, new ExportOptions());
+
+        Assert.Equal(
+            ["""{"type":"entity","name":"Assets/Enemy.cs","entityType":"Script","observations":["guid: eeee","source: Assets","declares class Game.Enemy: 敵の基底クラス","declares enum Game.Enemy.State"]}"""],
+            lines);
+    }
+
     /// <summary>Phase 1c decision: corresponding_source stays in SQLite but not in the jsonl.</summary>
     [Fact]
     public void CorrespondingSourceEdgesAreExcluded()

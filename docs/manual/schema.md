@@ -5,7 +5,7 @@
 ## スキーマ
 
 ```sql
--- PRAGMA user_version = 2 (スキーマ変更時にバンプ。バージョン不一致の DB はフル再構築されます)
+-- PRAGMA user_version = 3 (スキーマ変更時にバンプ。バージョン不一致の DB はフル再構築されます)
 
 CREATE TABLE assets (
   id INTEGER PRIMARY KEY,
@@ -47,6 +47,13 @@ CREATE VIEW asset_edges AS    -- アセット単位に集約(jsonl エクスポ�
 CREATE VIEW unresolved_guids AS
   SELECT guid FROM assets WHERE path IS NULL;
 
+CREATE TABLE code_symbols (    -- C# の宣言(キーワード検索の手がかり)
+  asset_id INTEGER NOT NULL REFERENCES assets(id),
+  symbol TEXT NOT NULL,       -- 名前空間.型 または 名前空間.型.メンバー
+  kind TEXT NOT NULL,         -- class / struct / interface / enum / record / delegate / method / property / field / ...
+  doc TEXT                    -- XML ドキュメントコメント(<summary> + <remarks>)のプレーンテキスト。無ければ NULL
+);
+
 CREATE TABLE settings_files (  -- 差分更新用: スキャンした ProjectSettings/*.asset 全部
   path TEXT PRIMARY KEY,       -- (参照を持たず assets 行がないファイルも含む)
   file_hash TEXT NOT NULL
@@ -59,6 +66,7 @@ CREATE TABLE settings_files (  -- 差分更新用: スキャンした ProjectSet
 - **ビルトインアセットは解決済みです**: `...d000...` → `Library/unity default resources`、`...e000...` → `Library/unity editor resources`、`...f000...` → `Resources/unity_builtin_extra`(`source = 'BuiltIn'`)。
 - **.meta 由来・JSON ファイル由来の参照は擬似オブジェクト**(`file_id = 0, class_id = 0`)にぶら下がります。実アンカーが 0 になることはないため衝突しません。
 - **コード層の参照は MonoScript 擬似オブジェクト**(`file_id = 11500000, class_id = 115`、name = 最初の非ネスト宣言型)にぶら下がります。解決済み参照が 1 つ以上あるスクリプトにだけ作られます。
+- **`code_symbols` には、すべての .cs で宣言された型**(ドキュメントコメントが無くても)と、**XML ドキュメントコメント付きのメンバー**(メソッド・コンストラクター・プロパティ・インデクサー・フィールド・イベント・列挙値・演算子)が入ります。`doc` は `<summary>` と `<remarks>` の本文(どちらも無ければコメント全体)をプレーンテキストにしたもので、`<see cref="X"/>` などは名前に置き換え、1000 文字で打ち切ります。`#if !UNITY_EDITOR` の中の宣言は入りません。コード層の一部として、.cs が 1 つでも変わると全体が作り直されます。
 - MCP サーバーと jsonl エクスポートは `corresponding_source` を除外しますが、**refs テーブルには入っています**。生 SQL で数えると多めに出るのはそのためです。
 
 ## ref_kind 一覧
@@ -130,6 +138,16 @@ WHERE p.source = 'Assets' AND p.path LIKE '%.prefab'
     WHERE e.to_guid = p.guid AND e.ref_kind != 'corresponding_source');
 ```
 
+**XML ドキュメントコメントからスクリプトを探す:**
+
+```sql
+SELECT a.path, s.symbol, s.kind, s.doc
+FROM code_symbols s
+JOIN assets a ON a.id = s.asset_id
+WHERE s.doc LIKE '%ダメージ%'
+ORDER BY a.path, s.rowid;
+```
+
 **参照切れ GUID を参照数順に:**
 
 ```sql
@@ -152,7 +170,7 @@ WHERE r.to_guid = (SELECT guid FROM assets WHERE path = 'Assets/Materials/Fog.ma
 ## 注意
 
 - DB ファイルは `analyze` が更新中にトランザクションで書き換えます。読み取り専用で開けば途中状態を見ることはありません(単一トランザクションでコミットされます)。
-- スキーマ変更時は `PRAGMA user_version` がバンプされます。自作スクリプトでバージョンを確認する場合は `PRAGMA user_version;` で `2` を期待してください。
+- スキーマ変更時は `PRAGMA user_version` がバンプされます。自作スクリプトでバージョンを確認する場合は `PRAGMA user_version;` で `3` を期待してください。
 
 ---
 

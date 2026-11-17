@@ -331,6 +331,11 @@ public class GraphUpdaterTests
             ORDER BY 1
             """));
         rows.AddRange(QueryStrings(db,
+            """
+            SELECT 'code_symbol|' || a.guid || '|' || s.symbol || '|' || s.kind || '|' || COALESCE(s.doc, '-')
+            FROM code_symbols s JOIN assets a ON a.id = s.asset_id ORDER BY 1
+            """));
+        rows.AddRange(QueryStrings(db,
             "SELECT 'settings_file|' || path || '|' || file_hash FROM settings_files ORDER BY 1"));
         return rows;
     }
