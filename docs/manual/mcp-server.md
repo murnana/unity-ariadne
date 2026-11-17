@@ -79,7 +79,7 @@ search_nodes(query = "", type = null, source = null, unreferenced = false, limit
 ### search — オントロジー検索(種類・関係・名前・意味)
 
 ```
-search(from, steps = null, unreferenced = false, limit = 20, relax = true, lang = null)
+search(from, steps = null, unreferenced = false, limit = 20, relax = true)
 ```
 
 グラフを、ノードの型(アセットの種類)とエッジの型(参照の種類)を持つオントロジーとして検索します。**種類・関係の連鎖・場所・概念を組み合わせた質問は、このツール 1 回で答えられるように作ってあります。** 同じ機能を CLI の `ariadne search` でも使えます([cli.md](cli.md))。
@@ -159,7 +159,7 @@ search(from: {keywords: ["ボス", "boss"], types: ["Script"]},
     from_doc:   "Game.Boss: ボスの行動を制御する"
 ```
 
-`lang` に `ja` を指定すると(`ja-JP` なども可)、人が読む説明文 — `relations`、`notes`、`clues` / `from_clues` の見出し(`ファイル名` / `フォルダー` / `型名` / `メンバー名` / `… のドキュメントコメント`)、`relaxed`、`warnings`、エラーの `hint` — が日本語になります。フィールド名、アセット名、種類名(`Prefab` など)、関係名(`uses_script` など)、エラーコードは言語によらず英語のままです。既定は `en` で、それ以外の値は `invalid_lang` エラーです。
+説明文(`relations`、`notes`、`clues` の見出し、`relaxed`、`warnings`、エラーの `hint`)は英語です。アセット名・キーワード・手がかりの対象・ドキュメントコメントの抜粋は、日本語・韓国語・中国語などの文字のまま、エスケープも変換もせずに返します。
 
 エラー: `from` が無い(`invalid_query`)、`asset` と条件の両方または両方とも無い(`invalid_start`)、`direction` が不正(`invalid_direction`)、ステップが 9 個以上(`invalid_steps`)、`asset` が見つからない(`not_found`)、複数に当たる(`ambiguous`、`candidates` 付き)。いずれも `hint` が付きます。
 
@@ -176,7 +176,7 @@ list_folders(path = "Assets", depth = 1)
 ### describe_ontology — 語彙(種類と関係)の一覧
 
 ```
-describe_ontology(lang = null)
+describe_ontology()
 ```
 
 グラフの語彙を返します。種類と関係の件数・組み合わせは**そのプロジェクトに実在するもの**、意味は ariadne が持つ定義です。
@@ -184,7 +184,7 @@ describe_ontology(lang = null)
 - `classes[]`: `type`(アセットの種類)、`category`(Placement / Code / Data / Rendering / Geometry / Animation / Effects / Audio/Video / UI / Physics/Lighting / Settings / Folder / Unresolved / Other)、`count`、`by_source`
 - `relations[]`: `kind`(ref_kind)、`layer`(`asset` / `code`)、`out`(`A -[kind]-> B` の読み方)、`in`(逆にたどると何が見つかるか)、`transitive`(`max_hops` で何段もたどる意味があるか)、`edges`、`ref_count`、`signatures`(`"Prefab->Script: 120"` のような、実際に結んでいる種類の組み合わせ。多い順に最大 12 件、残りは `more_signatures`)
 
-`lang: "ja"` で `out` / `in` の説明が日本語になります。`search` の `types` / `kinds` に使う名前と、関係の向きを確かめるのに使います。
+`search` の `types` / `kinds` に使う名前と、関係の向きを確かめるのに使います。
 
 ### list_unresolved — 参照切れ GUID 一覧
 

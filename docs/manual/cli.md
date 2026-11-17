@@ -31,7 +31,7 @@ analyze <unity-project-path> [--db <path>] [--full]
 report  --db <path>
 export  --db <path> --jsonl <path> [--include-packages]
 serve   --db <path>
-search  --db <path> (--query <json> | --query-file <path or ->) [--lang en|ja]
+search  --db <path> (--query <json> | --query-file <path or ->)
 ```
 
 ---
@@ -136,13 +136,13 @@ serve --db graph.db
 ```sh
 search --db graph.db --query '{"from": {"keywords": ["ボス", "boss"], "types": ["Script"]}, "steps": [{"direction": "in", "kinds": ["uses_script"], "types": ["Prefab"]}]}'
 search --db graph.db --query-file query.json
-echo '{"from": {"types": ["Prefab"], "source": "Assets"}, "unreferenced": true}' | search --db graph.db --query-file - --lang ja
+echo '{"from": {"types": ["Prefab"], "source": "Assets"}, "unreferenced": true}' | search --db graph.db --query-file -
 ```
 
 MCP の `search` ツールと**同じ機能**を CLI から使います。クエリは MCP ツールの引数と同じ形の JSON(`from` / `steps` / `unreferenced` / `limit` / `relax`)で、出力も同じ JSON(人が読みやすいよう字下げ付き、UTF-8)です。クエリと結果の詳細は [mcp-server.md の search](mcp-server.md#search--オントロジー検索種類関係名前意味) をご覧ください。
 
 - Windows の PowerShell などで引数の引用符が扱いにくい場合は、クエリを UTF-8 のファイルに書いて `--query-file` で渡してください(`-` で標準入力)
-- `--lang ja` で説明文(関係の意味、注記、手がかりの見出し、緩めた条件、エラーの説明)が日本語になります。クエリの `"lang"` と同じで、両方あれば `--lang` が優先します
+- 説明文は英語です。アセット名やドキュメントコメントは、日本語・韓国語・中国語などの文字のまま出力します
 - キーワードは全角・半角、ひらがな・カタカナ、大文字・小文字の違いを無視して照合します
 - クエリが不正なとき(`error` を含む JSON が出たとき)は終了コード 1 になります
 

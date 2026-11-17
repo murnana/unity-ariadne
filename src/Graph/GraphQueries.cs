@@ -105,18 +105,14 @@ public enum ClueKind
 /// </summary>
 public sealed record KeywordClue(string Term, ClueKind Kind, string Target, string? SymbolKind = null)
 {
-    public string Render(Lang lang) => Kind switch
+    /// <summary>"boss → file name: Boss.cs", "enemies → folder: Enemies", "damage → method: X.TakeDamage", "怒り → doc of X".</summary>
+    public override string ToString() => Kind switch
     {
-        ClueKind.FileName => $"{Term} → {lang.Pick("file name", "ファイル名")}: {Target}",
-        ClueKind.Folder => $"{Term} → {lang.Pick("folder", "フォルダー")}: {Target}",
-        ClueKind.TypeName or ClueKind.MemberName => lang == Lang.Ja
-            ? $"{Term} → {(Kind == ClueKind.TypeName ? "型名" : "メンバー名")} ({SymbolKind}): {Target}"
-            : $"{Term} → {SymbolKind}: {Target}",
-        _ => lang == Lang.Ja ? $"{Term} → {Target} のドキュメントコメント" : $"{Term} → doc of {Target}",
+        ClueKind.FileName => $"{Term} → file name: {Target}",
+        ClueKind.Folder => $"{Term} → folder: {Target}",
+        ClueKind.TypeName or ClueKind.MemberName => $"{Term} → {SymbolKind}: {Target}",
+        _ => $"{Term} → doc of {Target}",
     };
-
-    /// <summary>The English rendering.</summary>
-    public override string ToString() => Render(Lang.En);
 }
 
 /// <summary>A folder under the listed root, with how many assets of which types it holds (recursively).</summary>

@@ -168,25 +168,37 @@ public class GraphSearchTests : IDisposable
     }
 
     [Fact]
-    public void JapaneseOutputLocalizesExplanationsButNotNames()
+    public void NonLatinNamesAndDocsComeBackUnchangedAndUnescaped()
     {
-        var result = Run("""
-            {"lang": "ja", "from": {"keywords": ["ボス"], "types": ["Script"]},
-             "steps": [{"direction": "in", "kinds": ["uses_script"], "types": ["Prefab"], "path_contains": ["/Nowhere/"]}]}
-            """);
+        using var db = GraphDatabase.CreateInMemory();
+        using (var writer = db.CreateWriter())
+        {
+            var ja = writer.AddAsset("j1", "Assets/キャラクター/敵/ボス攻撃.cs", "Script", "Assets");
+            var ko = writer.AddAsset("k1", "Assets/캐릭터/보스.cs", "Script", "Assets");
+            var zh = writer.AddAsset("z1", "Assets/角色/頭目.cs", "Script", "Assets");
+            writer.AddCodeSymbol(ja, "Game.BossAttack", "class", "ボスの攻撃パターン");
+            writer.AddCodeSymbol(ko, "Game.Boss", "class", "보스의 공격 패턴");
+            writer.AddCodeSymbol(zh, "Game.Chief", "class", "頭目的攻擊模式");
+            writer.Commit();
+        }
 
-        var match = Assert.Single(result.GetProperty("matches").EnumerateArray());
-        Assert.Equal("Prefab", match.GetProperty("type").GetString());
-        Assert.Equal("ボス → Game.Boss のドキュメントコメント", match.GetProperty("from_clues")[0].GetString());
-        Assert.Contains("コンポーネント", result.GetProperty("relations").GetProperty("uses_script").GetString());
-        Assert.Equal(["ステップ: path_contains を外した"],
-            result.GetProperty("relaxed").EnumerateArray().Select(r => r.GetString()));
+        foreach (var (keyword, name, doc) in new[]
+                 {
+                     ("攻撃", "Assets/キャラクター/敵/ボス攻撃.cs", "Game.BossAttack: ボスの攻撃パターン"),
+                     ("공격", "Assets/캐릭터/보스.cs", "Game.Boss: 보스의 공격 패턴"),
+                     ("攻擊", "Assets/角色/頭目.cs", "Game.Chief: 頭目的攻擊模式"),
+                 })
+        {
+            var json = GraphSearch.RunJson(db, new SearchQuery { From = new SearchStart { Keywords = [keyword] } });
 
-        var notes = Run("""{"lang": "ja-JP", "from": {"types": ["Prefab"]}, "unreferenced": true}""");
-        Assert.StartsWith("Resources フォルダー", notes.GetProperty("matches")[0].GetProperty("notes")[0].GetString());
-
-        Assert.Equal("invalid_lang", Run("""{"lang": "fr", "from": {"types": ["Prefab"]}}""").GetProperty("error").GetString());
-        Assert.Contains("一致するアセットがありません",
-            Run("""{"lang": "ja", "from": {"asset": "Nope.cs"}}""").GetProperty("hint").GetString());
+            // Raw UTF-8 in the JSON text: no \uXXXX escapes, no translation.
+            Assert.Contains(name, json);
+            Assert.Contains(doc, json);
+            Assert.DoesNotContain("\\u", json);
+            var match = Assert.Single(JsonSerializer.Deserialize<JsonElement>(json).GetProperty("matches").EnumerateArray());
+            Assert.Equal(name, match.GetProperty("name").GetString());
+            Assert.StartsWith($"{keyword} → ", match.GetProperty("clues")[0].GetString());
+            Assert.Equal(doc, match.GetProperty("doc").GetString());
+        }
     }
 }

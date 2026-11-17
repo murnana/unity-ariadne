@@ -82,10 +82,6 @@ public sealed record SearchQuery
 
     [JsonPropertyName("relax")]
     public bool? Relax { get; init; }
-
-    /// <summary>Language of the human-readable texts: "en" (default) or "ja".</summary>
-    [JsonPropertyName("lang")]
-    public string? Lang { get; init; }
 }
 
 /// <summary>
@@ -95,8 +91,9 @@ public sealed record SearchQuery
 /// path steps (<see cref="GraphQueries.Traverse"/>), relaxes the steps when nothing matches,
 /// and annotates every result with its evidence: the reference path, the keyword clues and doc
 /// excerpt (of the match itself, or of the start its path came from), declared types and folder-convention notes, plus a glossary
-/// of the relations the paths use. Output is compact snake_case JSON for both front ends; the
-/// human-readable texts follow <see cref="SearchQuery.Lang"/> (English or Japanese).
+/// of the relations the paths use. Output is compact snake_case JSON for both front ends.
+/// Explanations are English (the calling agent puts them in the user's language); asset names,
+/// keywords, clues and doc excerpts are passed through unchanged in whatever script they use.
 /// </summary>
 public static class GraphSearch
 {
@@ -121,23 +118,16 @@ public static class GraphSearch
     /// <summary>Runs <paramref name="query"/>; the result is an anonymous object shaped for JSON.</summary>
     public static object Run(GraphDatabase db, SearchQuery query)
     {
-        if (!LangExtensions.TryParse(query.Lang, out var lang))
-        {
-            return Error("invalid_lang", $"Unknown lang '{query.Lang}'. Use en or ja.");
-        }
-
         var origin = query.From;
         var stepsIn = query.Steps ?? [];
         if (origin is null)
         {
-            return Error("invalid_query", lang.Pick(
-                "Give 'from': an asset, or keywords/types/source/path_contains.",
-                "'from' を指定してください: asset、または keywords / types / source / path_contains。"));
+            return Error("invalid_query", "Give 'from': an asset, or keywords/types/source/path_contains.");
         }
 
         if (stepsIn.Length > MaxSteps)
         {
-            return Error("invalid_steps", lang.Pick($"Give at most {MaxSteps} steps.", $"steps は {MaxSteps} 個までです。"));
+            return Error("invalid_steps", $"Give at most {MaxSteps} steps.");
         }
 
         var steps = new List<TraversalStep>();
@@ -146,9 +136,7 @@ public static class GraphSearch
             if (!Enum.TryParse<TraversalDirection>(step.Direction, ignoreCase: true, out var direction)
                 || !Enum.IsDefined(direction) || int.TryParse(step.Direction, out _))
             {
-                return Error("invalid_direction", lang.Pick(
-                    $"Unknown direction '{step.Direction}'. Use out (dependencies), in (referrers) or both.",
-                    $"direction '{step.Direction}' は不正です。out(依存先)、in(参照元)、both のいずれかにしてください。"));
+                return Error("invalid_direction", $"Unknown direction '{step.Direction}'. Use out (dependencies), in (referrers) or both.");
             }
 
             steps.Add(new TraversalStep(direction, step.Kinds, step.Types, step.MaxHops ?? 1,
@@ -159,22 +147,17 @@ public static class GraphSearch
                          || !string.IsNullOrWhiteSpace(origin.Source) || origin.PathContains is { Length: > 0 };
         if (string.IsNullOrWhiteSpace(origin.Asset) == !hasFilters)
         {
-            return Error("invalid_start", lang.Pick(
-                "Give either from.asset or filters (keywords, types, source, path_contains), not both.",
-                "from.asset か、絞り込み条件(keywords / types / source / path_contains)のどちらか一方を指定してください。"));
+            return Error("invalid_start", "Give either from.asset or filters (keywords, types, source, path_contains), not both.");
         }
 
         var limit = Math.Clamp(query.Limit ?? DefaultLimit, 1, MaxLimit);
         var relax = query.Relax ?? true;
         var ontology = GraphQueries.DescribeOntology(db);
-        var warnings = UnknownTerms(steps, origin.Types, ontology, lang);
+        var warnings = UnknownTerms(steps, origin.Types, ontology);
         if (!db.HasCodeSymbols && origin.Keywords is { Length: > 0 })
         {
-            warnings.Add(lang.Pick(
-                "this graph was built by an older ariadne without C# type names and doc comments; " +
-                "only file and folder names were searched — re-run analyze to add them",
-                "このグラフは C# の型名とドキュメントコメントを持たない古い ariadne で作られたため、" +
-                "ファイル名とフォルダー名だけを検索しました。analyze をやり直すと検索できるようになります"));
+            warnings.Add("this graph was built by an older ariadne without C# type names and doc comments; " +
+                "only file and folder names were searched — re-run analyze to add them");
         }
 
         var relaxed = new List<string>();
@@ -188,15 +171,11 @@ public static class GraphSearch
             if (resolved.Count != 1)
             {
                 return resolved.Count == 0
-                    ? Error("not_found", lang.Pick(
-                        $"No asset matched '{origin.Asset}'. Use from.keywords to search by name instead.",
-                        $"'{origin.Asset}' に一致するアセットがありません。from.keywords で名前から探してください。"))
+                    ? Error("not_found", $"No asset matched '{origin.Asset}'. Use from.keywords to search by name instead.")
                     : new
                     {
                         Error = "ambiguous",
-                        Hint = lang.Pick(
-                            "Several assets matched. Repeat with one of the candidate paths.",
-                            "複数のアセットに一致しました。候補のフルパスで呼び直してください。"),
+                        Hint = "Several assets matched. Repeat with one of the candidate paths.",
                         Candidates = resolved.Take(MaxListedStarts).Select(a => a.Name).ToList(),
                     };
             }
@@ -209,21 +188,20 @@ public static class GraphSearch
             if (starts.Count == 0 && relax && origin.Keywords is { Length: > 1 } && origin.MatchAll == true)
             {
                 (starts, keywordStarts) = FindStarts(db, origin, matchAll: false);
-                relaxed.Add(lang.Pick("start: accepted assets hitting any keyword instead of all",
-                    "出発点: すべてのキーワードではなく、いずれかに当たるものを受け入れた"));
+                relaxed.Add("start: accepted assets hitting any keyword instead of all");
             }
 
             if (starts.Count == 0 && relax && origin.PathContains is { Length: > 0 }
                 && (origin.Keywords is { Length: > 0 } || origin.Types is { Length: > 0 }))
             {
                 (starts, keywordStarts) = FindStarts(db, origin with { PathContains = null }, origin.MatchAll ?? false);
-                relaxed.Add(lang.Pick("start: dropped path_contains", "出発点: path_contains を外した"));
+                relaxed.Add("start: dropped path_contains");
             }
         }
 
         // 2. Path steps, relaxed step by step while nothing matches.
         var matches = Evaluate(db, starts, steps);
-        var variants = relax && starts.Count > 0 ? RelaxationsOf(steps, lang) : [];
+        var variants = relax && starts.Count > 0 ? RelaxationsOf(steps) : [];
         foreach (var (description, variant) in variants)
         {
             if (Filter(db, matches, query.Unreferenced).Count > 0)
@@ -238,8 +216,7 @@ public static class GraphSearch
         var results = Filter(db, matches, query.Unreferenced);
         if (results.Count == 0 && relaxed.Count > 0)
         {
-            relaxed.Add(lang.Pick("nothing matched even after relaxing; check the direction of each step",
-                "緩めても見つかりませんでした。各ステップの向き(in / out)を確認してください"));
+            relaxed.Add("nothing matched even after relaxing; check the direction of each step");
         }
 
         // 3. Evidence and annotations.
@@ -255,8 +232,8 @@ public static class GraphSearch
 
             clueOf.TryGetValue(m.Start.Guid, out var startClues);
             symbols.TryGetValue(m.Asset.Guid, out var ownSymbols);
-            var notes = OntologyGlossary.PathNotes(m.Asset, lang);
-            var clues = startClues?.Clues.Select(c => c.Render(lang)).ToList();
+            var notes = OntologyGlossary.PathNotes(m.Asset);
+            var clues = startClues?.Clues.Select(c => c.ToString()).ToList();
             var reached = m.Path.Count > 0;
             return new
             {
@@ -289,7 +266,7 @@ public static class GraphSearch
             Relations = usedKinds.Count == 0
                 ? null
                 : usedKinds.ToDictionary(k => k, k => OntologyGlossary.Relations.TryGetValue(k, out var meaning)
-                    ? $"A -[{k}]-> B: {meaning.OutIn(lang)}"
+                    ? $"A -[{k}]-> B: {meaning.Out}"
                     : $"A -[{k}]-> B"),
             Relaxed = NullIfEmpty(relaxed),
             Warnings = NullIfEmpty(warnings),
@@ -325,29 +302,26 @@ public static class GraphSearch
             : GraphQueries.Traverse(db, starts.Select(s => s.Guid).ToList(), steps);
 
     /// <summary>Cumulative relaxations, mildest first: path filters, then relation kinds, then reach.</summary>
-    private static List<(string Description, List<TraversalStep> Steps)> RelaxationsOf(
-        List<TraversalStep> steps, Lang lang)
+    private static List<(string Description, List<TraversalStep> Steps)> RelaxationsOf(List<TraversalStep> steps)
     {
         var variants = new List<(string, List<TraversalStep>)>();
         var current = steps;
         if (current.Any(s => s.PathContains is { Count: > 0 }))
         {
             current = current.Select(s => s with { PathContains = null }).ToList();
-            variants.Add((lang.Pick("steps: dropped path_contains", "ステップ: path_contains を外した"), current));
+            variants.Add(("steps: dropped path_contains", current));
         }
 
         if (current.Any(s => s.Kinds is { Count: > 0 }))
         {
             current = current.Select(s => s with { Kinds = null }).ToList();
-            variants.Add((lang.Pick("steps: followed any relation instead of the given kinds",
-                "ステップ: 指定の関係(kinds)に限らず、すべての関係をたどった"), current));
+            variants.Add(("steps: followed any relation instead of the given kinds", current));
         }
 
         if (current.Any(s => s.MaxHops < RelaxedMaxHops))
         {
             current = current.Select(s => s with { MaxHops = Math.Max(s.MaxHops, RelaxedMaxHops) }).ToList();
-            variants.Add((lang.Pick($"steps: raised max_hops to {RelaxedMaxHops}",
-                $"ステップ: max_hops を {RelaxedMaxHops} に上げた"), current));
+            variants.Add(($"steps: raised max_hops to {RelaxedMaxHops}", current));
         }
 
         return variants;
@@ -366,7 +340,7 @@ public static class GraphSearch
     }
 
     private static List<string> UnknownTerms(
-        IEnumerable<TraversalStep> steps, IEnumerable<string>? startTypes, Ontology ontology, Lang lang)
+        IEnumerable<TraversalStep> steps, IEnumerable<string>? startTypes, Ontology ontology)
     {
         var knownKinds = ontology.Relations.Select(r => r.RefKind).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var knownTypes = ontology.Classes.Select(c => c.AssetType).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -375,11 +349,9 @@ public static class GraphSearch
         var unknownTypes = stepList.SelectMany(s => s.Types ?? []).Concat(startTypes ?? [])
             .Where(t => !knownTypes.Contains(t));
         return unknownKinds.Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(k => lang.Pick($"ref kind '{k}' has no edges in this graph (see describe_ontology)",
-                $"関係 '{k}' はこのグラフにありません(describe_ontology を参照)"))
+            .Select(k => $"ref kind '{k}' has no edges in this graph (see describe_ontology)")
             .Concat(unknownTypes.Distinct(StringComparer.OrdinalIgnoreCase)
-                .Select(t => lang.Pick($"asset type '{t}' has no assets in this graph (see describe_ontology)",
-                    $"アセットの種類 '{t}' はこのグラフにありません(describe_ontology を参照)")))
+                .Select(t => $"asset type '{t}' has no assets in this graph (see describe_ontology)"))
             .ToList();
     }
 
