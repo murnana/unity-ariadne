@@ -162,7 +162,15 @@ export class ProjectDataStore {
         fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx' });
         return () => fs.rmSync(lockPath, { force: true });
       } catch (e) {
-        if (e.code !== 'EEXIST') throw e;
+        // On Windows, creating the lock while another process is deleting it (or creating the
+        // folder) can fail transiently with ENOENT / EPERM / EBUSY / EACCES; treat those like a held lock.
+        if (!['EEXIST', 'ENOENT', 'EPERM', 'EBUSY', 'EACCES'].includes(e.code)) throw e;
+        if (e.code !== 'EEXIST') {
+          if (Date.now() >= deadline) throw e;
+          fs.mkdirSync(this.dataDir, { recursive: true });
+          sleep(25);
+          continue;
+        }
         // A crashed process can leave its lock behind; an old one is stale.
         try {
           if (Date.now() - fs.statSync(lockPath).mtimeMs > LOCK_STALE_MS) {
