@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-18
+
 ### Added
 
 - オントロジー検索を ariadne 本体に追加した。MCP ツール `search` と CLI コマンド `ariadne search`(同じ JSON のクエリと結果)で、出発点(アセット 1 つ、または種類・出どころ・パス・キーワードで絞ったアセット群)から、参照の種類・向き・ホップ数・終点の種類・パスを指定したステップをたどる。キーワードはファイル名・フォルダー名・C# の型名とメンバー名・XML ドキュメントコメント(日本語も可)と照合して関連の強い順に並べる。0 件のときは条件を段階的に緩め、結果ごとに根拠(参照経路、当たった手がかり、コメントの抜粋、宣言している型)と注記(Editor / Resources フォルダー、パッケージ由来など)、経路に出てくる関係の意味を返す。
@@ -55,7 +57,8 @@
 
 - macOS 向け pkg をリリースワークフローでビルドすると `installer/macos/build-pkg.sh` が `Permission denied` で失敗していたのを修正した。 https://github.com/murnana/unity-ariadne/pull/25
 
-[Unreleased]: https://github.com/murnana/unity-ariadne/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/murnana/unity-ariadne/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/murnana/unity-ariadne/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/murnana/unity-ariadne/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/murnana/unity-ariadne/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/murnana/unity-ariadne/compare/v0.1.0...v0.1.2
