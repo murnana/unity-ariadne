@@ -40,8 +40,8 @@ dotnet run --project src/Analyzer -- analyze <unity-project-path> --db graph.db
 
 プラグイン本体は `claude-plugins/` にあります。変更するときは次の点に注意してください。
 
-- 配布されるのは外部 marketplace([murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin))経由です。プラグインを更新したら、marketplace 側の `unity-ariadne` エントリの `version` も `claude-plugins/.claude-plugin/plugin.json` に合わせて更新する必要があります(別リポジトリでの作業です)。手順は [docs/development/release.md](docs/development/release.md) の「marketplace のエントリを更新する」を参照してください。
-- `plugin.json` の `version` は、リリースタグ(`v` を除く)と一致させます。リリース手順の中で更新します(通常の PR では変えません)。
+- 配布されるのは外部 marketplace([murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin))経由です。プラグインを更新したら、marketplace 側の `unity-ariadne` エントリの `version` と `source.sha` もリリース時に更新する必要があります(別リポジトリでの作業です)。手順は [docs/development/release.md](docs/development/release.md) の「marketplace のエントリを更新する」を参照してください。
+- `plugin.json` に `version` を書かないでください。Claude Code は `plugin.json` の `version` を marketplace のエントリより優先するため、書くとアーリーアクセス版(`develop` 追従)がその値に固定されます。`version` は marketplace のエントリにだけ書きます。
 - 導入手順([docs/manual/claude-code-plugin.md](docs/manual/claude-code-plugin.md))は、プラグインの挙動や前提を変えたときに同じ PR で更新します。
 
 ## 依存パッケージを更新するとき

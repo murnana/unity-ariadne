@@ -71,7 +71,7 @@ Apple Developer ID 署名+notarization が必要で、アカウントと証明�
 
 ## リリース手順
 
-1. `develop` で `claude-plugins/.claude-plugin/plugin.json` の `version` をリリースするバージョン(タグから `v` を除いた値)に更新する PR を作ってマージし、`dotnet test` が green であることを確認する。**タグと一致しないと `verify-plugin-version` ジョブが失敗します。**
+1. `develop` で `dotnet test` が green であることを確認する。`claude-plugins/.claude-plugin/plugin.json` に `version` は書きません(書くと `verify-plugin-version` ジョブが失敗します。理由は「marketplace のエントリを更新する」)。
 2. `develop` → `main` の Pull Request を作成してマージする(マージ後、`main` の CI が green であることを確認する)。
 3. `main` の最新を取得し、`git tag vX.Y.Z && git push origin vX.Y.Z` — これだけで `release.yml` が発火します。
    GitHub Actions(`GITHUB_TOKEN`)からのタグ作成は HTTP 422 で失敗したため、タグは手動で作成します。
@@ -102,13 +102,13 @@ Apple Developer ID 署名+notarization が必要で、アカウントと証明�
               "ref": "vX.Y.Z" } }
 ```
 
-現在の marketplace は、`ref` を付けない `git-subdir`(`main` に追従)で参照しています。`archive` は `sha256` で改ざんを検出できます(切り替えるなら推奨)。`git-subdir` は Release の成果物に依存せず、タグから直接取得します。プラグインは `ariadne` コマンド(MSI / pkg が PATH に入れる)だけに依存するため、.NET SDK は不要です。
+正式版の marketplace は、`sha` で固定した `git-subdir` で参照しています。アーリーアクセス版の marketplace は `ref: "develop"` の `git-subdir` で、`version` も `sha` も付けず `develop` のコミットに追従します(そのカタログは生成物で、手で編集しません)。`archive` は `sha256` で改ざんを検出できます(切り替えるなら推奨)。`git-subdir` は Release の成果物に依存せず、タグから直接取得します。プラグインは `ariadne` コマンド(MSI / pkg が PATH に入れる)だけに依存するため、.NET SDK は不要です。
 
 ### marketplace のエントリを更新する
 
-プラグインを更新(`claude-plugins/` を変更してリリース)したら、marketplace 側の `unity-ariadne` エントリの `version` を `claude-plugins/.claude-plugin/plugin.json` の `version` に合わせます。利用者は `version` の文字列が変わるまでキャッシュ済みのコピーを使い続けるため、これを上げないと更新が届きません。
+プラグインを更新(`claude-plugins/` を変更してリリース)したら、marketplace 側の `unity-ariadne` エントリの `version` を新しいリリースのバージョンに、`source.sha` をそのリリースのコミットに更新します。`version` は `plugin.json` ではなくこのエントリにだけ書きます(Claude Code は `plugin.json` の `version` をエントリより優先するため、書くとアーリーアクセス版が固定されます)。正式版の利用者は `version` の文字列が変わるまでキャッシュ済みのコピーを使い続けるため、これを上げないと更新が届きません。
 
-1. このリポジトリのリリース(上記の手順 1〜4)を終え、`main` の `plugin.json` に新しい `version` が入っていることを確認する。
+1. このリポジトリのリリース(上記の手順 1〜4)を終える。
 2. [murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin) で `develop` から `feature/unity-ariadne-<version>` を切る(`develop` が無ければ `main` から作って push してから)。
 3. `.claude-plugin/marketplace.json` の `unity-ariadne` の `version`(必要なら `description` も)を更新し、`claude plugin validate .` を実行する。
 4. `develop` 宛てに PR を作る。利用者に届くのは、marketplace 側の `develop` → `main` のリリース PR がマージされた後。
