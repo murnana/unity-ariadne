@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Claude Code プラグインの `plugin.json` から `version` を外した。アーリーアクセス版の marketplace が `develop` のコミットに追従できるようにするため。正式版の `version` は外部 marketplace のエントリにだけ書く。`release.yml` の `verify-plugin-version` ジョブは、タグとの一致ではなく `version` が無いことを検証する。
+
 ## [0.3.0] - 2026-11-18
 
 ### Added

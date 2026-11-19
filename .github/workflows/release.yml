@@ -22,8 +22,10 @@ on:
 permissions: {}
 
 jobs:
-  # plugin.json の version がタグと一致しているか検証する。
-  # 外部 marketplace がこのタグ(または添付 zip)を参照するため、ずれると別バージョンを配ってしまう。
+  # plugin.json に version が無いことを検証する。
+  # Claude Code は plugin.json の version を marketplace のエントリより優先するため、
+  # 書いてあるとアーリーアクセス版(develop 追従)がその値に固定され、更新が届かなくなる。
+  # 正式版の version は外部 marketplace のエントリにだけ書く。
   verify-plugin-version:
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
@@ -31,13 +33,11 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Check plugin.json version matches the tag
+      - name: Check plugin.json has no version
         run: |
           set -euo pipefail
-          expected="${GITHUB_REF_NAME#v}"
-          actual="$(jq -r .version claude-plugins/.claude-plugin/plugin.json)"
-          if [ "$actual" != "$expected" ]; then
-            echo "::error file=claude-plugins/.claude-plugin/plugin.json::version ($actual) がタグ ($expected) と一致しません。plugin.json の version を更新してから、タグを打ち直してください。"
+          if [ "$(jq 'has("version")' claude-plugins/.claude-plugin/plugin.json)" = "true" ]; then
+            echo "::error file=claude-plugins/.claude-plugin/plugin.json::version を書かないでください。アーリーアクセス版が固定されます。version は外部 marketplace のエントリにだけ書きます。"
             exit 1
           fi
 
