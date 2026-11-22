@@ -1,4 +1,4 @@
-namespace UnityAriadne.Analyzer.Scanning;
+namespace GuidGraph.Analyzer.Scanning;
 
 /// <summary>
 /// Walks a Unity project's .meta files and builds the GUID dictionary (Phase 1a).

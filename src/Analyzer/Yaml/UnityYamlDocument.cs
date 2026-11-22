@@ -1,6 +1,6 @@
 using YamlDotNet.RepresentationModel;
 
-namespace UnityAriadne.Analyzer.Yaml;
+namespace GuidGraph.Analyzer.Yaml;
 
 /// <summary>
 /// One document in a Unity YAML asset file: the <c>--- !u!&lt;classId&gt; &amp;&lt;fileID&gt;</c>

@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 
-namespace UnityAriadne.Graph;
+namespace GuidGraph.Graph;
 
 /// <summary>
 /// Bulk-insert half of <see cref="GraphDatabase"/> (Phase 1e): one transaction over the

@@ -7,7 +7,7 @@
 #
 # 対象:
 #   1. GitHub Actions ワークフロー
-#   2. NuGet パッケージ（.NET、UnityAriadne.slnx 配下の全プロジェクト）
+#   2. NuGet パッケージ（.NET、GuidGraph.slnx 配下の全プロジェクト）
 #
 # 更新頻度:
 #   - 毎週月曜日に自動チェック
@@ -63,8 +63,8 @@ updates:
   # ---------------------------------------------------------------------------
   # NuGet パッケージの自動更新（.NET）
   # ---------------------------------------------------------------------------
-  # ルート直下の UnityAriadne.slnx を起点に、そこから参照されている全プロジェクト
-  # (src/Analyzer, src/Graph, tests/UnityAriadne.Tests) の csproj を対象にします。
+  # ルート直下の GuidGraph.slnx を起点に、そこから参照されている全プロジェクト
+  # (src/Analyzer, src/Graph, tests/GuidGraph.Tests) の csproj を対象にします。
   # directory を各プロジェクトフォルダごとに列挙する必要はありません
   # (Dependabot は .sln/.slnx をルートで見つけると、そこから参照先の csproj を
   # 再帰的に展開して依存関係を解決します)。

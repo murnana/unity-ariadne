@@ -1,6 +1,6 @@
-using UnityAriadne.Analyzer.Scanning;
+using GuidGraph.Analyzer.Scanning;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 public class AssetTypeClassifierTests
 {

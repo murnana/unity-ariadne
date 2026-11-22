@@ -1,4 +1,4 @@
-namespace UnityAriadne.Analyzer.Yaml;
+namespace GuidGraph.Analyzer.Yaml;
 
 /// <summary>
 /// One <c>{fileID: n, guid: g, type: t}</c> reference found in a document, with the

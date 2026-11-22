@@ -1,6 +1,6 @@
-# Unity Ariadne ドキュメント
+# GuidGraph ドキュメント
 
-Unity Ariadne は、Unity プロジェクトを Unity Editor なしで解析し、アセット層(YAML / .meta / ProjectSettings / JSON 埋め込み)とコード層(Roslyn 構文解析)の依存関係グラフを SQLite に構築する CLI ツールです。
+GuidGraph は、Unity プロジェクトを Unity Editor なしで解析し、アセット層(YAML / .meta / ProjectSettings / JSON 埋め込み)とコード層(Roslyn 構文解析)の依存関係グラフを SQLite に構築する CLI ツールです。
 
 ## アーキテクチャ
 

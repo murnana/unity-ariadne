@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
 
-namespace UnityAriadne.Analyzer.Yaml;
+namespace GuidGraph.Analyzer.Yaml;
 
 /// <summary>
 /// Streams a Unity YAML asset file document by document (Phase 1b).

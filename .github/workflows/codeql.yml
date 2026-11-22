@@ -42,7 +42,7 @@ jobs:
           build-mode: ${{ matrix.build-mode }}
       - name: Build
         if: matrix.language == 'csharp'
-        run: dotnet build UnityAriadne.slnx --configuration Release
+        run: dotnet build GuidGraph.slnx --configuration Release
       - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: /language:${{ matrix.language }}

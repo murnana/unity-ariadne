@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 
-namespace UnityAriadne.Graph;
+namespace GuidGraph.Graph;
 
 /// <summary>One unresolved GUID with how it is referenced (for the report command).</summary>
 /// <param name="Guid">The GUID no .meta file was found for.</param>

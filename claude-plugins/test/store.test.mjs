@@ -15,7 +15,7 @@ describe('ProjectDataStore', () => {
   const store = (opts = {}) => new ProjectDataStore(dataDir, { now: () => clock.t, ...opts });
 
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), 'ariadne-store-'));
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'guidgraph-store-'));
     dataDir = path.join(root, 'data');
     clock = { t: Date.UTC(2026, 0, 1) };
   });

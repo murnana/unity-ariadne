@@ -4,7 +4,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace UnityAriadne.Graph;
+namespace GuidGraph.Graph;
 
 /// <summary>Where a search starts: one named asset, or every asset matching the filters.</summary>
 public sealed record SearchStart
@@ -65,7 +65,7 @@ public sealed record SearchStep
     public string[]? PathContains { get; init; }
 }
 
-/// <summary>A whole search: start, path steps, and result options (the JSON of `ariadne search --query`).</summary>
+/// <summary>A whole search: start, path steps, and result options (the JSON of `guidgraph search --query`).</summary>
 public sealed record SearchQuery
 {
     [JsonPropertyName("from")]
@@ -85,7 +85,7 @@ public sealed record SearchQuery
 }
 
 /// <summary>
-/// The integrated ontology search behind the MCP <c>search</c> tool and <c>ariadne search</c>:
+/// The integrated ontology search behind the MCP <c>search</c> tool and <c>guidgraph search</c>:
 /// finds start candidates (a named asset, or assets filtered by type/source/path and ranked by
 /// keyword clues — file and folder names, C# type names and XML doc comments), follows typed
 /// path steps (<see cref="GraphQueries.Traverse"/>), relaxes the steps when nothing matches,
@@ -156,7 +156,7 @@ public static class GraphSearch
         var warnings = UnknownTerms(steps, origin.Types, ontology);
         if (!db.HasCodeSymbols && origin.Keywords is { Length: > 0 })
         {
-            warnings.Add("this graph was built by an older ariadne without C# type names and doc comments; " +
+            warnings.Add("this graph was built by an older guidgraph without C# type names and doc comments; " +
                 "only file and folder names were searched — re-run analyze to add them");
         }
 

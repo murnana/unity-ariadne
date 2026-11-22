@@ -1,7 +1,7 @@
-using UnityAriadne.Analyzer.Json;
+using GuidGraph.Analyzer.Json;
 using YamlDotNet.RepresentationModel;
 
-namespace UnityAriadne.Analyzer.Yaml;
+namespace GuidGraph.Analyzer.Yaml;
 
 /// <summary>
 /// Walks a document's node tree and extracts every object reference with its

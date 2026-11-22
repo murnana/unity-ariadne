@@ -1,4 +1,4 @@
-# Unity Ariadne
+# GuidGraph
 
 [![CI](https://github.com/murnana/unity-ariadne/actions/workflows/ci.yml/badge.svg)](https://github.com/murnana/unity-ariadne/actions/workflows/ci.yml) [![CodeQL](https://github.com/murnana/unity-ariadne/actions/workflows/codeql.yml/badge.svg)](https://github.com/murnana/unity-ariadne/actions/workflows/codeql.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Release](https://img.shields.io/github/v/release/murnana/unity-ariadne)](https://github.com/murnana/unity-ariadne/releases)
 
@@ -24,20 +24,20 @@ dotnet run --project src/Analyzer -- serve --db graph.db                      # 
 
 `dotnet` がPATHにない場合は `export PATH="$HOME/.dotnet:$PATH"` を実行してください。詳細は [docs/manual/cli.md](docs/manual/cli.md) をご覧ください。
 
-`dotnet` なしで使う場合は、[Releases](../../releases)のインストーラーを使えます(`ariadne` コマンドがPATHに入ります)。Windowsは `.msi`、macOSは `.pkg`(Apple Silicon の `osx-arm64` のみ。Intel Mac 向けは配布していません)です。いずれも未署名のため、初回はSmartScreen / Gatekeeperの警告が出ます。
+`dotnet` なしで使う場合は、[Releases](../../releases)のインストーラーを使えます(`guidgraph` コマンドがPATHに入ります)。Windowsは `.msi`、macOSは `.pkg`(Apple Silicon の `osx-arm64` のみ。Intel Mac 向けは配布していません)です。いずれも未署名のため、初回はSmartScreen / Gatekeeperの警告が出ます。
 
 このリポジトリを丸ごとcloneする代わりに、[Releases](../../releases)から `src/Analyzer` + `src/Graph` のソース一式をまとめたzip(コンパイル済みバイナリではありません)を落として使うこともできます。中の `USAGE.md` に最小限の実行手順が入っています。
 
 ### Claude Code プラグイン
 
-インストーラーで `ariadne` を入れたうえで、Claude Code プラグインを使うと MCP サーバーが自動で登録されます(`claude mcp add` 不要)。導入手順と使用する環境変数は [docs/manual/claude-code-plugin.md](docs/manual/claude-code-plugin.md) をご覧ください。
+インストーラーで `guidgraph` を入れたうえで、Claude Code プラグインを使うと MCP サーバーが自動で登録されます(`claude mcp add` 不要)。導入手順と使用する環境変数は [docs/manual/claude-code-plugin.md](docs/manual/claude-code-plugin.md) をご覧ください。
 
 ### MCPサーバー
 
 `serve` はグラフDBをMCP(stdio)で公開します。Claude Code からは:
 
 ```sh
-claude mcp add unity-ariadne -- dotnet run --project <このリポジトリ>/src/Analyzer -- serve --db <graph.dbのパス>
+claude mcp add guidgraph -- dotnet run --project <このリポジトリ>/src/Analyzer -- serve --db <graph.dbのパス>
 ```
 
 ツールは8つあります(`find_references` / `impact_analysis` / `get_neighbors` / `search_nodes` / `list_unresolved` / `search` / `describe_ontology` / `list_folders`)。`search` は、アセットの種類(Scene / Prefab / Script …)と参照の種類(`uses_script` / `inherits` …)の連鎖に、ファイル名・フォルダー名・C# の XML ドキュメントコメントの手がかりを組み合わせたオントロジー検索で、CLI の `search` コマンドからも同じものを使えます。アセット名はプロジェクト相対パス・(一意な)ファイル名・GUIDのいずれでも指定できます。ツール呼び出しごとにDBを読み直すため、`analyze` でグラフを作り直せばサーバー再起動なしで反映されます。詳細は [docs/manual/mcp-server.md](docs/manual/mcp-server.md) をご覧ください。
@@ -74,7 +74,7 @@ claude mcp add unity-ariadne -- dotnet run --project <このリポジトリ>/src
 
 - `src/Graph` — SQLiteスキーマとデータモデル
 - `src/Analyzer` — CLI本体(YAML / .meta / ProjectSettings / JSON埋め込み / Roslynコード解析 / MCPサーバー)
-- `tests/UnityAriadne.Tests` — xUnit(差分テスト・census・Unity突合)。実プロジェクトを使うテストはフィクスチャを外部から渡したときだけ走ります([docs/development/fixtures.md](docs/development/fixtures.md))
+- `tests/GuidGraph.Tests` — xUnit(差分テスト・census・Unity突合)。実プロジェクトを使うテストはフィクスチャを外部から渡したときだけ走ります([docs/development/fixtures.md](docs/development/fixtures.md))
 - `installer/` — MSI / pkg インストーラーのビルド定義
 - `claude-plugins/` — Claude Code 用プラグイン(他の AI 向けは AI ごとに別ディレクトリで並置する想定)。[murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin) の marketplace から配布します。更新時の手順は [docs/development/release.md](docs/development/release.md) を参照
 - `docs/manual/` — 利用者向けマニュアル、`docs/development/` — 実装メモ・効果測定・リリース手順
@@ -89,6 +89,6 @@ Issue と Pull Request を歓迎します。[CONTRIBUTING.md](CONTRIBUTING.md) �
 
 ---
 
-> Ariadne は Unity Technologies およびその関連会社によるスポンサーを受けておらず、提携関係にもありません。Unity は、米国およびその他の地域における Unity Technologies またはその関連会社の商標または登録商標です。
+> GuidGraph は Unity Technologies およびその関連会社によるスポンサーを受けておらず、提携関係にもありません。Unity は、米国およびその他の地域における Unity Technologies またはその関連会社の商標または登録商標です。
 >
-> Ariadne is not sponsored by or affiliated with Unity Technologies or its affiliates. Unity is a trademark or registered trademark of Unity Technologies or its affiliates in the U.S. and elsewhere.
+> GuidGraph is not sponsored by or affiliated with Unity Technologies or its affiliates. Unity is a trademark or registered trademark of Unity Technologies or its affiliates in the U.S. and elsewhere.

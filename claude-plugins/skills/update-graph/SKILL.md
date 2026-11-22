@@ -1,12 +1,12 @@
 ---
 name: update-graph
-description: Unity プロジェクトの依存関係グラフ(graph.db)を最新の状態に更新します。Unity のアセットやスクリプトを追加・変更・削除・移動したあとに、unity-ariadne の MCP ツールで照会する前や、結果が古い・アセットが見つからないときに使います。
-when_to_use: 「グラフを更新して」「DB を更新して」「依存関係を再解析して」「ariadne analyze を実行して」と頼まれたとき。コードやアセットを変更した直後に find_references / impact_analysis などの結果が実際と合わないとき。
+description: Unity プロジェクトの依存関係グラフ(graph.db)を最新の状態に更新します。Unity のアセットやスクリプトを追加・変更・削除・移動したあとに、guidgraph の MCP ツールで照会する前や、結果が古い・アセットが見つからないときに使います。
+when_to_use: 「グラフを更新して」「DB を更新して」「依存関係を再解析して」「guidgraph analyze を実行して」と頼まれたとき。コードやアセットを変更した直後に find_references / impact_analysis などの結果が実際と合わないとき。
 ---
 
 # 依存関係グラフの更新
 
-unity-ariadne のグラフ(SQLite の `graph.db`)を差分更新します。プラグインのデータディレクトリにあるこのプロジェクト専用の DB が対象で、DB が無ければ新しく作ります。MCP サーバーの再起動は要りません(ツールは呼び出しごとに DB を開き直します)。
+guidgraph のグラフ(SQLite の `graph.db`)を差分更新します。プラグインのデータディレクトリにあるこのプロジェクト専用の DB が対象で、DB が無ければ新しく作ります。MCP サーバーの再起動は要りません(ツールは呼び出しごとに DB を開き直します)。
 
 ## 手順
 
@@ -25,7 +25,7 @@ unity-ariadne のグラフ(SQLite の `graph.db`)を差分更新します。プ�
    - `Code layer: re-analyzed (global resolution)` → C# 由来の参照を全体で再解析した(正常です)。.cs の変更だけでなく、アセットの追加・削除・移動(.cs 以外やフォルダも含む)や Addressables グループの変更でも出ます
    - `Code layer: unchanged` → C# 由来の参照は再解析しなかった(差分なし、または .cs 以外のファイルの内容だけが変わったとき)
 
-3. 更新後、ユーザーが調べたかったこと(参照元の確認や影響範囲など)があれば、unity-ariadne の MCP ツールで続けます。
+3. 更新後、ユーザーが調べたかったこと(参照元の確認や影響範囲など)があれば、guidgraph の MCP ツールで続けます。
 
 ## 失敗したとき
 
@@ -34,7 +34,7 @@ unity-ariadne のグラフ(SQLite の `graph.db`)を差分更新します。プ�
 | メッセージ | 原因と対処 |
 |---|---|
 | `does not look like a Unity project (no Assets/ directory)` | Claude Code が Unity プロジェクトのルートで起動されていません。ルートで起動し直してもらいます |
-| `cannot run ariadne` | `ariadne` が PATH にありません。インストーラーで入れ、ターミナルと Claude Code を再起動してもらいます |
+| `cannot run guidgraph` | `guidgraph` が PATH にありません。インストーラーで入れ、ターミナルと Claude Code を再起動してもらいます |
 | `analyze failed` | 解析エラーです。メッセージを共有し、再実行しても直らなければ報告してもらいます。失敗しても元の DB は残ります |
 | `timed out waiting for ...index.lock` | 他のセッションが保存先の管理ファイルを使用中です。少し待って再実行します |
 

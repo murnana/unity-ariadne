@@ -1,7 +1,7 @@
-using UnityAriadne.Analyzer.Yaml;
+using GuidGraph.Analyzer.Yaml;
 using YamlDotNet.RepresentationModel;
 
-namespace UnityAriadne.Analyzer.Scanning;
+namespace GuidGraph.Analyzer.Scanning;
 
 /// <summary>
 /// Extracts asset references from .meta files (Phase 1d): ModelImporter's

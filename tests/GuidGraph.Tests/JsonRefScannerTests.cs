@@ -1,7 +1,7 @@
-using UnityAriadne.Analyzer.Json;
-using UnityAriadne.Analyzer.Yaml;
+using GuidGraph.Analyzer.Json;
+using GuidGraph.Analyzer.Yaml;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 public class JsonRefScannerTests
 {

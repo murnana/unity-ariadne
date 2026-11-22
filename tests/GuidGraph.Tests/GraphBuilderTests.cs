@@ -1,8 +1,8 @@
-using UnityAriadne.Analyzer.Scanning;
-using UnityAriadne.Analyzer.Storage;
-using UnityAriadne.Graph;
+using GuidGraph.Analyzer.Scanning;
+using GuidGraph.Analyzer.Storage;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 /// <summary>
 /// One full fixture analysis into an in-memory database, shared by every test class in

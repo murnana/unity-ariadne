@@ -1,8 +1,8 @@
-using UnityAriadne.Analyzer.Scanning;
-using UnityAriadne.Analyzer.Yaml;
+using GuidGraph.Analyzer.Scanning;
+using GuidGraph.Analyzer.Yaml;
 using YamlDotNet.RepresentationModel;
 
-namespace UnityAriadne.Analyzer.Code;
+namespace GuidGraph.Analyzer.Code;
 
 /// <summary>
 /// Builds the Addressables key index (address or label → asset GUIDs) from every

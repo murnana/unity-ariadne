@@ -1,6 +1,6 @@
-using UnityAriadne.Graph;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 /// <summary>
 /// Phase 4 query layer against the real fixture graph. Every expectation here is

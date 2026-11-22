@@ -1,9 +1,9 @@
-using UnityAriadne.Analyzer.Code;
-using UnityAriadne.Analyzer.Scanning;
-using UnityAriadne.Analyzer.Storage;
-using UnityAriadne.Graph;
+using GuidGraph.Analyzer.Code;
+using GuidGraph.Analyzer.Scanning;
+using GuidGraph.Analyzer.Storage;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 /// <summary>
 /// Schema v3 code_symbols: declared types and XML-documented members of .cs files, as

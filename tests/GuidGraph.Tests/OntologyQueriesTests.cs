@@ -1,6 +1,6 @@
-using UnityAriadne.Graph;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 /// <summary>
 /// The typed (ontology) queries on a small synthetic graph with a code layer:

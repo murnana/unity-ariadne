@@ -1,9 +1,9 @@
 using Microsoft.Data.Sqlite;
-using UnityAriadne.Analyzer.Scanning;
-using UnityAriadne.Analyzer.Storage;
-using UnityAriadne.Graph;
+using GuidGraph.Analyzer.Scanning;
+using GuidGraph.Analyzer.Storage;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 /// <summary>
 /// A throwaway Unity-project directory assembled from copies of real fixture files
@@ -12,7 +12,7 @@ namespace UnityAriadne.Tests;
 /// </summary>
 public sealed class TempUnityProject : IDisposable
 {
-    public string Root { get; } = Directory.CreateTempSubdirectory("ariadne-inc-").FullName;
+    public string Root { get; } = Directory.CreateTempSubdirectory("guidgraph-inc-").FullName;
 
     public TempUnityProject() => Directory.CreateDirectory(Path.Combine(Root, "Assets"));
 
@@ -258,7 +258,7 @@ public class GraphUpdaterTests
     [Fact]
     public void TryOpenForUpdate_RejectsOtherSchemaVersions()
     {
-        var dbPath = Path.Combine(Directory.CreateTempSubdirectory("ariadne-ver-").FullName, "graph.db");
+        var dbPath = Path.Combine(Directory.CreateTempSubdirectory("guidgraph-ver-").FullName, "graph.db");
         try
         {
             GraphDatabase.CreateFile(dbPath).Dispose();

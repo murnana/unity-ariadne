@@ -5,10 +5,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
-using UnityAriadne.Analyzer.Mcp;
-using UnityAriadne.Graph;
+using GuidGraph.Analyzer.Mcp;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 /// <summary>
 /// End-to-end MCP round trip (Phase 4): the real server wiring (AddMcpServer +
@@ -25,7 +25,7 @@ public sealed class McpServerTests : IAsyncLifetime
     ];
 
     private readonly string _dbPath =
-        Path.Combine(Path.GetTempPath(), $"ariadne-mcp-test-{Guid.NewGuid():N}.db");
+        Path.Combine(Path.GetTempPath(), $"guidgraph-mcp-test-{Guid.NewGuid():N}.db");
 
     private IHost? _host;
     private McpClient? _client;
@@ -41,7 +41,7 @@ public sealed class McpServerTests : IAsyncLifetime
         builder.Logging.ClearProviders();
         builder.Services.AddSingleton(new GraphMcpOptions(_dbPath));
         builder.Services
-            .AddMcpServer(options => options.ServerInfo = new() { Name = "unity-ariadne", Version = "test" })
+            .AddMcpServer(options => options.ServerInfo = new() { Name = "guidgraph", Version = "test" })
             .WithStreamServerTransport(clientToServer.Reader.AsStream(), serverToClient.Writer.AsStream())
             .WithTools<GraphMcpTools>();
         _host = builder.Build();

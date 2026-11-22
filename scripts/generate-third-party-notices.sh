@@ -9,13 +9,13 @@ set -euo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo"
 
-tmp="$(mktemp -d "${TMPDIR:-/tmp}/ariadne-notices.XXXXXX")"
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/guidgraph-notices.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT
 
 dotnet tool restore >/dev/null
-dotnet restore src/Analyzer/UnityAriadne.Analyzer.csproj >/dev/null
+dotnet restore src/Analyzer/GuidGraph.Analyzer.csproj >/dev/null
 dotnet nuget-license \
-  --input src/Analyzer/UnityAriadne.Analyzer.csproj \
+  --input src/Analyzer/GuidGraph.Analyzer.csproj \
   --include-transitive \
   --output Json \
   --file-output "$tmp/licenses.json" >/dev/null
@@ -37,7 +37,7 @@ out="THIRD-PARTY-NOTICES.md"
   cat <<'HEADER'
 # Third-party notices
 
-Unity Ariadne は、以下のサードパーティ製ソフトウェアを利用しています。各ソフトウェアの著作権は、それぞれの権利者に帰属します。
+GuidGraph は、以下のサードパーティ製ソフトウェアを利用しています。各ソフトウェアの著作権は、それぞれの権利者に帰属します。
 
 このファイルは `scripts/generate-third-party-notices.sh` で自動生成されます。手で編集しないでください(CI が生成結果との差分を検出して失敗します)。
 
@@ -62,7 +62,7 @@ MSI / pkg は self-contained 発行のため、次のものも同梱されます
 
 ## 商標
 
-Unity は、米国およびその他の地域における Unity Technologies またはその関連会社の商標または登録商標です。Unity Ariadne は Unity Technologies およびその関連会社によるスポンサーを受けておらず、提携関係にもありません。
+Unity は、米国およびその他の地域における Unity Technologies またはその関連会社の商標または登録商標です。GuidGraph は Unity Technologies およびその関連会社によるスポンサーを受けておらず、提携関係にもありません。
 FOOTER
 } > "$out"
 

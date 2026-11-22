@@ -4,7 +4,7 @@
     <OutputType>Package</OutputType>
     <InstallerPlatform>x64</InstallerPlatform>
     <ProductVersion Condition="'$(ProductVersion)' == ''">0.0.0</ProductVersion>
-    <OutputName>unity-ariadne-$(ProductVersion)-win-x64</OutputName>
+    <OutputName>guidgraph-$(ProductVersion)-win-x64</OutputName>
     <!-- Directory of the self-contained `dotnet publish` output; set by build.ps1. -->
     <PublishDir Condition="'$(PublishDir)' == ''">publish</PublishDir>
     <DefineConstants>ProductVersion=$(ProductVersion);PublishDir=$(PublishDir)</DefineConstants>

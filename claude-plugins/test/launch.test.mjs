@@ -10,19 +10,19 @@ import { ensureDatabase, parseArgs, retentionDays } from '../scripts/launch.mjs'
 
 const LAUNCH = new URL('../scripts/launch.mjs', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const DAY = 24 * 60 * 60 * 1000;
-// The fake ariadne is a shell script.
+// The fake guidgraph is a shell script.
 const posix = process.platform !== 'win32';
 
 describe('retentionDays', () => {
   test('defaults to 30 and accepts whole days', () => {
     assert.equal(retentionDays({}), 30);
-    assert.equal(retentionDays({ ARIADNE_RETENTION_DAYS: '' }), 30);
-    assert.equal(retentionDays({ ARIADNE_RETENTION_DAYS: '7' }), 7);
+    assert.equal(retentionDays({ GUIDGRAPH_RETENTION_DAYS: '' }), 30);
+    assert.equal(retentionDays({ GUIDGRAPH_RETENTION_DAYS: '7' }), 7);
   });
 
   test('rejects anything else', () => {
     for (const bad of ['0', '-1', '1.5', 'abc']) {
-      assert.throws(() => retentionDays({ ARIADNE_RETENTION_DAYS: bad }), /ARIADNE_RETENTION_DAYS/);
+      assert.throws(() => retentionDays({ GUIDGRAPH_RETENTION_DAYS: bad }), /GUIDGRAPH_RETENTION_DAYS/);
     }
   });
 });
@@ -43,21 +43,21 @@ describe('parseArgs', () => {
   });
 });
 
-describe('launch.mjs with a fake ariadne', { skip: !posix }, () => {
+describe('launch.mjs with a fake guidgraph', { skip: !posix }, () => {
   let root;
   let project;
   let dataDir;
   let log;
   let fake;
 
-  // Stand-in for ariadne: logs its arguments; `analyze` writes the --db file (unless told to
+  // Stand-in for guidgraph: logs its arguments; `analyze` writes the --db file (unless told to
   // fail), `serve` prints one line on stdout and exits with the requested code.
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), 'ariadne-launch-'));
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'guidgraph-launch-'));
     project = path.join(root, 'MyGame');
     dataDir = path.join(root, 'data');
     log = path.join(root, 'calls.log');
-    fake = path.join(root, 'fake-ariadne');
+    fake = path.join(root, 'fake-guidgraph');
     fs.mkdirSync(path.join(project, 'Assets'), { recursive: true });
     fs.writeFileSync(
       fake,
@@ -82,7 +82,7 @@ esac
         ...process.env,
         CLAUDE_PLUGIN_DATA: dataDir,
         CLAUDE_PROJECT_DIR: projectDir,
-        ARIADNE_BIN: fake,
+        GUIDGRAPH_BIN: fake,
         ...extraEnv,
       },
     });
@@ -125,7 +125,7 @@ esac
   test('--update builds a missing database and exits without serving', () => {
     const r = spawnSync(process.execPath, [LAUNCH, '--update'], {
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir, CLAUDE_PROJECT_DIR: project, ARIADNE_BIN: fake },
+      env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir, CLAUDE_PROJECT_DIR: project, GUIDGRAPH_BIN: fake },
     });
     const [key] = Object.keys(new ProjectDataStore(dataDir).entries());
     const db = path.join(dataDir, key, 'graph.db');
@@ -139,7 +139,7 @@ esac
   test('--update refreshes an existing database in place and exits with the analyze status', () => {
     run(); // first start builds it
     fs.rmSync(log);
-    const env = { ...process.env, CLAUDE_PLUGIN_DATA: dataDir, CLAUDE_PROJECT_DIR: project, ARIADNE_BIN: fake };
+    const env = { ...process.env, CLAUDE_PLUGIN_DATA: dataDir, CLAUDE_PROJECT_DIR: project, GUIDGRAPH_BIN: fake };
     const [key] = Object.keys(new ProjectDataStore(dataDir).entries());
     const db = path.join(dataDir, key, 'graph.db');
 
@@ -169,14 +169,14 @@ esac
     assert.deepEqual(Object.values(new ProjectDataStore(dataDir).entries()).map((e) => e.name), ['MyGame']);
   });
 
-  test('ARIADNE_RETENTION_DAYS changes the period', () => {
+  test('GUIDGRAPH_RETENTION_DAYS changes the period', () => {
     const stale = new ProjectDataStore(dataDir, { now: () => Date.now() - 10 * DAY });
     const oldDb = stale.resolve(path.join(root, 'OldGame'));
 
     assert.equal(run().status, 0);
     assert.ok(fs.existsSync(path.dirname(oldDb))); // 10 days < default 30
 
-    assert.equal(run({ ARIADNE_RETENTION_DAYS: '7' }).status, 0);
+    assert.equal(run({ GUIDGRAPH_RETENTION_DAYS: '7' }).status, 0);
     assert.ok(!fs.existsSync(path.dirname(oldDb)));
   });
 
@@ -200,7 +200,7 @@ esac
     const elsewhere = path.join(root, 'elsewhere');
     const r = spawnSync(process.execPath, [LAUNCH, '--update', '--data-dir', dataDir, '--project', project], {
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_PLUGIN_DATA: elsewhere, CLAUDE_PROJECT_DIR: path.join(root, 'Nope'), ARIADNE_BIN: fake },
+      env: { ...process.env, CLAUDE_PLUGIN_DATA: elsewhere, CLAUDE_PROJECT_DIR: path.join(root, 'Nope'), GUIDGRAPH_BIN: fake },
     });
 
     assert.equal(r.status, 0, r.stderr);
@@ -217,22 +217,22 @@ esac
 
 describe('ensureDatabase', () => {
   test('does nothing when the database exists', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ariadne-ensure-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guidgraph-ensure-'));
     const db = path.join(dir, 'graph.db');
     fs.writeFileSync(db, 'x');
     try {
-      ensureDatabase({ ariadne: '/nonexistent/ariadne', projectDir: dir, dbPath: db });
+      ensureDatabase({ guidgraph: '/nonexistent/guidgraph', projectDir: dir, dbPath: db });
       assert.equal(fs.readFileSync(db, 'utf8'), 'x');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  test('reports a missing ariadne clearly', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ariadne-ensure-'));
+  test('reports a missing guidgraph clearly', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guidgraph-ensure-'));
     try {
       assert.throws(
-        () => ensureDatabase({ ariadne: path.join(dir, 'nope'), projectDir: dir, dbPath: path.join(dir, 'graph.db') }),
+        () => ensureDatabase({ guidgraph: path.join(dir, 'nope'), projectDir: dir, dbPath: path.join(dir, 'graph.db') }),
         /cannot run/,
       );
     } finally {

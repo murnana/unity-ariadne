@@ -1,6 +1,6 @@
 # コントリビューションガイド
 
-Unity Ariadne への貢献を歓迎します。参加にあたっては [行動規範](CODE_OF_CONDUCT.md) に従ってください。脆弱性は Issue ではなく [SECURITY.md](SECURITY.md) の手順で報告してください。
+GuidGraph への貢献を歓迎します。参加にあたっては [行動規範](CODE_OF_CONDUCT.md) に従ってください。脆弱性は Issue ではなく [SECURITY.md](SECURITY.md) の手順で報告してください。
 
 ## 進め方
 
@@ -15,7 +15,7 @@ Unity Ariadne への貢献を歓迎します。参加にあたっては [行動�
 
 ```sh
 dotnet build
-dotnet test                                    # フィクスチャを使うテストは ARIADNE_FIXTURES が無いとスキップされます
+dotnet test                                    # フィクスチャを使うテストは GUIDGRAPH_FIXTURES が無いとスキップされます
 dotnet run --project src/Analyzer -- analyze <unity-project-path> --db graph.db
 ```
 
@@ -23,7 +23,7 @@ dotnet run --project src/Analyzer -- analyze <unity-project-path> --db graph.db
 
 ## テストフィクスチャ
 
-実プロジェクトを使うテストは、Asset Store 由来の第三者コンテンツを外部から渡したときだけ走ります(`ARIADNE_FIXTURES`、詳細は [docs/development/fixtures.md](docs/development/fixtures.md))。
+実プロジェクトを使うテストは、Asset Store 由来の第三者コンテンツを外部から渡したときだけ走ります(`GUIDGRAPH_FIXTURES`、詳細は [docs/development/fixtures.md](docs/development/fixtures.md))。
 
 - **フィクスチャのファイル(アセット、.meta、YAML のダンプ)を絶対にコミットしないでください。** Issue や PR にも貼らないでください。
 - フィクスチャの YAML は実際の Unity Editor の出力です。手で(あるいは AI に)生成・編集しないでください。単体テストに書く小さなインライン YAML は構いません。
@@ -40,7 +40,7 @@ dotnet run --project src/Analyzer -- analyze <unity-project-path> --db graph.db
 
 プラグイン本体は `claude-plugins/` にあります。変更するときは次の点に注意してください。
 
-- 配布されるのは外部 marketplace([murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin))経由です。プラグインを更新したら、marketplace 側の `unity-ariadne` エントリの `version` と `source.sha` もリリース時に更新する必要があります(別リポジトリでの作業です)。手順は [docs/development/release.md](docs/development/release.md) の「marketplace のエントリを更新する」を参照してください。
+- 配布されるのは外部 marketplace([murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin))経由です。プラグインを更新したら、marketplace 側の `guidgraph` エントリの `version` と `source.sha` もリリース時に更新する必要があります(別リポジトリでの作業です)。手順は [docs/development/release.md](docs/development/release.md) の「marketplace のエントリを更新する」を参照してください。
 - `plugin.json` に `version` を書かないでください。Claude Code は `plugin.json` の `version` を marketplace のエントリより優先するため、書くとアーリーアクセス版(`develop` 追従)がその値に固定されます。`version` は marketplace のエントリにだけ書きます。
 - 導入手順([docs/manual/claude-code-plugin.md](docs/manual/claude-code-plugin.md))は、プラグインの挙動や前提を変えたときに同じ PR で更新します。
 

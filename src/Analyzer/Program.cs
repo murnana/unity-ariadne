@@ -3,10 +3,10 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using UnityAriadne.Analyzer.Mcp;
-using UnityAriadne.Analyzer.Scanning;
-using UnityAriadne.Analyzer.Storage;
-using UnityAriadne.Graph;
+using GuidGraph.Analyzer.Mcp;
+using GuidGraph.Analyzer.Scanning;
+using GuidGraph.Analyzer.Storage;
+using GuidGraph.Graph;
 
 return args switch
 {
@@ -370,9 +370,9 @@ static async Task<int> Serve(string[] args)
     builder.Services
         .AddMcpServer(options =>
         {
-            options.ServerInfo = new() { Name = "unity-ariadne", Version = "1.0.0" };
+            options.ServerInfo = new() { Name = "guidgraph", Version = "1.0.0" };
             options.ServerInstructions =
-                "Asset-level dependency graph of a Unity project (built by unity-ariadne analyze). " +
+                "Asset-level dependency graph of a Unity project (built by guidgraph analyze). " +
                 "Names accept a project-relative path, a unique file name, or a GUID. " +
                 "Nodes are typed by asset type (Scene, Prefab, Script, Material, ...) and edges by ref kind " +
                 "(uses_script, prefab_instance, inherits, ...). For questions that combine types, relations, " +
@@ -466,7 +466,7 @@ static int Usage()
 {
     Console.Error.WriteLine(
         """
-        Unity Ariadne — Unity project dependency graph analyzer
+        GuidGraph — Unity project dependency graph analyzer
 
         usage:
           analyze <unity-project-path> [--db <path>] [--full]

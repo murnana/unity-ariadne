@@ -1,7 +1,7 @@
-using UnityAriadne.Analyzer.Scanning;
-using UnityAriadne.Analyzer.Yaml;
+using GuidGraph.Analyzer.Scanning;
+using GuidGraph.Analyzer.Yaml;
 
-namespace UnityAriadne.Analyzer.Code;
+namespace GuidGraph.Analyzer.Code;
 
 /// <summary>One .cs file to scan: its GUID, project-relative path and source text.</summary>
 public sealed record ScriptSource(string Guid, string Path, string Text);

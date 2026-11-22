@@ -1,11 +1,11 @@
-using UnityAriadne.Analyzer.Code;
-using UnityAriadne.Analyzer.Json;
-using UnityAriadne.Analyzer.Scanning;
-using UnityAriadne.Analyzer.Settings;
-using UnityAriadne.Analyzer.Yaml;
-using UnityAriadne.Graph;
+using GuidGraph.Analyzer.Code;
+using GuidGraph.Analyzer.Json;
+using GuidGraph.Analyzer.Scanning;
+using GuidGraph.Analyzer.Settings;
+using GuidGraph.Analyzer.Yaml;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Analyzer.Storage;
+namespace GuidGraph.Analyzer.Storage;
 
 /// <summary>
 /// Writes one full analysis pass — GUID dictionary (1a), YAML objects and refs (1b/1c),

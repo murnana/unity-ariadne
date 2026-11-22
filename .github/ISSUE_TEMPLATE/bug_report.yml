@@ -18,13 +18,13 @@ body:
     id: repro
     attributes:
       label: 再現手順
-      description: 実行したコマンド(`ariadne analyze ...` など)と、再現に必要な最小限の入力を書いてください。
+      description: 実行したコマンド(`guidgraph analyze ...` など)と、再現に必要な最小限の入力を書いてください。
     validations:
       required: true
   - type: input
-    id: ariadne-version
+    id: guidgraph-version
     attributes:
-      label: ariadne のバージョン
+      label: guidgraph のバージョン
       description: インストーラーのバージョン、または Release のタグ。
     validations:
       required: true

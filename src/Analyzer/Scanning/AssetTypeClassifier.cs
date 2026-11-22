@@ -1,4 +1,4 @@
-namespace UnityAriadne.Analyzer.Scanning;
+namespace GuidGraph.Analyzer.Scanning;
 
 /// <summary>
 /// Determines the <c>asset_type</c> column value from an asset path and its .meta contents.

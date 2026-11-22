@@ -1,4 +1,4 @@
-namespace UnityAriadne.Analyzer.Scanning;
+namespace GuidGraph.Analyzer.Scanning;
 
 /// <summary>
 /// The subset of a Unity <c>.meta</c> file needed to build the GUID dictionary.
