@@ -1,8 +1,8 @@
-using UnityAriadne.Analyzer.Yaml;
+using GuidGraph.Analyzer.Yaml;
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 public class UnityYamlReaderTests
 {

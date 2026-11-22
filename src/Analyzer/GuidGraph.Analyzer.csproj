@@ -5,8 +5,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <!-- Installers put this executable on PATH, so the command name is `ariadne`. -->
-    <AssemblyName>ariadne</AssemblyName>
+    <!-- Installers put this executable on PATH, so the command name is `guidgraph`. -->
+    <AssemblyName>guidgraph</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,11 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Graph\UnityAriadne.Graph.csproj" />
+    <ProjectReference Include="..\Graph\GuidGraph.Graph.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="UnityAriadne.Tests" />
+    <InternalsVisibleTo Include="GuidGraph.Tests" />
   </ItemGroup>
 
 </Project>

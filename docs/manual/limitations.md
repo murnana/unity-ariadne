@@ -1,6 +1,6 @@
 # 既知の制約と近似
 
-Unity Ariadne は Unity Editor API を使わず、ファイルを直接パースします。この設計上、**原理的にグラフに現れない依存関係**がいくつかあります。「参照があるはずなのに出てこない」ときはまずこちらをご確認ください。
+GuidGraph は Unity Editor API を使わず、ファイルを直接パースします。この設計上、**原理的にグラフに現れない依存関係**がいくつかあります。「参照があるはずなのに出てこない」ときはまずこちらをご確認ください。
 
 ## アセット層
 
@@ -63,6 +63,6 @@ Unity Ariadne は Unity Editor API を使わず、ファイルを直接パース
 
 ---
 
-> Ariadne は Unity Technologies およびその関連会社によるスポンサーを受けておらず、提携関係にもありません。Unity は、米国およびその他の地域における Unity Technologies またはその関連会社の商標または登録商標です。
+> GuidGraph は Unity Technologies およびその関連会社によるスポンサーを受けておらず、提携関係にもありません。Unity は、米国およびその他の地域における Unity Technologies またはその関連会社の商標または登録商標です。
 >
-> Ariadne is not sponsored by or affiliated with Unity Technologies or its affiliates. Unity is a trademark or registered trademark of Unity Technologies or its affiliates in the U.S. and elsewhere.
+> GuidGraph is not sponsored by or affiliated with Unity Technologies or its affiliates. Unity is a trademark or registered trademark of Unity Technologies or its affiliates in the U.S. and elsewhere.

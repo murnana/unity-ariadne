@@ -599,5 +599,5 @@ TestResults/
 *.jsonl
 
 # Test fixtures are third-party Unity content and must never be committed
-# (provide them via ARIADNE_FIXTURES, see docs/development/fixtures.md)
+# (provide them via GUIDGRAPH_FIXTURES, see docs/development/fixtures.md)
 /fixtures/

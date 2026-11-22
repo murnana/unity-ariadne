@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
-using UnityAriadne.Analyzer.Scanning;
+using GuidGraph.Analyzer.Scanning;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 public class UnityProjectScannerTests
 {
@@ -91,7 +91,7 @@ public class UnityProjectScannerTests
     public void MissingScanRoots_AreSkippedWithoutError()
     {
         // A project checkout may lack Packages/ and Library/PackageCache entirely.
-        var root = Directory.CreateTempSubdirectory("ariadne-test-").FullName;
+        var root = Directory.CreateTempSubdirectory("guidgraph-test-").FullName;
         try
         {
             Directory.CreateDirectory(Path.Combine(root, "Assets"));

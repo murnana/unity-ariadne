@@ -58,7 +58,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Build src/Analyzer (pulls in src/Graph as a project reference)
-        run: dotnet build src/Analyzer/UnityAriadne.Analyzer.csproj --configuration Release
+        run: dotnet build src/Analyzer/GuidGraph.Analyzer.csproj --configuration Release
       - name: Smoke test (exercises the native SQLite path end to end)
         shell: bash
         run: |
@@ -85,7 +85,7 @@ jobs:
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
-          staging="$RUNNER_TEMP/unity-ariadne-${version}"
+          staging="$RUNNER_TEMP/guidgraph-${version}"
           mkdir -p "$staging/src"
           cp -R src/Analyzer src/Graph "$staging/src/"
           cp LICENSE THIRD-PARTY-NOTICES.md installer/NOTICE.txt "$staging/"
@@ -113,16 +113,16 @@ jobs:
             .github/release-usage-template.md > "$staging/USAGE.md"
 
       - name: Verify the staged (version-stamped) zip contents actually build
-        run: dotnet build "$RUNNER_TEMP/unity-ariadne-${GITHUB_REF_NAME#v}/src/Analyzer/UnityAriadne.Analyzer.csproj" --configuration Release
+        run: dotnet build "$RUNNER_TEMP/guidgraph-${GITHUB_REF_NAME#v}/src/Analyzer/GuidGraph.Analyzer.csproj" --configuration Release
 
       - name: Zip
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
-          staging="$RUNNER_TEMP/unity-ariadne-${version}"
+          staging="$RUNNER_TEMP/guidgraph-${version}"
           find "$staging" -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
           mkdir -p dist
-          (cd "$RUNNER_TEMP" && zip -r "$OLDPWD/dist/unity-ariadne-${version}-src.zip" "unity-ariadne-${version}")
+          (cd "$RUNNER_TEMP" && zip -r "$OLDPWD/dist/guidgraph-${version}-src.zip" "guidgraph-${version}")
 
       # イミュータブルリリースは公開後にアセットを追加できないため、下書き(draft)で作成する。
       # 全アセットを添付したあと、最後の publish-release ジョブで公開する。
@@ -223,7 +223,7 @@ jobs:
           mkdir -p "$staging" dist
           cp -R claude-plugins/. "$staging/"
           cp LICENSE "$staging/"
-          zip_name="unity-ariadne-${version}-claude-plugin.zip"
+          zip_name="guidgraph-${version}-claude-plugin.zip"
           (cd "$staging" && zip -r -X "$GITHUB_WORKSPACE/dist/$zip_name" .)
           (cd dist && sha256sum "$zip_name" | awk '{print $1}' > "$zip_name.sha256")
           {

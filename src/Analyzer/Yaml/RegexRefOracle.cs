@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace UnityAriadne.Analyzer.Yaml;
+namespace GuidGraph.Analyzer.Yaml;
 
 /// <summary>
 /// The v1-plan regex reference extractor, kept as the differential-test oracle

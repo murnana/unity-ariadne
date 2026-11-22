@@ -1,9 +1,9 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
-using UnityAriadne.Analyzer.Scanning;
-using UnityAriadne.Analyzer.Yaml;
+using GuidGraph.Analyzer.Scanning;
+using GuidGraph.Analyzer.Yaml;
 
-namespace UnityAriadne.Analyzer.Storage;
+namespace GuidGraph.Analyzer.Storage;
 
 /// <summary>
 /// Computes the per-asset change-detection hash stored in assets.file_hash (Phase 4b).

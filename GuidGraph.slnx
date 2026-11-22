@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Analyzer/">
+    <Project Path="src/Analyzer/GuidGraph.Analyzer.csproj" />
+  </Folder>
+  <Folder Name="/src/Graph/">
+    <Project Path="src/Graph/GuidGraph.Graph.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GuidGraph.Tests/GuidGraph.Tests.csproj" />
+  </Folder>
+</Solution>

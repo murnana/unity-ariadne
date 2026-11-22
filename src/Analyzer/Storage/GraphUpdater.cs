@@ -1,8 +1,8 @@
-using UnityAriadne.Analyzer.Scanning;
-using UnityAriadne.Analyzer.Settings;
-using UnityAriadne.Graph;
+using GuidGraph.Analyzer.Scanning;
+using GuidGraph.Analyzer.Settings;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Analyzer.Storage;
+namespace GuidGraph.Analyzer.Storage;
 
 /// <summary>What one incremental update did, for the `analyze` console output.</summary>
 public sealed class UpdateSummary

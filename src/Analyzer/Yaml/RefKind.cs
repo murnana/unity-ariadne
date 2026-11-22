@@ -1,4 +1,4 @@
-namespace UnityAriadne.Analyzer.Yaml;
+namespace GuidGraph.Analyzer.Yaml;
 
 /// <summary>
 /// Values of the <c>refs.ref_kind</c> column (Phase 1c). See the classification table

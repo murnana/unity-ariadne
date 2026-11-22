@@ -1,4 +1,4 @@
-namespace UnityAriadne.Graph;
+namespace GuidGraph.Graph;
 
 /// <summary>What one relation (ref_kind) means, read in either direction.</summary>
 /// <param name="Out">Reading of <c>A -[kind]-&gt; B</c> (A references B).</param>

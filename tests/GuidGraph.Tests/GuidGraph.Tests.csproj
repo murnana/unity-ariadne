@@ -19,8 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Analyzer\UnityAriadne.Analyzer.csproj" />
-    <ProjectReference Include="..\..\src\Graph\UnityAriadne.Graph.csproj" />
+    <ProjectReference Include="..\..\src\Analyzer\GuidGraph.Analyzer.csproj" />
+    <ProjectReference Include="..\..\src\Graph\GuidGraph.Graph.csproj" />
   </ItemGroup>
 
 </Project>

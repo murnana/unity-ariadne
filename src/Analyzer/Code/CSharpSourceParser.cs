@@ -1,9 +1,9 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using RefKind = UnityAriadne.Analyzer.Yaml.RefKind;
+using RefKind = GuidGraph.Analyzer.Yaml.RefKind;
 
-namespace UnityAriadne.Analyzer.Code;
+namespace GuidGraph.Analyzer.Code;
 
 /// <summary>
 /// Syntax-level extraction from one .cs file (Phase 2): declared types, base lists,

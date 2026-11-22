@@ -1,4 +1,4 @@
-# Unity Ariadne
+# GuidGraph
 
 A CLI tool that analyzes a Unity project without the Unity Editor, builds a dependency graph in SQLite, and exports memory.jsonl / serves it over MCP. User manuals (Japanese) live in `docs/manual/`; implementation facts live in `docs/development/internals.md` — read it before changing a parser or the update logic. Open work is tracked in GitHub issues.
 
@@ -6,8 +6,8 @@ A CLI tool that analyzes a Unity project without the Unity Editor, builds a depe
 
 ```sh
 dotnet build
-dotnet test                                    # fixture tests skip unless ARIADNE_FIXTURES is set
-ARIADNE_FIXTURES=/path/to/fixtures dotnet test # full suite, see docs/development/fixtures.md
+dotnet test                                    # fixture tests skip unless GUIDGRAPH_FIXTURES is set
+GUIDGRAPH_FIXTURES=/path/to/fixtures dotnet test # full suite, see docs/development/fixtures.md
 dotnet run --project src/Analyzer -- analyze <unity-project-path> --db graph.db   # existing db → incremental update; --full rebuilds
 dotnet run --project src/Analyzer -- export --db graph.db --jsonl out.jsonl       # --include-packages for PackageCache nodes+edges
 dotnet run --project src/Analyzer -- report --db graph.db                         # unresolved GUIDs
@@ -22,8 +22,8 @@ If `dotnet` is not on PATH: `export PATH="$HOME/.dotnet:$PATH"` (.NET 10).
 
 - `src/Graph` — SQLite schema, writer, queries, jsonl exporter (Microsoft.Data.Sqlite)
 - `src/Analyzer` — CLI, scanners and parsers (YamlDotNet, Roslyn), MCP server. References Graph
-- `tests/UnityAriadne.Tests` — xUnit. References both projects
-- `claude-plugins/` — Claude Code plugin. `scripts/launch.mjs` (Node, no deps) picks the per-project db folder under `${CLAUDE_PLUGIN_DATA}`, builds it on first start, prunes old projects, then runs `ariadne serve --db`. All of that lives here, not in `ariadne`. `skills/update-graph` runs `launch.mjs --update`; `skills/search-graph` only turns a question into one call of the `search` MCP tool and reports its evidence — the search logic itself lives in `src/Graph/GraphSearch.cs` (shared by MCP `search` and `ariadne search`)
+- `tests/GuidGraph.Tests` — xUnit. References both projects
+- `claude-plugins/` — Claude Code plugin. `scripts/launch.mjs` (Node, no deps) picks the per-project db folder under `${CLAUDE_PLUGIN_DATA}`, builds it on first start, prunes old projects, then runs `guidgraph serve --db`. All of that lives here, not in `guidgraph`. `skills/update-graph` runs `launch.mjs --update`; `skills/search-graph` only turns a question into one call of the `search` MCP tool and reports its evidence — the search logic itself lives in `src/Graph/GraphSearch.cs` (shared by MCP `search` and `guidgraph search`)
 - `installer/` — MSI (WiX) / pkg builders used by `.github/workflows/release.yml` (tag push and manual run only)
 - `docs/manual/` — user manuals; keep in sync when CLI options, MCP tools, ref_kinds or the schema change
 - `docs/development/` — internals, fixtures, benchmark, release process
@@ -31,7 +31,7 @@ If `dotnet` is not on PATH: `export PATH="$HOME/.dotnet:$PATH"` (.NET 10).
 ## Constraints
 
 - **Do not use the Unity Editor API. Parse files directly.**
-- **No Unity fixture content in this repository.** Test fixtures are third-party (Asset Store) content provided externally via `ARIADNE_FIXTURES`; tests that need them use `[FixtureFact]` / `[FixtureTheory]`. Never commit fixture files themselves (assets, .meta, YAML dumps); referring to fixture paths/GUIDs inside gated tests is fine.
+- **No Unity fixture content in this repository.** Test fixtures are third-party (Asset Store) content provided externally via `GUIDGRAPH_FIXTURES`; tests that need them use `[FixtureFact]` / `[FixtureTheory]`. Never commit fixture files themselves (assets, .meta, YAML dumps); referring to fixture paths/GUIDs inside gated tests is fine.
 - Fixture YAML is real Unity Editor output — **never generate or edit it**. Small inline YAML snippets in unit tests are fine.
 - Do not remove the differential tests (`RegexRefOracle` vs. full parser) — they are the regression net.
 - Schema changes bump `PRAGMA user_version`; the incremental update must stay equal to a full rebuild row for row.

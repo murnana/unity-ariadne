@@ -1,4 +1,4 @@
-namespace UnityAriadne.Analyzer.Storage;
+namespace GuidGraph.Analyzer.Storage;
 
 /// <summary>
 /// Counters accumulated by <see cref="GraphBuilder"/> during one analysis run,

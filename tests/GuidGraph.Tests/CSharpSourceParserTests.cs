@@ -1,7 +1,7 @@
-using UnityAriadne.Analyzer.Code;
-using UnityAriadne.Analyzer.Yaml;
+using GuidGraph.Analyzer.Code;
+using GuidGraph.Analyzer.Yaml;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 public class CSharpSourceParserTests
 {

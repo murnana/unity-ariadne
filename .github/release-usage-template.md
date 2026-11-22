@@ -1,4 +1,4 @@
-# Unity Ariadne {{VERSION}}
+# GuidGraph {{VERSION}}
 
 CLI 実行に必要な最小限のソース一式です(`src/Analyzer` + `src/Graph`)。
 コンパイル済みバイナリではなく、.NET 10 SDK でその場でビルド・実行してください。
@@ -23,6 +23,6 @@ dotnet run --project src/Analyzer -- serve --db graph.db
 
 ---
 
-> Ariadne は Unity Technologies およびその関連会社によるスポンサーを受けておらず、提携関係にもありません。Unity は、米国およびその他の地域における Unity Technologies またはその関連会社の商標または登録商標です。
+> GuidGraph は Unity Technologies およびその関連会社によるスポンサーを受けておらず、提携関係にもありません。Unity は、米国およびその他の地域における Unity Technologies またはその関連会社の商標または登録商標です。
 >
-> Ariadne is not sponsored by or affiliated with Unity Technologies or its affiliates. Unity is a trademark or registered trademark of Unity Technologies or its affiliates in the U.S. and elsewhere.
+> GuidGraph is not sponsored by or affiliated with Unity Technologies or its affiliates. Unity is a trademark or registered trademark of Unity Technologies or its affiliates in the U.S. and elsewhere.

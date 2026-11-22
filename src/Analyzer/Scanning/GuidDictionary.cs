@@ -1,4 +1,4 @@
-namespace UnityAriadne.Analyzer.Scanning;
+namespace GuidGraph.Analyzer.Scanning;
 
 /// <summary>One resolved GUID: the asset it points to and how it was found.</summary>
 /// <param name="Guid">32-char lowercase hex GUID from the .meta file.</param>

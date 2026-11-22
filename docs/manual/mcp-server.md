@@ -9,7 +9,7 @@
 ### Claude Code に登録する
 
 ```sh
-claude mcp add unity-ariadne -- dotnet run --project <このリポジトリ>/src/Analyzer -- serve --db <graph.db の絶対パス>
+claude mcp add guidgraph -- dotnet run --project <このリポジトリ>/src/Analyzer -- serve --db <graph.db の絶対パス>
 ```
 
 登録後、Claude Code のセッションで `find_references` などのツールが使えるようになります。リポジトリのチェックアウトから始める通し手順(SDK 準備、パスの注意、トラブルシューティング含む)は [claude-code-setup.md](claude-code-setup.md) をご覧ください。
@@ -82,7 +82,7 @@ search_nodes(query = "", type = null, source = null, unreferenced = false, limit
 search(from, steps = null, unreferenced = false, limit = 20, relax = true)
 ```
 
-グラフを、ノードの型(アセットの種類)とエッジの型(参照の種類)を持つオントロジーとして検索します。**種類・関係の連鎖・場所・概念を組み合わせた質問は、このツール 1 回で答えられるように作ってあります。** 同じ機能を CLI の `ariadne search` でも使えます([cli.md](cli.md))。
+グラフを、ノードの型(アセットの種類)とエッジの型(参照の種類)を持つオントロジーとして検索します。**種類・関係の連鎖・場所・概念を組み合わせた質問は、このツール 1 回で答えられるように作ってあります。** 同じ機能を CLI の `guidgraph search` でも使えます([cli.md](cli.md))。
 
 処理の流れ:
 
@@ -179,7 +179,7 @@ list_folders(path = "Assets", depth = 1)
 describe_ontology()
 ```
 
-グラフの語彙を返します。種類と関係の件数・組み合わせは**そのプロジェクトに実在するもの**、意味は ariadne が持つ定義です。
+グラフの語彙を返します。種類と関係の件数・組み合わせは**そのプロジェクトに実在するもの**、意味は guidgraph が持つ定義です。
 
 - `classes[]`: `type`(アセットの種類)、`category`(Placement / Code / Data / Rendering / Geometry / Animation / Effects / Audio/Video / UI / Physics/Lighting / Settings / Folder / Unresolved / Other)、`count`、`by_source`
 - `relations[]`: `kind`(ref_kind)、`layer`(`asset` / `code`)、`out`(`A -[kind]-> B` の読み方)、`in`(逆にたどると何が見つかるか)、`transitive`(`max_hops` で何段もたどる意味があるか)、`edges`、`ref_count`、`signatures`(`"Prefab->Script: 120"` のような、実際に結んでいる種類の組み合わせ。多い順に最大 12 件、残りは `more_signatures`)
@@ -222,6 +222,6 @@ list_unresolved()
 
 ---
 
-> Ariadne は Unity Technologies およびその関連会社によるスポンサーを受けておらず、提携関係にもありません。Unity は、米国およびその他の地域における Unity Technologies またはその関連会社の商標または登録商標です。
+> GuidGraph は Unity Technologies およびその関連会社によるスポンサーを受けておらず、提携関係にもありません。Unity は、米国およびその他の地域における Unity Technologies またはその関連会社の商標または登録商標です。
 >
-> Ariadne is not sponsored by or affiliated with Unity Technologies or its affiliates. Unity is a trademark or registered trademark of Unity Technologies or its affiliates in the U.S. and elsewhere.
+> GuidGraph is not sponsored by or affiliated with Unity Technologies or its affiliates. Unity is a trademark or registered trademark of Unity Technologies or its affiliates in the U.S. and elsewhere.

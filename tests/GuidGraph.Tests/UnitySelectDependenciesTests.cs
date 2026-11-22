@@ -1,6 +1,6 @@
-using UnityAriadne.Graph;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 /// <summary>
 /// Phase 1 acceptance criterion 2: the tool's graph against Unity's own answers.

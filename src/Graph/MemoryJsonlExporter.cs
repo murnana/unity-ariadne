@@ -2,7 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace UnityAriadne.Graph;
+namespace GuidGraph.Graph;
 
 /// <summary>Options for <see cref="MemoryJsonlExporter"/>.</summary>
 public sealed record ExportOptions

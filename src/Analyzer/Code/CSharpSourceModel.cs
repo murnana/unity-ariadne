@@ -1,4 +1,4 @@
-namespace UnityAriadne.Analyzer.Code;
+namespace GuidGraph.Analyzer.Code;
 
 /// <summary>A type declared in a scanned .cs file (class/struct/interface/enum/record/delegate).</summary>
 /// <param name="Name">Simple name without generic arity (<c>Foo</c> for <c>Foo&lt;T&gt;</c>).</param>

@@ -1,7 +1,7 @@
-using UnityAriadne.Analyzer.Yaml;
+using GuidGraph.Analyzer.Yaml;
 using YamlDotNet.RepresentationModel;
 
-namespace UnityAriadne.Analyzer.Settings;
+namespace GuidGraph.Analyzer.Settings;
 
 /// <summary>One reference found in a ProjectSettings/*.asset file (Phase 1d).</summary>
 /// <param name="SettingsPath">Path relative to the project root, e.g. <c>ProjectSettings/GraphicsSettings.asset</c>.</param>

@@ -1,17 +1,17 @@
 using Xunit;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 /// <summary>
 /// Locates the external fixture directory. The fixtures are third-party Unity content and are
-/// not distributed with this repository: point <c>ARIADNE_FIXTURES</c> at a directory holding
+/// not distributed with this repository: point <c>GUIDGRAPH_FIXTURES</c> at a directory holding
 /// <c>SampleProject/</c>, <c>Addressables/</c> and <c>unity-select-dependencies.txt</c>
 /// (see docs/development/fixtures.md). Tests marked <see cref="FixtureFactAttribute"/> skip
 /// when it is not set.
 /// </summary>
 public static class Fixtures
 {
-    public const string EnvironmentVariable = "ARIADNE_FIXTURES";
+    public const string EnvironmentVariable = "GUIDGRAPH_FIXTURES";
 
     public static string? Root { get; } = FindRoot();
 
@@ -41,7 +41,7 @@ public static class Fixtures
     }
 }
 
-/// <summary>A fact that needs the external fixtures; skipped when <c>ARIADNE_FIXTURES</c> is not set.</summary>
+/// <summary>A fact that needs the external fixtures; skipped when <c>GUIDGRAPH_FIXTURES</c> is not set.</summary>
 public sealed class FixtureFactAttribute : FactAttribute
 {
     public FixtureFactAttribute()
@@ -53,7 +53,7 @@ public sealed class FixtureFactAttribute : FactAttribute
     }
 }
 
-/// <summary>A theory that needs the external fixtures; skipped when <c>ARIADNE_FIXTURES</c> is not set.</summary>
+/// <summary>A theory that needs the external fixtures; skipped when <c>GUIDGRAPH_FIXTURES</c> is not set.</summary>
 public sealed class FixtureTheoryAttribute : TheoryAttribute
 {
     public FixtureTheoryAttribute()

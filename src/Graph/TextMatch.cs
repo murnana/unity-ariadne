@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace UnityAriadne.Graph;
+namespace GuidGraph.Graph;
 
 /// <summary>
 /// Spelling-insensitive substring matching for search clues (keywords, path filters).

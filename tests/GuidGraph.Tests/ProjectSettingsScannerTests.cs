@@ -1,7 +1,7 @@
-using UnityAriadne.Analyzer.Settings;
-using UnityAriadne.Analyzer.Yaml;
+using GuidGraph.Analyzer.Settings;
+using GuidGraph.Analyzer.Yaml;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 public class ProjectSettingsScannerTests
 {

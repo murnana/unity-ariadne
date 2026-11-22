@@ -1,10 +1,10 @@
-using UnityAriadne.Analyzer.Code;
-using UnityAriadne.Analyzer.Scanning;
-using UnityAriadne.Analyzer.Storage;
-using UnityAriadne.Analyzer.Yaml;
-using UnityAriadne.Graph;
+using GuidGraph.Analyzer.Code;
+using GuidGraph.Analyzer.Scanning;
+using GuidGraph.Analyzer.Storage;
+using GuidGraph.Analyzer.Yaml;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 /// <summary>
 /// Addressables backlog item. All Unity YAML here is real Editor output from

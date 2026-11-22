@@ -6,7 +6,7 @@
 
 | 記号 | 意味 | 例 |
 |---|---|---|
-| `<ariadne>` | このリポジトリのチェックアウト先 | `~/Projects/unity-ariadne` |
+| `<guidgraph>` | このリポジトリのチェックアウト先 | `~/Projects/guidgraph` |
 | `<unity-project>` | 解析対象の Unity プロジェクト(`Assets/` を持つディレクトリ) | `~/Projects/MyGame` |
 | `<graph.db>` | 解析結果の SQLite ファイル。置き場所は自由です | `~/Projects/MyGame/graph.db` |
 
@@ -38,7 +38,7 @@ dotnet --version   # 10.x ならOK
 ## 2. ビルドを確認する
 
 ```sh
-cd <ariadne>
+cd <guidgraph>
 dotnet build
 ```
 
@@ -49,7 +49,7 @@ dotnet build
 解析対象の Unity プロジェクトに対して `analyze` を 1 回実行します:
 
 ```sh
-dotnet run --project <ariadne>/src/Analyzer -- analyze <unity-project> --db <graph.db>
+dotnet run --project <guidgraph>/src/Analyzer -- analyze <unity-project> --db <graph.db>
 ```
 
 - 所要時間の目安は中規模プロジェクトで数秒〜十数秒です。最後に `Wrote <graph.db> (N refs)` と出れば成功です。
@@ -62,27 +62,27 @@ dotnet run --project <ariadne>/src/Analyzer -- analyze <unity-project> --db <gra
 
 ```sh
 cd <unity-project>
-claude mcp add unity-ariadne -- \
-  <dotnetの絶対パス> run --project <ariadne>/src/Analyzer -- serve --db <graph.dbの絶対パス>
+claude mcp add guidgraph -- \
+  <dotnetの絶対パス> run --project <guidgraph>/src/Analyzer -- serve --db <graph.dbの絶対パス>
 ```
 
 具体例:
 
 ```sh
 cd ~/Projects/MyGame
-claude mcp add unity-ariadne -- \
-  ~/.dotnet/dotnet run --project ~/Projects/unity-ariadne/src/Analyzer -- serve --db ~/Projects/MyGame/graph.db
+claude mcp add guidgraph -- \
+  ~/.dotnet/dotnet run --project ~/Projects/guidgraph/src/Analyzer -- serve --db ~/Projects/MyGame/graph.db
 ```
 
 - **パスはすべて絶対パスで書いてください。** Claude Code が起動するサーバープロセスの作業ディレクトリは登録時のシェルと同じとは限りません。
 - スコープを変えたい場合は `--scope` を付けてください: `--scope project` はリポジトリの `.mcp.json` に書き込まれチームで共有できます(ただしパスが各自のマシンで一致している必要があります)。`--scope user` は全プロジェクト共通です。既定(`local`)は自分のマシンのそのプロジェクトのみです。
-- 登録内容の確認・削除: `claude mcp list` / `claude mcp remove unity-ariadne` をお使いください。
+- 登録内容の確認・削除: `claude mcp list` / `claude mcp remove guidgraph` をお使いください。
 
 ## 5. 動作確認
 
 Unity プロジェクトのディレクトリで Claude Code を起動し、次の手順で確認します:
 
-1. `/mcp` で `unity-ariadne` が connected になっていることを確認してください。初回接続は `dotnet run` がビルドを走らせるため数秒〜数十秒かかることがあります(タイムアウトした場合は下の「publish して登録する」をご参照ください)。
+1. `/mcp` で `guidgraph` が connected になっていることを確認してください。初回接続は `dotnet run` がビルドを走らせるため数秒〜数十秒かかることがあります(タイムアウトした場合は下の「publish して登録する」をご参照ください)。
 2. 試しに聞いてみてください:
 
    > search_nodes で "Player" を含むアセットを探して
@@ -102,14 +102,14 @@ Unity プロジェクトのディレクトリで Claude Code を起動し、次�
 `dotnet run` は起動のたびにビルドチェックが走ります。頻繁に使う場合は一度発行してバイナリを直接登録するとサーバー起動が速くなります:
 
 ```sh
-cd <ariadne>
+cd <guidgraph>
 dotnet publish src/Analyzer -c Release -o publish
 ```
 
 ```sh
 cd <unity-project>
-claude mcp add unity-ariadne -- \
-  <ariadne>/publish/UnityAriadne.Analyzer serve --db <graph.dbの絶対パス>
+claude mcp add guidgraph -- \
+  <guidgraph>/publish/guidgraph serve --db <graph.dbの絶対パス>
 ```
 
 この場合、リポジトリを更新(git pull)したら `dotnet publish` を再実行してください。
@@ -117,15 +117,15 @@ claude mcp add unity-ariadne -- \
 なお発行したバイナリも実行時に .NET ランタイムを探します。インストールスクリプトで `~/.dotnet` にだけ入れた環境(システム標準の場所に .NET がない環境)では、登録時に環境変数で場所を教えてください:
 
 ```sh
-claude mcp add unity-ariadne -e DOTNET_ROOT="$HOME/.dotnet" -- \
-  <ariadne>/publish/UnityAriadne.Analyzer serve --db <graph.dbの絶対パス>
+claude mcp add guidgraph -e DOTNET_ROOT="$HOME/.dotnet" -- \
+  <guidgraph>/publish/guidgraph serve --db <graph.dbの絶対パス>
 ```
 
 ## トラブルシューティング
 
 | 症状 | 原因と対処 |
 |---|---|
-| `/mcp` で unity-ariadne が failed | まず登録したコマンドをそのままターミナルで実行してみてください(stderr にエラーが出ます)。大半は次のどれかです ↓ |
+| `/mcp` で guidgraph が failed | まず登録したコマンドをそのままターミナルで実行してみてください(stderr にエラーが出ます)。大半は次のどれかです ↓ |
 | `dotnet: command not found` | 登録コマンドの `dotnet` を絶対パスにしてください(手順 1・4) |
 | 起動直後にエラー終了 | `--db` のパス誤りです。サーバーは起動時に DB パスを検証して即エラーになる仕様です。絶対パスで指定し直してください |
 | アセットが `not_found` になる | `analyze` を実行し忘れて DB が古い、または対象プロジェクトが違います。`search_nodes` で部分一致検索して DB の中身を確かめてください |
@@ -134,6 +134,6 @@ claude mcp add unity-ariadne -e DOTNET_ROOT="$HOME/.dotnet" -- \
 
 ---
 
-> Ariadne は Unity Technologies およびその関連会社によるスポンサーを受けておらず、提携関係にもありません。Unity は、米国およびその他の地域における Unity Technologies またはその関連会社の商標または登録商標です。
+> GuidGraph は Unity Technologies およびその関連会社によるスポンサーを受けておらず、提携関係にもありません。Unity は、米国およびその他の地域における Unity Technologies またはその関連会社の商標または登録商標です。
 >
-> Ariadne is not sponsored by or affiliated with Unity Technologies or its affiliates. Unity is a trademark or registered trademark of Unity Technologies or its affiliates in the U.S. and elsewhere.
+> GuidGraph is not sponsored by or affiliated with Unity Technologies or its affiliates. Unity is a trademark or registered trademark of Unity Technologies or its affiliates in the U.S. and elsewhere.

@@ -1,8 +1,8 @@
 using System.Text;
-using UnityAriadne.Analyzer.Scanning;
-using UnityAriadne.Analyzer.Yaml;
+using GuidGraph.Analyzer.Scanning;
+using GuidGraph.Analyzer.Yaml;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 public class MetaReferenceExtractorTests
 {

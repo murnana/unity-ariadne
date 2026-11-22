@@ -3,9 +3,9 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ModelContextProtocol.Server;
-using UnityAriadne.Graph;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Analyzer.Mcp;
+namespace GuidGraph.Analyzer.Mcp;
 
 /// <summary>Tells <see cref="GraphMcpTools"/> which database file to query.</summary>
 public sealed record GraphMcpOptions(string DbPath);

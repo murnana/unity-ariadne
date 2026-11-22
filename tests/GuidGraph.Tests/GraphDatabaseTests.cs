@@ -1,6 +1,6 @@
-using UnityAriadne.Graph;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 public class GraphDatabaseTests
 {
@@ -93,7 +93,7 @@ public class GraphDatabaseTests
     [Fact]
     public void CreateFileReplacesExistingDatabaseAndOpenFileReadsIt()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"ariadne-test-{Guid.NewGuid():N}.db");
+        var path = Path.Combine(Path.GetTempPath(), $"guidgraph-test-{Guid.NewGuid():N}.db");
         try
         {
             using (var db = GraphDatabase.CreateFile(path))

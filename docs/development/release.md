@@ -17,7 +17,7 @@ Authenticode 署名する必要があり、Azure アカウント・証明書プ�
 
 - `tests/`・`docs/` は zip に含めません。
 - zip のルートに `LICENSE` / `THIRD-PARTY-NOTICES.md` / `NOTICE.txt` を同梱します。MSI / pkg にも同じ3ファイルが入ります(`THIRD-PARTY-NOTICES.md` は `scripts/generate-third-party-notices.sh` で生成し、`ci.yml` の `third-party-notices` ジョブが最新であることを検証します)。
-- zip のファイル名は `unity-ariadne-<version>-src.zip`(`<version>` はタグ名から先頭の `v` を
+- zip のファイル名は `guidgraph-<version>-src.zip`(`<version>` はタグ名から先頭の `v` を
   除いたもの)。ソース配布はプラットフォーム非依存なので matrix 化せず1個だけ作ります。
 - zip のルートには、ワークフローが生成する簡易 `USAGE.md`(前提条件と最小限の実行例、詳しい
   マニュアルは `docs/manual/` を見るよう案内)を同梱します。
@@ -35,7 +35,7 @@ Authenticode 署名する必要があり、Azure アカウント・証明書プ�
 ## インストーラー(MSI / pkg)
 
 ソース zip とは別に、同じ Release へインストーラーを添付します。いずれも self-contained
-publish なので利用者に .NET SDK / ランタイムは不要で、実行ファイル名は `ariadne`
+publish なので利用者に .NET SDK / ランタイムは不要で、実行ファイル名は `guidgraph`
 (`src/Analyzer` の `AssemblyName`)です。ビルド(`build-msi` / `build-pkg`)は
 タグ push と手動実行(workflow_dispatch)のときだけ走り、どちらも Artifact(`installer-msi` / `installer-pkg`)として
 アップロードします。タグ push のときは、さらに `publish-installers` ジョブが `package-and-release` の作成した
@@ -43,8 +43,8 @@ GitHub Release(リリースページ)へも添付します。手動実行では 
 
 | ファイル | ビルド | 入る場所 |
 |---|---|---|
-| `unity-ariadne-<version>-win-x64.msi` | `installer/windows/build.ps1`(WiX v5、windows-latest) | `C:\Program Files\Unity Ariadne`、システム PATH に追加(アンインストールで除去) |
-| `unity-ariadne-<version>-osx-arm64.pkg`(Intel Mac 向けは配布しません) | `installer/macos/build-pkg.sh`(pkgbuild、macos-latest) | `/usr/local/lib/unity-ariadne` と `/usr/local/bin/ariadne` へのリンク |
+| `guidgraph-<version>-win-x64.msi` | `installer/windows/build.ps1`(WiX v5、windows-latest) | `C:\Program Files\GuidGraph`、システム PATH に追加(アンインストールで除去) |
+| `guidgraph-<version>-osx-arm64.pkg`(Intel Mac 向けは配布しません) | `installer/macos/build-pkg.sh`(pkgbuild、macos-latest) | `/usr/local/lib/guidgraph` と `/usr/local/bin/guidgraph` へのリンク |
 
 - MSI のバージョンは数値のみのため、タグのプレリリース接尾辞(`-rc1` 等)を除いた値を使います。
   `installer/windows/Package.wxs` の UpgradeCode は固定です(変えると上書きアップグレードが効きません)。
@@ -79,41 +79,41 @@ Apple Developer ID 署名+notarization が必要で、アカウントと証明�
    `package-and-release` が下書き(draft)で作成し、インストーラーとプラグイン zip を添付したあと、最後の `publish-release` ジョブが公開する。
    公開された Release に、ソース zip・MSI・pkg・プラグイン zip(と `.sha256`)が揃っていることを確認する。
    **途中のジョブが失敗した場合、Release は下書きのままで、そのタグは未公開のまま残る。** 原因を直して失敗したジョブを再実行する(下書きのうちはアセットを追加でき、タグ名も使える)。
-5. 外部 marketplace([murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin))の `unity-ariadne` エントリの `version` を新バージョンに更新する(別リポジトリでの作業。下記「marketplace のエントリを更新する」)。
+5. 外部 marketplace([murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin))の `guidgraph` エントリの `version` を新バージョンに更新する(別リポジトリでの作業。下記「marketplace のエントリを更新する」)。
 
 ## Claude Code プラグイン
 
-プラグイン本体は `claude-plugins/` にあります。`build-plugin` ジョブが、プラグイン本体と `LICENSE` を zip のルート直下に置いた `unity-ariadne-<version>-claude-plugin.zip` と、その SHA-256(`.sha256`)を同じ Release に添付します。SHA-256 はジョブのサマリーにも出力されます。
+プラグイン本体は `claude-plugins/` にあります。`build-plugin` ジョブが、プラグイン本体と `LICENSE` を zip のルート直下に置いた `guidgraph-<version>-claude-plugin.zip` と、その SHA-256(`.sha256`)を同じ Release に添付します。SHA-256 はジョブのサマリーにも出力されます。
 
 外部 marketplace のエントリは、次のどちらかで参照します(`claude plugin validate` と公式ドキュメントで確認済みの `source` 型です)。
 
 ```json
-{ "name": "unity-ariadne",
+{ "name": "guidgraph",
   "source": { "source": "archive",
-              "url": "https://github.com/murnana/unity-ariadne/releases/download/vX.Y.Z/unity-ariadne-X.Y.Z-claude-plugin.zip",
+              "url": "https://github.com/murnana/unity-ariadne/releases/download/vX.Y.Z/guidgraph-X.Y.Z-claude-plugin.zip",
               "sha256": "<.sha256 ファイルの値>" } }
 ```
 
 ```json
-{ "name": "unity-ariadne",
+{ "name": "guidgraph",
   "source": { "source": "git-subdir",
               "url": "https://github.com/murnana/unity-ariadne.git",
               "path": "claude-plugins",
               "ref": "vX.Y.Z" } }
 ```
 
-正式版の marketplace は、`sha` で固定した `git-subdir` で参照しています。アーリーアクセス版の marketplace は `ref: "develop"` の `git-subdir` で、`version` も `sha` も付けず `develop` のコミットに追従します(そのカタログは生成物で、手で編集しません)。`archive` は `sha256` で改ざんを検出できます(切り替えるなら推奨)。`git-subdir` は Release の成果物に依存せず、タグから直接取得します。プラグインは `ariadne` コマンド(MSI / pkg が PATH に入れる)だけに依存するため、.NET SDK は不要です。
+正式版の marketplace は、`sha` で固定した `git-subdir` で参照しています。アーリーアクセス版の marketplace は `ref: "develop"` の `git-subdir` で、`version` も `sha` も付けず `develop` のコミットに追従します(そのカタログは生成物で、手で編集しません)。`archive` は `sha256` で改ざんを検出できます(切り替えるなら推奨)。`git-subdir` は Release の成果物に依存せず、タグから直接取得します。プラグインは `guidgraph` コマンド(MSI / pkg が PATH に入れる)だけに依存するため、.NET SDK は不要です。
 
 ### marketplace のエントリを更新する
 
-プラグインを更新(`claude-plugins/` を変更してリリース)したら、marketplace 側の `unity-ariadne` エントリの `version` を新しいリリースのバージョンに、`source.sha` をそのリリースのコミットに更新します。`version` は `plugin.json` ではなくこのエントリにだけ書きます(Claude Code は `plugin.json` の `version` をエントリより優先するため、書くとアーリーアクセス版が固定されます)。正式版の利用者は `version` の文字列が変わるまでキャッシュ済みのコピーを使い続けるため、これを上げないと更新が届きません。
+プラグインを更新(`claude-plugins/` を変更してリリース)したら、marketplace 側の `guidgraph` エントリの `version` を新しいリリースのバージョンに、`source.sha` をそのリリースのコミットに更新します。`version` は `plugin.json` ではなくこのエントリにだけ書きます(Claude Code は `plugin.json` の `version` をエントリより優先するため、書くとアーリーアクセス版が固定されます)。正式版の利用者は `version` の文字列が変わるまでキャッシュ済みのコピーを使い続けるため、これを上げないと更新が届きません。
 
 1. このリポジトリのリリース(上記の手順 1〜4)を終える。
-2. [murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin) で `develop` から `feature/unity-ariadne-<version>` を切る(`develop` が無ければ `main` から作って push してから)。
-3. `.claude-plugin/marketplace.json` の `unity-ariadne` の `version`(必要なら `description` も)を更新し、`claude plugin validate .` を実行する。
+2. [murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin) で `develop` から `feature/guidgraph-<version>` を切る(`develop` が無ければ `main` から作って push してから)。
+3. `.claude-plugin/marketplace.json` の `guidgraph` の `version`(必要なら `description` も)を更新し、`claude plugin validate .` を実行する。
 4. `develop` 宛てに PR を作る。利用者に届くのは、marketplace 側の `develop` → `main` のリリース PR がマージされた後。
 
-詳しい手順は marketplace 側の [docs/plugins/unity-ariadne/README.md](https://github.com/murnana/murnana-claude-code-plugin/blob/main/docs/plugins/unity-ariadne/README.md) と `CONTRIBUTING.md` にあります。marketplace 側の `Check plugin versions` ワークフローはこのプラグインを検査しないため、`version` の一致は手で確認します。
+詳しい手順は marketplace 側の [docs/plugins/guidgraph/README.md](https://github.com/murnana/murnana-claude-code-plugin/blob/main/docs/plugins/guidgraph/README.md) と `CONTRIBUTING.md` にあります。marketplace 側の `Check plugin versions` ワークフローはこのプラグインを検査しないため、`version` の一致は手で確認します。
 
 ## 公開時のリポジトリ設定(GitHub 上で手作業)
 

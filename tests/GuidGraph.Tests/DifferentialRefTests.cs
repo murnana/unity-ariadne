@@ -1,7 +1,7 @@
 using System.Text;
-using UnityAriadne.Analyzer.Yaml;
+using GuidGraph.Analyzer.Yaml;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 /// <summary>
 /// Differential test (Phase 1b): for every Unity YAML file in the

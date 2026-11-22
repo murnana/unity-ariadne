@@ -1,7 +1,7 @@
 using System.Text.Json;
-using UnityAriadne.Graph;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 public class MemoryJsonlExporterTests
 {

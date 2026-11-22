@@ -1,7 +1,7 @@
 using System.Text;
-using UnityAriadne.Analyzer.Yaml;
+using GuidGraph.Analyzer.Yaml;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 public class RefKindClassifierTests
 {

@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
 
-namespace UnityAriadne.Analyzer.Yaml;
+namespace GuidGraph.Analyzer.Yaml;
 
 /// <summary>
 /// Assigns a <see cref="RefKind"/> to each extracted reference (Phase 1c).

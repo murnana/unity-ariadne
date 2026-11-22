@@ -7,15 +7,15 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-$publish = Join-Path ([IO.Path]::GetTempPath()) "ariadne-publish-$([guid]::NewGuid())"
+$publish = Join-Path ([IO.Path]::GetTempPath()) "guidgraph-publish-$([guid]::NewGuid())"
 $numericVersion = $Version -replace '-.*$', ''   # MSI versions are numeric only
 
-dotnet publish (Join-Path $repo 'src\Analyzer\UnityAriadne.Analyzer.csproj') `
+dotnet publish (Join-Path $repo 'src\Analyzer\GuidGraph.Analyzer.csproj') `
   -c Release -r win-x64 --self-contained "-p:Version=$Version" --nologo -v quiet -o $publish
 if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
 
-dotnet build (Join-Path $PSScriptRoot 'UnityAriadne.wixproj') `
+dotnet build (Join-Path $PSScriptRoot 'GuidGraph.wixproj') `
   -c Release "-p:ProductVersion=$numericVersion" "-p:PublishDir=$publish" -o $OutDir
 if ($LASTEXITCODE -ne 0) { throw 'wix build failed' }
 
-Write-Host "Built $(Join-Path $OutDir "unity-ariadne-$numericVersion-win-x64.msi")"
+Write-Host "Built $(Join-Path $OutDir "guidgraph-$numericVersion-win-x64.msi")"

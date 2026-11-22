@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
-using UnityAriadne.Analyzer.Yaml;
+using GuidGraph.Analyzer.Yaml;
 
-namespace UnityAriadne.Analyzer.Json;
+namespace GuidGraph.Analyzer.Json;
 
 /// <summary>
 /// Extracts asset-guid references from JSON text (Phase 1g): .shadergraph/.shadersubgraph

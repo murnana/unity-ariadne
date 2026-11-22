@@ -4,17 +4,17 @@
 
 ## フィクスチャを用意して全テストを走らせる
 
-環境変数 `ARIADNE_FIXTURES` に、次の構成のディレクトリを指定します。
+環境変数 `GUIDGRAPH_FIXTURES` に、次の構成のディレクトリを指定します。
 
 ```
-$ARIADNE_FIXTURES/
+$GUIDGRAPH_FIXTURES/
 ├─ SampleProject/                  # Unity プロジェクト(Assets/ ProjectSettings/ Packages/)
 ├─ Addressables/                   # Addressables 設定一式(Assets/ 相対配置)
 └─ unity-select-dependencies.txt   # AssetDatabase.GetDependencies のダンプ
 ```
 
 ```sh
-ARIADNE_FIXTURES=/path/to/fixtures dotnet test
+GUIDGRAPH_FIXTURES=/path/to/fixtures dotnet test
 ```
 
 - `SampleProject/` — [Fantasy Kingdom in Unity 6 | URP](https://assetstore.unity.com/packages/essentials/tutorial-projects/fantasy-kingdom-in-unity-6-urp-298128) を Unity **6000.0.78f1** で開き、Force Text シリアライズにしてから一部を間引いたもの。テストの期待値はこの間引き後の内容に固定されているため、Asset Store 版をそのまま置いても census 系テストは一致しません。

@@ -1,6 +1,6 @@
-using UnityAriadne.Graph;
+using GuidGraph.Graph;
 
-namespace UnityAriadne.Tests;
+namespace GuidGraph.Tests;
 
 /// <summary>
 /// Semantics of the Phase 4 query layer on a small synthetic graph:

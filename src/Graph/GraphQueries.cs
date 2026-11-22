@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 
-namespace UnityAriadne.Graph;
+namespace GuidGraph.Graph;
 
 /// <summary>One asset row as query results present it.</summary>
 public sealed record AssetNode(string Guid, string? Path, string AssetType, string Source)
