@@ -16,7 +16,7 @@ GuidGraph は、以下のサードパーティ製ソフトウェアを利用し�
 | Microsoft.Data.Sqlite | 11.0.0 | MIT | https://docs.microsoft.com/dotnet/standard/data/sqlite/ |
 | Microsoft.Data.Sqlite.Core | 11.0.0 | MIT | https://docs.microsoft.com/dotnet/standard/data/sqlite/ |
 | Microsoft.Extensions.AI.Abstractions | 10.11.0 | MIT | https://dot.net/ |
-| Microsoft.Extensions.Caching.Abstractions | 10.0.13 | MIT | https://dot.net/ |
+| Microsoft.Extensions.Caching.Abstractions | 10.0.14 | MIT | https://dot.net/ |
 | Microsoft.Extensions.Configuration | 11.0.0 | MIT | https://dot.net/ |
 | Microsoft.Extensions.Configuration.Abstractions | 11.0.0 | MIT | https://dot.net/ |
 | Microsoft.Extensions.Configuration.Binder | 11.0.0 | MIT | https://dot.net/ |
@@ -44,8 +44,8 @@ GuidGraph は、以下のサードパーティ製ソフトウェアを利用し�
 | Microsoft.Extensions.Options | 11.0.0 | MIT | https://dot.net/ |
 | Microsoft.Extensions.Options.ConfigurationExtensions | 11.0.0 | MIT | https://dot.net/ |
 | Microsoft.Extensions.Primitives | 11.0.0 | MIT | https://dot.net/ |
-| ModelContextProtocol | 2.3.0 | Apache-2.0 | https://csharp.sdk.modelcontextprotocol.io/ |
-| ModelContextProtocol.Core | 2.3.0 | Apache-2.0 | https://csharp.sdk.modelcontextprotocol.io/ |
+| ModelContextProtocol | 2.4.0 | Apache-2.0 | https://csharp.sdk.modelcontextprotocol.io/ |
+| ModelContextProtocol.Core | 2.4.0 | Apache-2.0 | https://csharp.sdk.modelcontextprotocol.io/ |
 | SQLite | 3.53.4 | LICENSE.txt | https://sqlite.org/ |
 | SQLitePCLRaw.bundle_e_sqlite3 | 3.0.5 | Apache-2.0 | - |
 | SQLitePCLRaw.config.e_sqlite3 | 3.0.5 | Apache-2.0 | - |
