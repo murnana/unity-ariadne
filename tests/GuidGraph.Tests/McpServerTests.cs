@@ -108,6 +108,30 @@ public sealed class McpServerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task FindReferencesSummaryGroupsByKindAndType()
+    {
+        var result = await CallAsync("find_references", new() { ["name"] = "Sky.mat", ["summary"] = true });
+
+        Assert.Equal(1, result.GetProperty("total_referrers").GetInt32());
+        Assert.False(result.TryGetProperty("references", out _));
+        var kind = Assert.Single(result.GetProperty("by_kind").EnumerateArray());
+        Assert.Equal("generic", kind.GetProperty("kind").GetString());
+        Assert.Equal(1, kind.GetProperty("referrers").GetInt32());
+        Assert.Equal(["Assets/Prefabs/Hero.prefab"], kind.GetProperty("top").EnumerateArray().Select(t => t.GetString()));
+        var type = Assert.Single(result.GetProperty("by_type").EnumerateArray());
+        Assert.Equal("Prefab", type.GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task FindReferencesDefaultOutputUnchangedWithoutSummary()
+    {
+        var result = await CallAsync("find_references", new() { ["name"] = "Sky.mat", ["summary"] = false });
+
+        Assert.True(result.TryGetProperty("references", out _));
+        Assert.False(result.TryGetProperty("by_kind", out _));
+    }
+
+    [Fact]
     public async Task ImpactAnalysisRoundTripsOverMcp()
     {
         var result = await CallAsync("impact_analysis", new() { ["name"] = "Sky.mat", ["depth"] = 5 });

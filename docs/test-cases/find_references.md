@@ -14,3 +14,6 @@
 | FR-08 | 未解決 GUID（`dangling`）を指定 | `asset.dangling: true`、参照元は返る |
 | FR-09 | 同一参照元が複数回参照 | `ref_count` が参照回数と一致する |
 | FR-10 | 読み取り専用 | 呼び出し前後で db ファイルが変化しない |
+| FR-11 | `summary: true` | `references` は無く、`by_kind` / `by_type` と `total_referrers` を返す（xUnit 実装済み） |
+| FR-12 | `summary: false` を明示 | `references` を返し、`by_kind` は無い（xUnit 実装済み） |
+| FR-13 | `summary: true`、`top` = 0 または 99 | 1〜20 に丸められ、`by_kind[].top` の件数がその範囲に収まる |

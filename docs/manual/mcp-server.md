@@ -35,12 +35,17 @@ claude mcp add guidgraph -- dotnet run --project <このリポジトリ>/src/Ana
 ### find_references — 直接の参照元(逆依存)
 
 ```
-find_references(name)
+find_references(name, summary = false, top = 5)
 ```
 
 指定アセットを**直接参照しているアセット**を、参照の種類(ref_kind)と参照数つきで列挙します。「このマテリアルを使っているのは誰?」に答えます。
 
 返り値: `asset`(解決されたアセット情報)、`total_referrers`、`references[]`(`from` / `kind` / `ref_count` / `source`)。
+
+`summary = true` を指定すると、個別の行(`references`)の代わりに集計を返します。参照元が多いアセットで出力が小さくなり、「誰が・どの種類で参照しているか」を 1 回で把握できます。`top` は種類ごとに挙げる参照元の数です(1〜20、既定 5)。
+
+- `by_kind[]`: 参照の種類ごとに `kind` / `referrers`(参照元の数) / `refs`(参照の総数) / `top`(参照元のパス)。`referrers` の多い順です。
+- `by_type[]`: 参照元のアセット種別ごとの `type` / `referrers`。
 
 ### impact_analysis — 影響範囲(逆依存の推移閉包)
 

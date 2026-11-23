@@ -21,6 +21,8 @@ public sealed record GraphMcpOptions(string DbPath);
 public sealed class GraphMcpTools(GraphMcpOptions options)
 {
     private const int MaxListedResults = 200;
+    private const int DefaultSummaryTop = 5;
+    private const int MaxSummaryTop = 20;
     private const int MaxAmbiguousCandidates = 10;
     private const int MaxSignatures = 12;
     private const int MaxFolderTypes = 6;
@@ -36,12 +38,44 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
     [McpServerTool(Name = "find_references")]
     [Description("Lists every asset that directly references the given asset (reverse dependencies) " +
                  "with reference kind and count. Accepts a project-relative path (Assets/...), a file " +
-                 "name unique in the project, or a GUID.")]
+                 "name unique in the project, or a GUID. summary=true returns counts per reference " +
+                 "kind and asset type plus the top referrers instead of every row.")]
     public string FindReferences(
-        [Description("Asset path, file name, or GUID")] string name)
+        [Description("Asset path, file name, or GUID")] string name,
+        [Description("Return per-kind and per-type counts with top referrers instead of rows (default false)")]
+        bool summary = false,
+        [Description("With summary: referrer paths listed per kind, 1-20 (default 5)")] int top = DefaultSummaryTop)
         => WithResolvedAsset(name, (db, asset) =>
         {
             var references = GraphQueries.FindReferences(db, asset.Guid);
+            if (summary)
+            {
+                var perKind = Math.Clamp(top, 1, MaxSummaryTop);
+                return Serialize(new
+                {
+                    Asset = Describe(asset),
+                    TotalReferrers = references.Count,
+                    ByKind = references
+                        .GroupBy(r => r.RefKind)
+                        .Select(g => new
+                        {
+                            Kind = g.Key,
+                            Referrers = g.Count(),
+                            Refs = g.Sum(r => r.RefCount),
+                            Top = g.Take(perKind).Select(r => r.Referrer.Name).ToList(),
+                        })
+                        .OrderByDescending(k => k.Referrers)
+                        .ThenBy(k => k.Kind, StringComparer.Ordinal)
+                        .ToList(),
+                    ByType = references
+                        .GroupBy(r => r.Referrer.AssetType)
+                        .Select(g => new { Type = g.Key, Referrers = g.Select(r => r.Referrer.Guid).Distinct().Count() })
+                        .OrderByDescending(t => t.Referrers)
+                        .ThenBy(t => t.Type, StringComparer.Ordinal)
+                        .ToList(),
+                });
+            }
+
             return Serialize(new
             {
                 Asset = Describe(asset),
