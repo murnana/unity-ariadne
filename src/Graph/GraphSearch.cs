@@ -270,6 +270,9 @@ public static class GraphSearch
                     ? $"A -[{k}]-> B: {meaning.Out}"
                     : $"A -[{k}]-> B"),
             Relaxed = NullIfEmpty(relaxed),
+            Unsupported = NullIfEmpty(
+                starts.Select(a => a.AssetType).Concat(page.Select(m => m.Asset.AssetType))
+                    .Where(t => !OntologyGlossary.IsParsed(t)).Distinct().Order(StringComparer.Ordinal).ToList()),
             Warnings = NullIfEmpty(warnings),
         };
     }

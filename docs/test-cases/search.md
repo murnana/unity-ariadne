@@ -27,3 +27,4 @@
 | SE-21 | CLI `guidgraph search --query` と同一 JSON | MCP の `search` と同じ結果になる |
 | SE-22 | Prefab を含む結果 | Prefab にだけ `role`（`wrapper` / `leaf`）が付く（xUnit 実装済み） |
 | SE-23 | 入れ子の PrefabInstance と自前の MonoBehaviour を持つ prefab | `leaf` になる（xUnit 実装済み） |
+| SE-24 | 開始点か結果に TerrainData を含む | `unsupported: ["TerrainData"]` が付く。含まなければ付かない（xUnit 実装済み） |

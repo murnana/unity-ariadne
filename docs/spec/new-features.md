@@ -210,6 +210,7 @@ VCS のリビジョン（Git の SHA、Subversion のリビジョン）による
 - バイナリ形式の資産（Terrain の `TerrainData.asset` など）は中身を解析していないことを、結果に明示します。
 - `search` と `expanded_count` の応答に `unsupported: ["TerrainData"]` のように、結果に関係する未対応の種別を載せます。
 - `describe_ontology` の `classes[]` に `parsed: false` を付けます。
+- 基準（実データで確認）: 本体がバイナリ形式で、解析が一度も開かない種類を固定の一覧で持ちます（Texture / Model / SpeedTree / AudioClip / VideoClip / Font / TerrainData / Assembly）。`unsupported` は、`search` の開始点と結果の種類のうち、この一覧に入るものです（`expanded_count` へは N-8 で足します）。ファイルごとにテキストかバイナリかが違う `.asset` は判定しません。出力は describe_ontology で約 +90 文字です。
 - 将来 tree prototype の参照を抽出する場合は別の課題とします。
 
 **互換性**: 追加フィールドです。

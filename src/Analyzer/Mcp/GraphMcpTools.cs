@@ -324,6 +324,7 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
                 {
                     Type = c.AssetType,
                     Category = OntologyGlossary.CategoryOf(c.AssetType),
+                    Parsed = OntologyGlossary.IsParsed(c.AssetType) ? null : (bool?)false,
                     c.Count,
                     c.BySource,
                 })

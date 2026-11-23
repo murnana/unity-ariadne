@@ -11,3 +11,4 @@
 | DO-05 | 用語集にない ref_kind | `out` / `in` / `layer` が省略され、エラーにならない |
 | DO-06 | 空のグラフ | `classes` / `relations` が空配列 |
 | DO-07 | `search` の警告 | `describe_ontology` にない type / kind を `search` に渡すと `warnings` に出る |
+| DO-08 | `classes[]` の `parsed` | Texture / Model / TerrainData などにだけ `parsed: false`（xUnit は `IsParsed` のみ実装済み） |

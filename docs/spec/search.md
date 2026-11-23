@@ -54,7 +54,7 @@
               "from_clues": ["..."], "from_doc": "...", "declares": ["..."], "notes": ["..."]}],
  "truncated": true,
  "relations": {"uses_script": "A -[uses_script]-> B: ..."},
- "relaxed": ["..."], "warnings": ["..."]}
+ "relaxed": ["..."], "unsupported": ["TerrainData"], "warnings": ["..."]}
 ```
 
 - `path`: `A -[kind]-> B` は A が B を参照、`A <-[kind]- B` は B が A を参照することを表します。
@@ -62,6 +62,7 @@
 - `role` は Prefab の結果だけに付きます。`wrapper` は、入れ子の PrefabInstance を 1 つ以上持ち、自身の持ち物が GameObject と Transform（RectTransform）だけの prefab（入れ子の prefab のための `stripped` は数えません）、`leaf` はそれ以外です。1 つの prefab だけを包むバリアントも `wrapper` になります。
 - `declares` は C# の宣言型（最大 3 件）、`notes` は Editor/ や Resources/ などのフォルダー規約の注記です。
 - `start.assets` は最大 10 件です。
+- `unsupported` は、開始点または結果に、本体を読んでいない種類（`describe_ontology` の `parsed: false`）が含まれるときだけ付きます。その種類からたどれる参照（TerrainData の木など）は、グラフに無いことを示します。
 - `warnings` は、存在しない種別名・参照種別名、C# シンボルが無い古い db（再 analyze の案内）に対して出ます。
 
 ## エラー

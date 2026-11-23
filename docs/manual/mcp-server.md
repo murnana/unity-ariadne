@@ -161,6 +161,7 @@ search(from, steps = null, unreferenced = false, limit = 20, relax = true)
 | `matches[].from` / `from_clues` / `from_doc` | 経路の出発点と、その出発点がキーワードに当たった手がかり・ドキュメントコメントの抜粋 |
 | `matches[].clues` / `doc` | `steps` が無いとき、結果そのものがキーワードに当たった手がかりと抜粋 |
 | `matches[].role` | Prefab の結果だけに付く種別。`wrapper`: 他の prefab を入れ子に置くだけで、自身のコンポーネントを持たない(「木」のような概念検索で、置き場のプレハブと中身を数え分けるために使います)。`leaf`: それ以外 |
+| `unsupported` | 開始点か結果に、本体を読んでいない種類(上の `parsed: false`)が含まれるときだけ付く、その種類の一覧。「グラフに出ない」ことを示す(例: TerrainData の木は出ません) |
 | `matches[].declares` | スクリプトが宣言している型(最大 3 件) |
 | `matches[].notes` | パスから分かる注記: `Editor` フォルダー(ビルドに入らない)、`Resources` フォルダー(参照が無くても名前で読み込まれうる)、`StreamingAssets`、`Plugins`、サンプル、テスト、PackageCache、ビルトイン、未解決 GUID |
 | `relations` | 経路に出てきた関係それぞれの意味(`A -[uses_script]-> B: A has a component ... whose script is B` など) |
@@ -216,7 +217,7 @@ describe_ontology()
 
 グラフの語彙を返します。種類と関係の件数・組み合わせは**そのプロジェクトに実在するもの**、意味は guidgraph が持つ定義です。
 
-- `classes[]`: `type`(アセットの種類)、`category`(Placement / Code / Data / Rendering / Geometry / Animation / Effects / Audio/Video / UI / Physics/Lighting / Settings / Folder / Unresolved / Other)、`count`、`by_source`
+- `classes[]`: `type`(アセットの種類)、`category`(Placement / Code / Data / Rendering / Geometry / Animation / Effects / Audio/Video / UI / Physics/Lighting / Settings / Folder / Unresolved / Other)、`parsed`(本体がバイナリで読んでいない種類にだけ `false`。Texture / Model / SpeedTree / AudioClip / VideoClip / Font / TerrainData / Assembly)、`count`、`by_source`
 - `relations[]`: `kind`(ref_kind)、`layer`(`asset` / `code`)、`out`(`A -[kind]-> B` の読み方)、`in`(逆にたどると何が見つかるか)、`transitive`(`max_hops` で何段もたどる意味があるか)、`edges`、`ref_count`、`signatures`(`"Prefab->Script: 120"` のような、実際に結んでいる種類の組み合わせ。多い順に最大 12 件、残りは `more_signatures`)
 
 `search` の `types` / `kinds` に使う名前と、関係の向きを確かめるのに使います。

@@ -6,7 +6,8 @@
 
 ```json
 {"search_guide": "...",
- "classes": [{"type": "Prefab", "category": "...", "count": 141, "by_source": {"Assets": 100}}],
+ "classes": [{"type": "Prefab", "category": "...", "count": 141, "by_source": {"Assets": 100}},
+             {"type": "TerrainData", "category": "Geometry", "parsed": false, "count": 1, "by_source": {"Assets": 1}}],
  "relations": [{"kind": "uses_script", "layer": "...", "out": "...", "in": "...", "transitive": false,
                 "edges": 300, "ref_count": 450,
                 "signatures": ["Prefab->Script: 120"], "more_signatures": 3}]}
@@ -21,3 +22,5 @@
 ## 備考
 
 出力の大きさは relation の数と署名の数で決まり、プロジェクトが大きいほど増えます。縮小案は [new-features.md](new-features.md) を参照してください。
+
+- `classes[].parsed` は、本体がバイナリで読んでいない種類にだけ `false` で付きます（Texture / Model / SpeedTree / AudioClip / VideoClip / Font / TerrainData / Assembly）。付いていない種類は本体を読んでいます。ただし `.asset` はファイルごとにテキストかバイナリかが違うため、ScriptableObject や SerializedAsset の個別のバイナリファイルまでは判定していません。

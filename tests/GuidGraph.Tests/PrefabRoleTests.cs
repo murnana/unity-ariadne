@@ -85,4 +85,30 @@ public sealed class PrefabRoleTests : IDisposable
         Assert.Equal("leaf", roles["Assets/WithScript.prefab"]);
         Assert.Null(roles["Assets/M.mat"]);
     }
+
+    [Fact]
+    public void BinaryBodyTypesAreMarkedUnparsed()
+    {
+        Assert.False(OntologyGlossary.IsParsed("TerrainData"));
+        Assert.False(OntologyGlossary.IsParsed("Texture"));
+        Assert.True(OntologyGlossary.IsParsed("Prefab"));
+        Assert.True(OntologyGlossary.IsParsed("ScriptableObject"));
+    }
+
+    [Fact]
+    public void SearchListsUnparsedTypesOfItsResults()
+    {
+        using var db = CreateDatabase();
+        using var writer = db.CreateWriter();
+        writer.AddAsset("aaaa0000000000000000000000000009", "Assets/Terrain/T.asset", "TerrainData", "Assets");
+        writer.Commit();
+
+        var json = GraphSearch.RunJson(db, new SearchQuery { From = new SearchStart { Types = ["TerrainData", "Prefab"] } });
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        Assert.Equal(["TerrainData"], doc.RootElement.GetProperty("unsupported").EnumerateArray().Select(t => t.GetString()));
+
+        var prefabsOnly = GraphSearch.RunJson(db, new SearchQuery { From = new SearchStart { Types = ["Prefab"] } });
+        using var doc2 = System.Text.Json.JsonDocument.Parse(prefabsOnly);
+        Assert.False(doc2.RootElement.TryGetProperty("unsupported", out _));
+    }
 }
