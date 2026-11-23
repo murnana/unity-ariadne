@@ -12,3 +12,4 @@ MCP ツールごとのテストケース一覧です。ID は `ツール略称-�
 - [list_unresolved](list_unresolved.md)
 - [summarize_project](summarize_project.md)
 - [expanded_count](expanded_count.md)
+- [エージェント向けの質問](agent-questions.md)（ツール別ではなく、グラフあり/なしの比較に使う 5 つの質問）
