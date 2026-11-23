@@ -145,7 +145,7 @@ VCS のリビジョン（Git の SHA、Subversion のリビジョン）による
 - 推定できないときは `hint` を省きます。
 - 確実ではないため、`basis` に推定の根拠を書きます。
 
-サンプル（未解決 82 件）での確認: `referrer_package` が 41 件、`referrer_dependencies` が 32 件、手がかりなしが 9 件。出力は 18.4k → 25.6k 文字に増えます（要注意）。
+サンプル（未解決 82 件）での確認: `referrer_package` が 41 件、`referrer_dependencies` が 32 件、手がかりなしが 9 件。`hint` で出力は 18.4k → 25.6k 文字に増えるため、`limit`（既定 20）を追加して打ち切る。
 **互換性**: 追加フィールドです。
 
 ## N-8. 展開数 `expanded_count`（改善点 3）

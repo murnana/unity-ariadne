@@ -184,6 +184,16 @@ public sealed class McpServerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ListUnresolvedClampsLimitButKeepsTotal()
+    {
+        var result = await CallAsync("list_unresolved", new() { ["limit"] = 0 });
+
+        Assert.Equal(1, result.GetProperty("total_unresolved").GetInt32());
+        Assert.Single(result.GetProperty("unresolved").EnumerateArray());
+        Assert.False(result.TryGetProperty("truncated", out _));
+    }
+
+    [Fact]
     public async Task ListUnresolvedRoundTripsOverMcp()
     {
         var result = await CallAsync("list_unresolved", new());

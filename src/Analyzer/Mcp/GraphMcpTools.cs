@@ -23,6 +23,7 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
 {
     private const int MaxListedResults = 200;
     private const int DefaultSummaryTop = 5;
+    private const int DefaultUnresolvedLimit = 20;
     private const int MaxSummaryTop = 20;
     private const int SummaryFolderTypes = 4;
     private const int MaxAmbiguousCandidates = 10;
@@ -380,15 +381,18 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
     [Description("Lists all unresolved GUIDs (dangling references: no asset with that GUID exists in " +
                  "the project), most-referenced first, with sample referrer paths and, when guessable, a hint with the " +
                  "packages it probably belongs to (package_candidates, basis).")]
-    public string ListUnresolved()
+    public string ListUnresolved(
+        [Description("Most entries listed, 1-200 (default 20); total_unresolved is always the full count")]
+        int limit = DefaultUnresolvedLimit)
     {
         using var db = OpenDatabase();
         var unresolved = db.GetUnresolvedGuids();
+        var listed = Math.Clamp(limit, 1, MaxListedResults);
         return Serialize(new
         {
             TotalUnresolved = unresolved.Count,
             Unresolved = unresolved
-                .Take(MaxListedResults)
+                .Take(listed)
                 .Select(u => new
                 {
                     u.Guid,
@@ -398,7 +402,7 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
                     Hint = GraphQueries.HintForUnresolved(db, u.Guid),
                 })
                 .ToList(),
-            Truncated = unresolved.Count > MaxListedResults ? (bool?)true : null,
+            Truncated = unresolved.Count > listed ? (bool?)true : null,
         });
     }
 

@@ -224,10 +224,12 @@ describe_ontology()
 ### list_unresolved — 参照切れ GUID 一覧
 
 ```
-list_unresolved()
+list_unresolved(limit = 20)
 ```
 
 未解決 GUID(参照はあるが実体のないアセット)を参照数の多い順に、参照元サンプルパスつきで返します。CLI の `report` と同内容に加えて、どのパッケージにありそうかの推定 `hint`(`package_candidates` と、推定の根拠 `basis`)を付けます。`hint` は参照元のパスと、参照元が使っているパッケージからの推定で、確実ではありません。推定できないものには付きません。
+
+`limit`(1〜200、既定 20)は列挙する件数の上限です。`total_unresolved` は常に全件数で、超えた分は `truncated: true` になります。以前は最大 200 件を返していたので、全件が必要なときは `limit = 200` を指定してください。
 
 ## 共通の出力仕様
 

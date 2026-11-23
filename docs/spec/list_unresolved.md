@@ -11,7 +11,7 @@
  "truncated": true}
 ```
 
-`unresolved` は最大 200 件です。`{fileID: 0}` の null 参照は数えません。
+`unresolved` は `limit` 件まで（1〜200、既定 20）です。`total_unresolved` は常に全件数で、打ち切ったときは `truncated: true` が付きます。全件が必要なときは `limit` に 200 を指定するか、CLI の `report` を使います。`{fileID: 0}` の null 参照は数えません。
 
 ## 備考
 
