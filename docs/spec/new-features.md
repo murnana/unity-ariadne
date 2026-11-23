@@ -148,46 +148,60 @@ VCS のリビジョン（Git の SHA、Subversion のリビジョン）による
 
 ## N-8. 展開数 `expanded_count`（改善点 3）
 
+**目的**: 「アセット X が、シーン S に、実際にいくつ展開されるか」を返します。X は prefab に限らず、マテリアル、メッシュ、スクリプトなど、どのアセットでも構いません（例: マテリアルを使っているレンダラーの数、スクリプトが付いているコンポーネントの数）。
+
 **ツール**: `expanded_count`（新規）
 
 | 名前 | 型 | 必須 | 既定 | 説明 |
 |---|---|---|---|---|
-| `asset` | string | はい | | 数えるアセット（prefab など） |
+| `asset` | string | はい | | 数えるアセット（種別は問わない） |
 | `scene` | string | はい | | 展開先のシーン、または prefab |
 | `max_depth` | int | いいえ | 10 | 入れ子をたどる深さの上限。1〜50 に丸める |
 
 **出力**
 
 ```json
-{"asset": "...", "scene": "...", "expanded_count": 128, "max_depth": 10,
- "direct": 20, "via_nested": 108, "removed": 3,
+{"asset": "...", "asset_type": "Material", "scene": "...", "expanded_count": 128,
+ "max_depth": 10, "direct": 20, "via_nested": 108, "removed": 3,
  "depth_limited": false, "unsupported": ["TerrainData"]}
 ```
 
-`depth_limited` は、上限に達して打ち切った経路があるときに true にします。
+- `expanded_count` は、`direct + via_nested - removed` です。
+- `direct`: `scene` が直接使っている数。`via_nested`: 入れ子の prefab を経由して使っている数（配置数を掛け合わせた後）。
+- `depth_limited` は、上限に達して打ち切った経路があるときに true にします。
+
+### 数え方
+
+数える単位は、「そのアセットを直接使っているオブジェクトの数」です。`asset` が prefab のときは、PrefabInstance の数になります。
+
+1. シーンから、入れ子の配置（`contain`、PrefabInstance の連鎖）だけをたどり、各 prefab を何個ずつ展開するかを求めます。経路ごとに、各段の配置数を掛け合わせます。
+2. 展開される各 prefab（シーン自身を含む）について、その中で `asset` を直接使っているオブジェクトの数（`use`）に、1 の個数を掛けて合計します。`asset` が prefab のときは、その prefab を直接配置している数（`contain`）を使います。
+3. 取り除かれた分を差し引きます（下記）。
+
+- 入れ子の乗算に使うのは `contain` だけです。マテリアルからテクスチャへのような `use` の連鎖は掛け合わせません（テクスチャが何個のマテリアルに使われているかを数えたいのではなく、シーンでの使用箇所を数えたいため）。
+- 経路が複数あるときは合計します。循環は検出して打ち切ります。
+- バリアント prefab は、元の prefab の中身も含めて数えます。
+- `m_Modifications` による差し替え（別のアセットへの付け替え）は、対象が一致するときに反映します。
+
+### 取り除かれた分の差し引き
+
+`m_RemovedGameObjects` と `m_RemovedComponents` の対象を、`placement_removals` に保存します。差し引くのは、取り除かれた対象のうち、`asset` を使っていたものだけです。
+
+- 取り除かれたコンポーネントが `asset` を参照していれば、1 差し引きます。
+- 取り除かれた GameObject は、そのコンポーネントと子のうち `asset` を参照するものを、すべて差し引きます（子へのたどり方は `m_Children` の参照によります）。
+- 取り除きは PrefabInstance ごとに別なので、インスタンスごとに差し引きます。
+- `asset` が prefab のとき、取り除かれたもの自体が入れ子の PrefabInstance であれば、その分を差し引きます。
 
 ### 解析時に保存するもの
 
-配置の情報は解析時に graph.db に保存し、掛け合わせは呼び出し時に行います。深さの上限を引数で変えられるようにするためです。
+配置の情報は解析時に graph.db に保存し、掛け合わせは呼び出し時に行います。深さの上限を引数で変えられるようにするためです。定義は [databases/graph-db.md](databases/graph-db.md) の `placements` と `placement_removals` を参照してください（`SchemaVersion` を 4 に上げます）。
 
-新しいテーブル `placements`（スキーマ変更のため `PRAGMA user_version` を上げます）:
-
-| 列 | 説明 |
-|---|---|
-| `from_guid` | 配置する側（シーンまたは prefab）の GUID |
-| `to_guid` | 配置される prefab の GUID |
-| `instances` | その経路で配置されている PrefabInstance の数 |
-| `removed_objects` | `m_RemovedGameObjects` による削除数 |
-| `removed_components` | `m_RemovedComponents` による削除数 |
-
-- 1 行は「A が B を直接配置している数」です。入れ子の乗算は保存せず、呼び出し時にシーンから `asset` までの経路をたどって掛け合わせます。
-- 経路が複数あるときは合計します。循環は検出して打ち切ります。
-- `m_Modifications` による差し替えは、対象が一致するときに反映します。バリアント prefab は元の prefab の中身も含めて数えます。
+- `placements` は、「A が B を直接使っている数」を `contain` / `use` に分けて持ちます。B は prefab に限りません。
 - 増分更新が全再構築と行単位で一致することを、差分テストで保証します。
 
-**効果**: シーンや prefab の YAML を呼び出し時に読まないので、応答が速く、エージェントが YAML を直接集計する必要もなくなります。
+**効果**: シーンや prefab の YAML を呼び出し時に読まないので、応答が速く、エージェントが YAML を直接集計する必要もなくなります。prefab 以外のアセット（「このマテリアルはシーンにいくつあるか」など）にも使えます。
 **互換性**: ツールの追加と、テーブルの追加です。古い db では `placements` が無いため、再 analyze を案内するエラーを返します。
-**リスク**: 4 件中最も実装が大きく、実際の Unity のデータで正答を確認するまで正しさを保証できません。
+**リスク**: 4 件中最も実装が大きく、実際の Unity のデータで正答を確認するまで正しさを保証できません。`placements` を全アセットに広げたため、行数が増えます（参照のあるアセットの組み合わせごとに 1 行）。実測して、大きすぎる場合は `use` を対象種別で絞る案があります。
 
 ## N-9. 未対応のバイナリ資産の明示（改善点 8）
 

@@ -13,6 +13,7 @@ erDiagram
     assets ||--o{ code_symbols : "asset_id"
     assets ||--o{ placements : "from_guid（提案）"
     assets ||--o{ placements : "to_guid（提案）"
+    assets ||--o{ placement_removals : "from_guid（提案）"
     assets {
         INTEGER id PK
         TEXT guid UK
@@ -50,14 +51,20 @@ erDiagram
     placements {
         TEXT from_guid PK
         TEXT to_guid PK
+        TEXT role PK
         INTEGER instances
-        INTEGER removed_objects
-        INTEGER removed_components
+    }
+    placement_removals {
+        TEXT from_guid PK
+        TEXT to_guid
+        INTEGER instance_file_id PK
+        TEXT target_kind PK
+        INTEGER target_file_id PK
     }
 ```
 
 - `refs.to_guid` は `assets.guid` を指しますが、外部キー制約は付けていません（NULL は同一ファイル内の参照）。未解決の GUID も `assets` に行を持つため、参照先は必ず見つかります。
-- `placements`（提案）は、`from_guid` と `to_guid` のどちらも `assets.guid` を指します。
+- `placements`（提案）は、`from_guid` と `to_guid` のどちらも `assets.guid` を指します。`placement_removals`（提案）は、`from_guid` と `to_guid` が `assets.guid` を指し、`target_file_id` は元の prefab の `objects.file_id` を指します。
 - `settings_files` は他のテーブルと関係を持たず、変更検出にだけ使います。
 - ビュー `asset_edges` は `refs` / `objects` / `assets` を結合して集約し、`unresolved_guids` は `assets` から導きます。
 
@@ -72,7 +79,8 @@ erDiagram
 | `settings_files` | テーブル | 現行 | 走査した ProjectSettings の変更検出用 |
 | `asset_edges` | ビュー | 現行 | アセット単位に集約した参照 |
 | `unresolved_guids` | ビュー | 現行 | 未解決の GUID |
-| `placements` | テーブル | 提案 | prefab の配置数（N-8） |
+| `placements` | テーブル | 提案 | アセットの配置数・使用数（N-8） |
+| `placement_removals` | テーブル | 提案 | PrefabInstance が取り除いたものの記録（N-8） |
 
 ## `assets`
 
@@ -146,19 +154,35 @@ erDiagram
 
 ## `placements`（提案）
 
-N-8 `expanded_count` 用です。「A が B を直接配置している数」を 1 行で持ちます。入れ子の乗算は保存せず、呼び出し時に計算します。
+N-8 `expanded_count` 用です。prefab に限らず、あらゆるアセット（prefab、マテリアル、メッシュ、スクリプトなど）について、「A が B を直接使っている数」を 1 行で持ちます。入れ子の乗算は保存せず、呼び出し時に計算します。
 
 | 列 | 型 | 制約 | 説明 |
 |---|---|---|---|
-| `from_guid` | TEXT | 非 NULL | 配置する側（シーンまたは prefab）の GUID |
-| `to_guid` | TEXT | 非 NULL | 配置される prefab の GUID |
-| `instances` | INTEGER | 非 NULL | その配置元から直接配置されている PrefabInstance の数 |
-| `removed_objects` | INTEGER | 非 NULL、既定 0 | `m_RemovedGameObjects` による削除数 |
-| `removed_components` | INTEGER | 非 NULL、既定 0 | `m_RemovedComponents` による削除数 |
+| `from_guid` | TEXT | 非 NULL | 使う側（シーン、prefab、ScriptableObject など）の GUID |
+| `to_guid` | TEXT | 非 NULL | 使われる側のアセットの GUID（種別は問わない） |
+| `role` | TEXT | 非 NULL | `contain`: 入れ子にして配置している（PrefabInstance）。`use`: 参照して使っている（コンポーネントのフィールド、マテリアルなど） |
+| `instances` | INTEGER | 非 NULL | `from` の中で `to` を直接使っているオブジェクトの数（重複なし） |
 
-主キー: `(from_guid, to_guid)`。インデックス: `idx_placements_to(to_guid)`（逆方向のたどり用）。
+主キー: `(from_guid, to_guid, role)`。インデックス: `idx_placements_to(to_guid)`（逆方向のたどり用）。
 
-**スキーマ変更の手順**: `SchemaVersion` を 4 に上げます。増分更新では、変更されたアセットの `placements` を、その `from_guid` の行ごと作り直します。全再構築と行単位で一致するように、差分テストへ追加します。
+- `contain` の数は、`from` の中にある PrefabInstance（クラス ID 1001）のうち、`m_SourcePrefab` が `to` を指すものの数です。
+- `use` の数は、`from` の中で `to` を参照するオブジェクト（`refs.from_object_id`）の、重複を除いた数です。1 つのコンポーネントが同じアセットを複数のスロットで参照していても、1 と数えます（参照数は `asset_edges.ref_count` にあります）。
+- 数えるのは YAML のアセットです。バイナリ資産の中身は数えません（N-9）。
 
+## `placement_removals`（提案）
+
+PrefabInstance が元の prefab から取り除いたものの記録です。`m_RemovedGameObjects` と `m_RemovedComponents` を、1 件ずつ持ちます。展開数から差し引くときに、取り除かれたものが数えたいアセットを使っていたかを判定するために、件数ではなく対象を保存します。
+
+| 列 | 型 | 制約 | 説明 |
+|---|---|---|---|
+| `from_guid` | TEXT | 非 NULL | PrefabInstance を持つアセット（シーンまたは prefab）の GUID |
+| `to_guid` | TEXT | 非 NULL | 元の prefab の GUID |
+| `instance_file_id` | INTEGER | 非 NULL | PrefabInstance の fileID（`from` の中）。インスタンスごとに別の削除を持つため |
+| `target_file_id` | INTEGER | 非 NULL | 取り除かれた対象の fileID（元の prefab の中） |
+| `target_kind` | TEXT | 非 NULL | `object`（GameObject）または `component` |
+
+主キー: `(from_guid, instance_file_id, target_kind, target_file_id)`。
+
+**スキーマ変更の手順**: `SchemaVersion` を 4 に上げます。増分更新では、変更されたアセットの `placements` と `placement_removals` を、その `from_guid` の行ごと作り直します。全再構築と行単位で一致するように、差分テストへ追加します。
 
 関連: [データベース一覧](README.md)
