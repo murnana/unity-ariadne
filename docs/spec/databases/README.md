@@ -8,7 +8,7 @@ GuidGraph が使う SQLite データベースの定義です。ユーザー向�
 | データベース | 状態 | 役割 | 定義 |
 |---|---|---|---|
 | graph.db | 現行（`placements` のみ提案） | プロジェクトの依存グラフ | [graph-db.md](graph-db.md) |
-| provenance.db | 提案 | VCS の識別情報（鮮度の判定用） | [provenance-db.md](provenance-db.md) |
+| provenance.db | 提案 | VCS ルートごとの識別情報（鮮度の判定用） | [provenance-db.md](provenance-db.md) |
 
 ## データベース間の関係
 
@@ -23,13 +23,14 @@ erDiagram
     PROVENANCE_DB_asset_revisions {
         INTEGER snapshot_id PK
         TEXT asset_guid PK
+        INTEGER root_id FK
         TEXT revision
         TEXT file_hash
     }
 ```
 
 - graph.db と provenance.db は、アセットの GUID だけで結びつきます。ファイルのパスは使いません。
-- provenance.db は graph.db と同じプロジェクト用フォルダーに置きます。
+- provenance.db は graph.db と同じプロジェクト用フォルダーに置きます。VCS ルート（複数のリモート、サブモジュール、一部だけ別の VCS など）は、provenance.db の中でルートごとに持ちます。
 - 外部キー制約は張れないので、対応はアプリケーション側で確認します。
 
 ## 更新と互換性のまとめ
