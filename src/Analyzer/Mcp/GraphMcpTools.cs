@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using ModelContextProtocol.Server;
 using GuidGraph.Graph;
@@ -365,14 +366,14 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         [Description("Relax steps when nothing matches (default true)")] bool relax = true)
     {
         using var db = OpenDatabase();
-        return GraphSearch.RunJson(db, new SearchQuery
+        return AddMeta(GraphSearch.RunJson(db, new SearchQuery
         {
             From = from,
             Steps = steps,
             Unreferenced = unreferenced,
             Limit = limit,
             Relax = relax,
-        });
+        }));
     }
 
     [McpServerTool(Name = "list_unresolved")]
@@ -416,7 +417,7 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         return matches.Count == 1 ? answer(db, matches[0]) : ResolutionError(name, matches);
     }
 
-    private static string ResolutionError(string name, IReadOnlyList<AssetNode> matches) =>
+    private string ResolutionError(string name, IReadOnlyList<AssetNode> matches) =>
         matches.Count == 0
             ? Serialize(new
             {
@@ -447,6 +448,19 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         Dangling = asset.Path is null ? (bool?)true : null,
     };
 
-    private static string Serialize(object value) => JsonSerializer.Serialize(value, JsonOptions);
+    private string Serialize(object value) => AddMeta(JsonSerializer.Serialize(value, JsonOptions));
+
+    /// <summary>Adds the freshness `meta` object to a JSON object answer.</summary>
+    private string AddMeta(string json)
+    {
+        var meta = GraphFreshness.Describe(options.DbPath, options.ProjectPath);
+        if (meta is null || JsonNode.Parse(json) is not JsonObject root)
+        {
+            return json;
+        }
+
+        root["meta"] = JsonSerializer.SerializeToNode(meta, JsonOptions);
+        return root.ToJsonString(JsonOptions);
+    }
 }
 

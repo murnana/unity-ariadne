@@ -24,7 +24,7 @@
 
 ## graph.db の保存先と自動作成
 
-プラグインは `scripts/launch.mjs` を起動し、これが次のことを行ってから `guidgraph serve --db <graph.db>` を実行します。`guidgraph` 本体は保存先の管理を知りません(`--db` で渡されたファイルを開くだけです)。
+プラグインは `scripts/launch.mjs` を起動し、これが次のことを行ってから `guidgraph serve --db <graph.db> --project <プロジェクト>` を実行します。`guidgraph` 本体は保存先の管理を知りません(`--db` で渡されたファイルを開くだけです)。
 
 1. `graph.db` の保存先をプロジェクトごとに決める
 2. 無ければ `guidgraph analyze` で作る(初回のみ)

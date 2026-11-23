@@ -24,7 +24,7 @@
 - `scenes` は `Assets/` 内のシーン、`build_order` は `ProjectSettings` の `m_Scenes` の順です。どちらも切り詰め時は同じ件数に揃えます。
 - `folders` はアセット数の多い順、`types` は多い順に上位 4 件です。
 - `scripts.packages` は `Packages` と `PackageCache` の合計です。
-- `readme` は、サーバーがプロジェクトのフォルダーを知っているときだけ付きます（`GraphMcpOptions.ProjectPath`。`serve --project` は N-4 で追加予定。それまでは付きません）。
+- `readme` は、`serve --project <パス>` を指定したときだけ付きます（プラグイン経由なら自動）。
 - `*_truncated` は、切り詰めたときだけ `true` で付きます。
 
 ## 備考

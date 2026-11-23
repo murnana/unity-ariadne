@@ -123,6 +123,16 @@ public sealed class McpServerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AnswersCarryAnalyzedAtWithoutStaleWhenProjectUnknown()
+    {
+        var result = await CallAsync("find_references", new() { ["name"] = "Sky.mat" });
+
+        var meta = result.GetProperty("meta");
+        Assert.Matches(@"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$", meta.GetProperty("analyzed_at").GetString());
+        Assert.False(meta.TryGetProperty("stale", out _));
+    }
+
+    [Fact]
     public async Task SummarizeProjectListsScenesFoldersAndScripts()
     {
         var result = await CallAsync("summarize_project", new());

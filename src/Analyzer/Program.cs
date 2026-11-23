@@ -205,6 +205,7 @@ static long QueryCount(GraphDatabase db, string sql)
 static int Report(string[] args)
 {
     string? dbPath = null;
+    string? projectPath = null;
 
     for (var i = 0; i < args.Length; i++)
     {
@@ -212,6 +213,9 @@ static int Report(string[] args)
         {
             case "--db" when i + 1 < args.Length:
                 dbPath = args[++i];
+                break;
+            case "--project" when i + 1 < args.Length:
+                projectPath = args[++i];
                 break;
             default:
                 Console.Error.WriteLine($"error: unexpected argument '{args[i]}'");
@@ -332,6 +336,7 @@ static int Export(string[] args)
 static async Task<int> Serve(string[] args)
 {
     string? dbPath = null;
+    string? projectPath = null;
 
     for (var i = 0; i < args.Length; i++)
     {
@@ -339,6 +344,9 @@ static async Task<int> Serve(string[] args)
         {
             case "--db" when i + 1 < args.Length:
                 dbPath = args[++i];
+                break;
+            case "--project" when i + 1 < args.Length:
+                projectPath = args[++i];
                 break;
             default:
                 Console.Error.WriteLine($"error: unexpected argument '{args[i]}'");
@@ -348,7 +356,7 @@ static async Task<int> Serve(string[] args)
 
     if (dbPath is null)
     {
-        Console.Error.WriteLine("usage: serve --db <path>");
+        Console.Error.WriteLine("usage: serve --db <path> [--project <unity-project-path>]");
         return 1;
     }
 
@@ -366,7 +374,8 @@ static async Task<int> Serve(string[] args)
     var builder = Host.CreateApplicationBuilder();
     // stdout belongs to the stdio transport — push every log line to stderr.
     builder.Logging.AddConsole(console => console.LogToStandardErrorThreshold = LogLevel.Trace);
-    builder.Services.AddSingleton(new GraphMcpOptions(Path.GetFullPath(dbPath)));
+    builder.Services.AddSingleton(new GraphMcpOptions(
+        Path.GetFullPath(dbPath), projectPath is null ? null : Path.GetFullPath(projectPath)));
     builder.Services
         .AddMcpServer(options =>
         {
@@ -473,7 +482,7 @@ static int Usage()
               (an existing --db is updated incrementally; --full rebuilds from scratch)
           report --db <path>
           export --db <path> --jsonl <path> [--include-packages]
-          serve --db <path>
+          serve --db <path> [--project <unity-project-path>]
           search --db <path> (--query <json> | --query-file <path or ->)
               (ontology search; same JSON query and answer as the MCP search tool)
         """);

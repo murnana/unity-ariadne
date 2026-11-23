@@ -97,7 +97,7 @@ esac
     assert.equal(r.status, 0, r.stderr);
     assert.equal(r.stdout, 'MCP-STDOUT\n'); // the analyze summary did not leak into the MCP stream
     assert.match(r.stderr, /analyze summary on stdout/);
-    assert.deepEqual(calls(), [`analyze ${project} --db ${db}.building`, `serve --db ${db}`]);
+    assert.deepEqual(calls(), [`analyze ${project} --db ${db}.building`, `serve --db ${db} --project ${project}`]);
     assert.ok(fs.existsSync(db));
     assert.ok(!fs.existsSync(`${db}.building`));
     assert.equal(entries[key].name, 'MyGame');

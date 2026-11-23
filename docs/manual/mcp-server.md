@@ -30,6 +30,19 @@ claude mcp add guidgraph -- dotnet run --project <このリポジトリ>/src/Ana
 
 段階 3 で複数ヒットした場合は `error: "ambiguous"` と候補パス(最大 10 件)が返るため、候補のフルパスで呼び直してください。どれにも一致しなければ `error: "not_found"` が返ります — その場合は `search_nodes` で部分一致検索してください。
 
+## グラフの鮮度(`meta`)
+
+各ツールの応答には、グラフの新しさを示す `meta` が付きます。
+
+```json
+{"meta": {"analyzed_at": "2026-11-23T09:00:00Z", "stale": true, "stale_count": 3}}
+```
+
+- `analyzed_at`: DB ファイルの最終更新時刻(UTC)。`analyze` が書き終えた時刻にあたります。
+- `stale`: `Assets/` 内の `.meta` / `.unity` / `.prefab` のうち、`analyzed_at` より後に更新されたものがあるか。`stale_count` はその数です(上限 1000)。`stale` は、サーバーを `--project <パス>` つきで起動したときだけ付きます(プラグイン経由なら自動で付きます)。
+- ファイルの更新時刻だけで判定します(Git などは見ません)。削除されたファイルは検出しません。DB ファイルをコピーや共有すると、更新時刻が変わって正しく判定できません。
+- `stale` が true のときは、`analyze` を再実行すると最新になります。
+
 ## ツールリファレンス
 
 ### find_references — 直接の参照元(逆依存)
@@ -190,7 +203,7 @@ summarize_project(max_chars = 1500, scene_limit = 20, folder_depth = 1, readme_c
 - `build_order`: ビルド設定(EditorBuildSettings)のシーンの順序。有効・無効の区別は保存していないため、無効なシーンも含みます。
 - `folders`: `Assets/` の `folder_depth` 階層(1–3)までのフォルダーごとのアセット数と、多い種類の上位 4 件。
 - `scripts`: `assets`(`Assets/` 内のスクリプト数)と `packages`(パッケージ内の数)。
-- `readme`: プロジェクト直下の README の先頭 `readme_chars` 文字(0 で省略)。**サーバーがプロジェクトのフォルダーを知っているときだけ**付きます(現状は付きません)。
+- `readme`: プロジェクト直下の README の先頭 `readme_chars` 文字(0 で省略)。**`serve --project` を指定したときだけ**付きます(プラグイン経由なら自動です)。
 
 出力が `max_chars` を超えるときは、シーン、フォルダー、README の順に切り詰め、切り詰めた項目に `*_truncated: true` を付けます。
 

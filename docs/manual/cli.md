@@ -122,10 +122,10 @@ export --db graph.db --jsonl out.jsonl [--include-packages]
 ## serve — MCP サーバー(stdio)
 
 ```sh
-serve --db graph.db
+serve --db graph.db [--project <Unity プロジェクトのパス>]
 ```
 
-グラフ DB を MCP(stdio)で公開します。起動時に DB を 1 回開いてパスを検証し、以降は**ツール呼び出しごとに読み取り専用で開き直す**ため、サーバーを起動したまま別ターミナルで `analyze` を実行すればグラフの更新が即座に反映されます。再起動は不要です。
+グラフ DB を MCP(stdio)で公開します。`--project` は省略できます。指定すると、各応答の `meta` に、グラフが古いかどうか(`stale`)が載ります([mcp-server.md](mcp-server.md) の「グラフの鮮度」を参照)。起動時に DB を 1 回開いてパスを検証し、以降は**ツール呼び出しごとに読み取り専用で開き直す**ため、サーバーを起動したまま別ターミナルで `analyze` を実行すればグラフの更新が即座に反映されます。再起動は不要です。
 
 セットアップとツールの詳細は [mcp-server.md](mcp-server.md) をご覧ください。
 
