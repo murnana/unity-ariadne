@@ -153,6 +153,54 @@ public sealed class GraphWriter : IDisposable
             """);
     }
 
+    /// <summary>
+    /// Rebuilds placements and placement_removals (N-8) from the raw refs. They are derived data, so every
+    /// analyze and every update recomputes them wholesale: that keeps an incremental update equal to a full
+    /// rebuild without any per-file bookkeeping. Call it after all objects and refs are written.
+    /// </summary>
+    public void RebuildPlacements()
+    {
+        Execute("DELETE FROM placements");
+        Execute("DELETE FROM placement_removals");
+
+        // contain: PrefabInstance (class 1001) -> its source prefab.
+        Execute(
+            """
+            INSERT INTO placements (from_guid, to_guid, role, instances)
+            SELECT a.guid, r.to_guid, 'contain', COUNT(DISTINCT o.id)
+            FROM refs r JOIN objects o ON o.id = r.from_object_id JOIN assets a ON a.id = o.asset_id
+            WHERE o.class_id = 1001 AND r.property_path = 'm_SourcePrefab' AND r.to_guid IS NOT NULL
+            GROUP BY a.guid, r.to_guid
+            """);
+
+        // use: every other reference to another asset. A PrefabInstance's own bookkeeping refs (source prefab,
+        // modification targets, removed objects/components) point at the prefab it instantiates, not at a use.
+        Execute(
+            """
+            INSERT INTO placements (from_guid, to_guid, role, instances)
+            SELECT a.guid, r.to_guid, 'use', COUNT(DISTINCT o.id)
+            FROM refs r JOIN objects o ON o.id = r.from_object_id JOIN assets a ON a.id = o.asset_id
+            WHERE r.to_guid IS NOT NULL AND r.to_guid <> a.guid AND r.ref_kind <> 'corresponding_source'
+              AND NOT (o.class_id = 1001 AND (r.property_path = 'm_SourcePrefab'
+                       OR r.property_path LIKE '%.target'
+                       OR r.property_path LIKE 'm!_Modification.m!_Removed%' ESCAPE '!'))
+            GROUP BY a.guid, r.to_guid
+            """);
+
+        Execute(
+            """
+            INSERT OR IGNORE INTO placement_removals (from_guid, to_guid, instance_file_id, target_kind, target_file_id)
+            SELECT a.guid, r.to_guid, o.file_id,
+                   CASE WHEN r.property_path LIKE 'm!_Modification.m!_RemovedComponents%' ESCAPE '!'
+                        THEN 'component' ELSE 'object' END,
+                   r.to_file_id
+            FROM refs r JOIN objects o ON o.id = r.from_object_id JOIN assets a ON a.id = o.asset_id
+            WHERE o.class_id = 1001 AND r.to_guid IS NOT NULL
+              AND (r.property_path LIKE 'm!_Modification.m!_RemovedComponents[%' ESCAPE '!'
+                   OR r.property_path LIKE 'm!_Modification.m!_RemovedGameObjects[%' ESCAPE '!')
+            """);
+    }
+
     public void Commit()
     {
         _transaction.Commit();

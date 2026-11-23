@@ -10,7 +10,7 @@ public class GraphDatabaseTests
         using var db = GraphDatabase.CreateInMemory();
 
         Assert.Equal(
-            ["assets", "code_symbols", "objects", "refs", "settings_files"],
+            ["assets", "code_symbols", "objects", "placement_removals", "placements", "refs", "settings_files"],
             QueryStrings(db, "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"));
         Assert.Equal(
             ["asset_edges", "unresolved_guids"],

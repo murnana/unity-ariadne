@@ -65,6 +65,7 @@ public static class GraphBuilder
         WriteProjectSettings(projectRoot, writer, assetIds, summary);
         WriteCodeRefs(projectRoot, dictionary, writer, assetIds, summary);
 
+        writer.RebuildPlacements();
         writer.Commit();
         return summary;
     }

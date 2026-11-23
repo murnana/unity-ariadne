@@ -337,6 +337,13 @@ public class GraphUpdaterTests
             """));
         rows.AddRange(QueryStrings(db,
             "SELECT 'settings_file|' || path || '|' || file_hash FROM settings_files ORDER BY 1"));
+        rows.AddRange(QueryStrings(db,
+            "SELECT 'placement|' || from_guid || '|' || to_guid || '|' || role || '|' || instances FROM placements ORDER BY 1"));
+        rows.AddRange(QueryStrings(db,
+            """
+            SELECT 'removal|' || from_guid || '|' || to_guid || '|' || instance_file_id || '|' || target_kind
+                   || '|' || target_file_id FROM placement_removals ORDER BY 1
+            """));
         return rows;
     }
 

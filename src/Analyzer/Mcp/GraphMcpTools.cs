@@ -306,6 +306,65 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         return null;
     }
 
+    [McpServerTool(Name = "expanded_count")]
+    [Description("How many objects of a scene or prefab use an asset once nested prefabs are expanded: direct uses " +
+                 "plus uses inside nested prefabs multiplied by how often each is placed, minus what instances " +
+                 "removed. Works for any asset type (material, mesh, script, prefab, ...).")]
+    public string ExpandedCount(
+        [Description("Asset to count: path, unique file name or GUID")] string asset,
+        [Description("Scene or prefab to count in: path, unique file name or GUID")] string scene,
+        [Description("Nesting levels followed, 1-50 (default 10)")] int max_depth = 10)
+    {
+        using var db = OpenDatabase();
+        var assets = GraphQueries.ResolveAssets(db, asset);
+        if (assets.Count != 1)
+        {
+            return ResolutionError(asset, assets);
+        }
+
+        var containers = GraphQueries.ResolveAssets(db, scene);
+        if (containers.Count != 1)
+        {
+            return ResolutionError(scene, containers);
+        }
+
+        var target = assets[0];
+        var container = containers[0];
+        if (container.AssetType is not ("Scene" or "Prefab"))
+        {
+            return Serialize(new
+            {
+                Error = "invalid_scene",
+                Name = container.Name,
+                Type = container.AssetType,
+                Hint = "scene must be a Scene or a Prefab",
+            });
+        }
+
+        var depth = Math.Clamp(max_depth, 1, 50);
+        var result = ExpandedCounter.Count(db, target.Guid, container.Guid, depth);
+        return Serialize(new
+        {
+            Asset = target.Name,
+            AssetType = target.AssetType,
+            Scene = container.Name,
+            result.ExpandedCount,
+            MaxDepth = depth,
+            result.Direct,
+            result.ViaNested,
+            result.Removed,
+            UnresolvedRemovals = result.UnresolvedRemovals > 0 ? result.UnresolvedRemovals : (long?)null,
+            DepthLimited = result.DepthLimited ? (bool?)true : null,
+            Unsupported = NullIfEmptyList(new[] { target.AssetType, container.AssetType }
+                .Where(t => !OntologyGlossary.IsParsed(t)).Distinct().Order(StringComparer.Ordinal).ToList()),
+            Notes = "Counts objects that reference the asset. Overrides that swap one asset for another " +
+                    "(m_Modifications) count for the new asset once per instance and are not taken from the old one. " +
+                    "unresolved_removals counts removals whose target the graph cannot identify (Unity derives those ids), so the count may be too high by what they removed.",
+        });
+    }
+
+    private static IReadOnlyList<string>? NullIfEmptyList(List<string> list) => list.Count == 0 ? null : list;
+
     [McpServerTool(Name = "describe_ontology")]
     [Description("Returns the vocabulary of this project's graph: every class (asset type) with its " +
                  "category and count per source, and every relation (ref kind) with its meaning read " +

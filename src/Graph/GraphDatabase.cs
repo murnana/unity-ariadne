@@ -21,7 +21,7 @@ public sealed class GraphDatabase : IDisposable
     /// Stored in PRAGMA user_version; bump on any schema change. A database written by
     /// another version is rebuilt from scratch instead of updated incrementally.
     /// </summary>
-    public const int SchemaVersion = 3;
+    public const int SchemaVersion = 4;
 
     private const string Schema =
         """
@@ -77,6 +77,25 @@ public sealed class GraphDatabase : IDisposable
         );
 
         CREATE INDEX idx_code_symbols_asset ON code_symbols(asset_id);
+
+        CREATE TABLE placements (     -- schema v4: how many objects of 'from' directly use/contain 'to' (N-8)
+          from_guid TEXT NOT NULL,
+          to_guid TEXT NOT NULL,
+          role TEXT NOT NULL,         -- contain (nested PrefabInstance) / use (any other reference)
+          instances INTEGER NOT NULL, -- distinct objects inside 'from'
+          PRIMARY KEY (from_guid, to_guid, role)
+        );
+
+        CREATE INDEX idx_placements_to ON placements(to_guid);
+
+        CREATE TABLE placement_removals (  -- schema v4: what PrefabInstances removed from their source prefab
+          from_guid TEXT NOT NULL,         -- asset holding the PrefabInstance
+          to_guid TEXT NOT NULL,           -- asset holding the removed target
+          instance_file_id INTEGER NOT NULL,
+          target_kind TEXT NOT NULL,       -- object (GameObject) / component
+          target_file_id INTEGER NOT NULL,
+          PRIMARY KEY (from_guid, instance_file_id, target_kind, target_file_id)
+        );
 
         CREATE TABLE settings_files (  -- Phase 4b: every scanned ProjectSettings/*.asset,
           path TEXT PRIMARY KEY,       -- including ones without refs (those get no assets row,

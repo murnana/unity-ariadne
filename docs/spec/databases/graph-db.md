@@ -11,9 +11,9 @@ erDiagram
     assets ||--o{ objects : "asset_id"
     objects ||--o{ refs : "from_object_id"
     assets ||--o{ code_symbols : "asset_id"
-    assets ||--o{ placements : "from_guid（提案）"
-    assets ||--o{ placements : "to_guid（提案）"
-    assets ||--o{ placement_removals : "from_guid（提案）"
+    assets ||--o{ placements : "from_guid"
+    assets ||--o{ placements : "to_guid"
+    assets ||--o{ placement_removals : "from_guid"
     assets {
         INTEGER id PK
         TEXT guid UK
@@ -64,7 +64,7 @@ erDiagram
 ```
 
 - `refs.to_guid` は `assets.guid` を指しますが、外部キー制約は付けていません（NULL は同一ファイル内の参照）。未解決の GUID も `assets` に行を持つため、参照先は必ず見つかります。
-- `placements`（提案）は、`from_guid` と `to_guid` のどちらも `assets.guid` を指します。`placement_removals`（提案）は、`from_guid` と `to_guid` が `assets.guid` を指し、`target_file_id` は元の prefab の `objects.file_id` を指します。
+- `placements`は、`from_guid` と `to_guid` のどちらも `assets.guid` を指します。`placement_removals`は、`from_guid` と `to_guid` が `assets.guid` を指し、`target_file_id` は元の prefab の `objects.file_id` を指します。
 - `settings_files` は他のテーブルと関係を持たず、変更検出にだけ使います。
 - ビュー `asset_edges` は `refs` / `objects` / `assets` を結合して集約し、`unresolved_guids` は `assets` から導きます。
 
@@ -79,8 +79,8 @@ erDiagram
 | `settings_files` | テーブル | 現行 | 走査した ProjectSettings の変更検出用 |
 | `asset_edges` | ビュー | 現行 | アセット単位に集約した参照 |
 | `unresolved_guids` | ビュー | 現行 | 未解決の GUID |
-| `placements` | テーブル | 提案 | アセットの配置数・使用数（N-8） |
-| `placement_removals` | テーブル | 提案 | PrefabInstance が取り除いたものの記録（N-8） |
+| `placements` | テーブル | 現行（v4） | アセットの配置数・使用数（N-8） |
+| `placement_removals` | テーブル | 現行（v4） | PrefabInstance が取り除いたものの記録（N-8） |
 
 ## `assets`
 
@@ -152,7 +152,7 @@ erDiagram
 
 **`unresolved_guids`**: `assets` のうち `path` が NULL の行の `guid` です。
 
-## `placements`（提案）
+## `placements`
 
 N-8 `expanded_count` 用です。prefab に限らず、あらゆるアセット（prefab、マテリアル、メッシュ、スクリプトなど）について、「A が B を直接使っている数」を 1 行で持ちます。入れ子の乗算は保存せず、呼び出し時に計算します。
 
@@ -169,7 +169,7 @@ N-8 `expanded_count` 用です。prefab に限らず、あらゆるアセット�
 - `use` の数は、`from` の中で `to` を参照するオブジェクト（`refs.from_object_id`）の、重複を除いた数です。1 つのコンポーネントが同じアセットを複数のスロットで参照していても、1 と数えます（参照数は `asset_edges.ref_count` にあります）。
 - 数えるのは YAML のアセットです。バイナリ資産の中身は数えません（N-9）。
 
-## `placement_removals`（提案）
+## `placement_removals`
 
 PrefabInstance が元の prefab から取り除いたものの記録です。`m_RemovedGameObjects` と `m_RemovedComponents` を、1 件ずつ持ちます。展開数から差し引くときに、取り除かれたものが数えたいアセットを使っていたかを判定するために、件数ではなく対象を保存します。
 
@@ -183,6 +183,9 @@ PrefabInstance が元の prefab から取り除いたものの記録です。`m_
 
 主キー: `(from_guid, instance_file_id, target_kind, target_file_id)`。
 
-**スキーマ変更の手順**: `SchemaVersion` を 4 に上げます。増分更新では、変更されたアセットの `placements` と `placement_removals` を、その `from_guid` の行ごと作り直します。全再構築と行単位で一致するように、差分テストへ追加します。
+**作り方**: `refs` / `objects` から SQL で導く集計です（`GraphWriter.RebuildPlacements`）。`analyze` の最後に、全再構築でも増分更新でも全行を作り直します。そのため増分更新は全再構築と行単位で一致し、差分テスト（`GraphUpdaterTests.Dump`）に両テーブルを含めています。`SchemaVersion` は 4 です。
+
+- `use` から除くもの: PrefabInstance 自身の記録（`m_SourcePrefab`、`m_Modifications[*].target`、`m_RemovedGameObjects` / `m_RemovedComponents`）と `corresponding_source`。`m_Modifications[*].objectReference` は、PrefabInstance オブジェクトによる使用として 1 回だけ数えます。
+- `placement_removals.target_file_id` が、`to_guid` のアセットの `objects` に無いことがあります。入れ子の prefab やモデルの中のオブジェクトは、Unity が派生させた fileID を使うためです（サンプルでは大半がこれにあたります）。
 
 関連: [データベース一覧](README.md)

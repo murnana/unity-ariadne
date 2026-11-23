@@ -5,7 +5,7 @@
 ## スキーマ
 
 ```sql
--- PRAGMA user_version = 3 (スキーマ変更時にバンプ。バージョン不一致の DB はフル再構築されます)
+-- PRAGMA user_version = 4 (スキーマ変更時にバンプ。バージョン不一致の DB はフル再構築されます)
 
 CREATE TABLE assets (
   id INTEGER PRIMARY KEY,
@@ -52,6 +52,24 @@ CREATE TABLE code_symbols (    -- C# の宣言(キーワード検索の手がか
   symbol TEXT NOT NULL,       -- 名前空間.型 または 名前空間.型.メンバー
   kind TEXT NOT NULL,         -- class / struct / interface / enum / record / delegate / method / property / field / ...
   doc TEXT                    -- XML ドキュメントコメント(<summary> + <remarks>)のプレーンテキスト。無ければ NULL
+);
+
+CREATE TABLE placements (     -- v4: from が to を直接使っている/入れ子にしているオブジェクト数(expanded_count 用)
+  from_guid TEXT NOT NULL,
+  to_guid TEXT NOT NULL,
+  role TEXT NOT NULL,         -- contain(入れ子の PrefabInstance) / use(それ以外の参照)
+  instances INTEGER NOT NULL, -- from の中の、重複しないオブジェクト数
+  PRIMARY KEY (from_guid, to_guid, role)
+);
+CREATE INDEX idx_placements_to ON placements(to_guid);
+
+CREATE TABLE placement_removals (  -- v4: PrefabInstance が元の prefab から取り除いたもの
+  from_guid TEXT NOT NULL,         -- PrefabInstance を持つアセット
+  to_guid TEXT NOT NULL,           -- 取り除かれた対象を持つアセット
+  instance_file_id INTEGER NOT NULL,
+  target_kind TEXT NOT NULL,       -- object(GameObject) / component
+  target_file_id INTEGER NOT NULL,
+  PRIMARY KEY (from_guid, instance_file_id, target_kind, target_file_id)
 );
 
 CREATE TABLE settings_files (  -- 差分更新用: スキャンした ProjectSettings/*.asset 全部
@@ -170,7 +188,8 @@ WHERE r.to_guid = (SELECT guid FROM assets WHERE path = 'Assets/Materials/Fog.ma
 ## 注意
 
 - DB ファイルは `analyze` が更新中にトランザクションで書き換えます。読み取り専用で開けば途中状態を見ることはありません(単一トランザクションでコミットされます)。
-- スキーマ変更時は `PRAGMA user_version` がバンプされます。自作スクリプトでバージョンを確認する場合は `PRAGMA user_version;` で `3` を期待してください。
+- スキーマ変更時は `PRAGMA user_version` がバンプされます。自作スクリプトでバージョンを確認する場合は `PRAGMA user_version;` で `4` を期待してください。
+- `placements` と `placement_removals` は `refs` / `objects` から導いた集計で、`analyze`(全再構築・増分更新とも)の最後に作り直します。そのため増分更新と全再構築は行単位で一致します。
 
 ---
 

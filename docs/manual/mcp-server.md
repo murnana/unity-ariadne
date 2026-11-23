@@ -209,6 +209,20 @@ summarize_project(max_chars = 1500, scene_limit = 20, folder_depth = 1, readme_c
 
 出力が `max_chars` を超えるときは、シーン、フォルダー、README の順に切り詰め、切り詰めた項目に `*_truncated: true` を付けます。
 
+### expanded_count — 展開後の数
+
+```
+expanded_count(asset, scene, max_depth = 10)
+```
+
+`scene`(シーンまたは prefab)の中で、`asset` を直接使っているオブジェクトが、入れ子の prefab を展開すると何個になるかを返します。「このマテリアルはシーンにいくつあるか」「この prefab はいくつ置かれているか」に、YAML を読まずに答えます。`asset` は prefab に限らず、マテリアル、メッシュ、スクリプトなど何でも構いません。
+
+- `expanded_count` = `direct`(`scene` が直接使っている数) + `via_nested`(入れ子の prefab の中の使用数 × その prefab が置かれている数) − `removed`(インスタンスが取り除いた分)。
+- `max_depth`(1〜50)は入れ子をたどる深さの上限です。打ち切ったときは `depth_limited: true`。
+- `unresolved_removals`: 取り除かれた対象を特定できなかった数。入れ子の prefab やモデルの中のオブジェクトは Unity が派生させた ID で記録されるため、グラフでは追えません。この数が大きいと、`expanded_count` は取り除かれた分だけ多めになっている可能性があります。
+- `m_Modifications` による差し替え(あるアセットを別のものに付け替える)は、新しいアセットを PrefabInstance ごとに 1 回だけ数え、元のアセットからは引きません。
+- バイナリ本体を読んでいない種類(Texture / Model など)は `unsupported` に載ります。
+
 ### describe_ontology — 語彙(種類と関係)の一覧
 
 ```
@@ -253,6 +267,7 @@ list_unresolved(limit = 20)
 | このプロジェクトにどんな種類・関係があるか | `describe_ontology` |
 | 「ボス」に関係するスクリプトやアセットは? | `search`(`from: {keywords: ["boss", "ボス"]}`) |
 | このプロジェクトは何でできている?(最初の 1 回) | `summarize_project` |
+| このアセットはシーンにいくつ展開される? | `expanded_count` |
 | このプロジェクトのフォルダー構成は? | `list_folders` |
 | UI フォルダーのプレハブが使っているスクリプトは? | `search`(`from: {types: ["Prefab"], path_contains: ["/UI/"]}` → `uses_script` を `out`) |
 | プロジェクトの参照切れを棚卸ししたい | `list_unresolved` |
