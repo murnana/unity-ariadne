@@ -220,7 +220,10 @@ public static class GraphSearch
         var symbols = GraphQueries.LoadCodeSymbols(db);
         var clueOf = keywordStarts.ToDictionary(k => k.Asset.Guid, StringComparer.Ordinal);
         var usedKinds = new SortedSet<string>(StringComparer.Ordinal);
-        var listed = results.Take(limit).Select(m =>
+        var page = results.Take(limit).ToList();
+        var roles = GraphQueries.PrefabRoles(
+            db, page.Where(m => m.Asset.AssetType == "Prefab").Select(m => m.Asset.Guid).Distinct().ToList());
+        var listed = page.Select(m =>
         {
             foreach (var hop in m.Path)
             {
@@ -237,6 +240,7 @@ public static class GraphSearch
                 Name = m.Asset.Name,
                 Type = m.Asset.AssetType,
                 m.Asset.Source,
+                Role = roles.TryGetValue(m.Asset.Guid, out var role) ? role : null,
                 Path = reached ? FormatPath(m) : null,
                 // Keyword evidence belongs to the asset it was found on: the match itself when
                 // there are no steps, otherwise the start the path came from.

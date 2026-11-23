@@ -59,6 +59,7 @@
 
 - `path`: `A -[kind]-> B` は A が B を参照、`A <-[kind]- B` は B が A を参照することを表します。
 - steps がある場合、キーワードの根拠は `from_clues` / `from_doc`（開始アセットのもの）に入ります。steps が無い場合は `clues` / `doc`（結果自身のもの）に入ります。
+- `role` は Prefab の結果だけに付きます。`wrapper` は、入れ子の PrefabInstance を 1 つ以上持ち、自身の持ち物が GameObject と Transform（RectTransform）だけの prefab（入れ子の prefab のための `stripped` は数えません）、`leaf` はそれ以外です。1 つの prefab だけを包むバリアントも `wrapper` になります。
 - `declares` は C# の宣言型（最大 3 件）、`notes` は Editor/ や Resources/ などのフォルダー規約の注記です。
 - `start.assets` は最大 10 件です。
 - `warnings` は、存在しない種別名・参照種別名、C# シンボルが無い古い db（再 analyze の案内）に対して出ます。

@@ -161,6 +161,47 @@ public static class GraphQueries
             name);
     }
 
+    /// <summary>
+    /// Role of each prefab among <paramref name="guids"/>: "wrapper" = it contains at least one nested
+    /// PrefabInstance (class 1001) and nothing of its own beyond GameObjects and Transforms (stripped
+    /// placeholders of the nested prefabs do not count); "leaf" = anything else. Non-prefab guids are absent.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> PrefabRoles(GraphDatabase db, IReadOnlyCollection<string> guids)
+    {
+        var roles = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (guids.Count == 0)
+        {
+            return roles;
+        }
+
+        using var command = db.Connection.CreateCommand();
+        var names = guids.Select((_, i) => $"$g{i}").ToList();
+        command.CommandText =
+            $"""
+            SELECT a.guid,
+                   SUM(o.class_id = 1001),
+                   SUM(o.class_id NOT IN (1, 4, 224, 1001) AND o.is_stripped = 0)
+            FROM assets a JOIN objects o ON o.asset_id = a.id
+            WHERE a.asset_type = 'Prefab' AND a.guid IN ({string.Join(",", names)})
+            GROUP BY a.guid
+            """;
+        var index = 0;
+        foreach (var guid in guids)
+        {
+            command.Parameters.AddWithValue(names[index++], guid);
+        }
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var nested = reader.GetInt64(1);
+            var own = reader.GetInt64(2);
+            roles[reader.GetString(0)] = nested > 0 && own == 0 ? "wrapper" : "leaf";
+        }
+
+        return roles;
+    }
+
     /// <summary>Number of assets of <paramref name="assetType"/> whose source is any of <paramref name="sources"/>.</summary>
     public static long CountAssets(GraphDatabase db, string assetType, params string[] sources)
     {

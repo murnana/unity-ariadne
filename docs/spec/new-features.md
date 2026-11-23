@@ -130,7 +130,8 @@ VCS のリビジョン（Git の SHA、Subversion のリビジョン）による
 - `leaf`: それ以外の prefab。
 
 「木」のような概念検索で、ラッパーと中身を数え分けられるようにします。判定は `refs` の `prefab_instance` 辺と、`objects` の中身から行います。
-**互換性**: Prefab 以外では付けません。追加フィールドです。
+サンプルプロジェクト（prefab 172 件）で確認した定義: 入れ子の PrefabInstance があり、自身の持ち物が GameObject・Transform・RectTransform だけなら `wrapper`（88 件）、それ以外は `leaf`（84 件）。
+**互換性**: Prefab 以外では付けません。追加フィールドです。1 件あたり約 16 文字増えます。
 
 ## N-7. 未解決 GUID の手がかり（改善点 6）
 

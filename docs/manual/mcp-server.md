@@ -160,6 +160,7 @@ search(from, steps = null, unreferenced = false, limit = 20, relax = true)
 | `matches[].path` | 根拠の参照経路(1 本、各ステップで最短)。`A -[kind]-> B` は A が B を参照、`A <-[kind]- B` は B が A を参照 |
 | `matches[].from` / `from_clues` / `from_doc` | 経路の出発点と、その出発点がキーワードに当たった手がかり・ドキュメントコメントの抜粋 |
 | `matches[].clues` / `doc` | `steps` が無いとき、結果そのものがキーワードに当たった手がかりと抜粋 |
+| `matches[].role` | Prefab の結果だけに付く種別。`wrapper`: 他の prefab を入れ子に置くだけで、自身のコンポーネントを持たない(「木」のような概念検索で、置き場のプレハブと中身を数え分けるために使います)。`leaf`: それ以外 |
 | `matches[].declares` | スクリプトが宣言している型(最大 3 件) |
 | `matches[].notes` | パスから分かる注記: `Editor` フォルダー(ビルドに入らない)、`Resources` フォルダー(参照が無くても名前で読み込まれうる)、`StreamingAssets`、`Plugins`、サンプル、テスト、PackageCache、ビルトイン、未解決 GUID |
 | `relations` | 経路に出てきた関係それぞれの意味(`A -[uses_script]-> B: A has a component ... whose script is B` など) |

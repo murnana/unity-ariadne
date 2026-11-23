@@ -25,3 +25,5 @@
 | SE-19 | Editor/ や Resources/ 配下の結果 | `notes` にフォルダー規約の注記が出る |
 | SE-20 | C# シンボル無しの古い db でキーワード検索 | `warnings` に再 analyze の案内が出る |
 | SE-21 | CLI `guidgraph search --query` と同一 JSON | MCP の `search` と同じ結果になる |
+| SE-22 | Prefab を含む結果 | Prefab にだけ `role`（`wrapper` / `leaf`）が付く（xUnit 実装済み） |
+| SE-23 | 入れ子の PrefabInstance と自前の MonoBehaviour を持つ prefab | `leaf` になる（xUnit 実装済み） |
