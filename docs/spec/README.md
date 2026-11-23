@@ -25,4 +25,5 @@
 
 ## 新機能（提案。未実装）
 
+- [database.md](database.md) — データベース定義一覧
 - [new-features.md](new-features.md)
