@@ -59,10 +59,11 @@
 
 - `path`: `A -[kind]-> B` は A が B を参照、`A <-[kind]- B` は B が A を参照することを表します。
 - steps がある場合、キーワードの根拠は `from_clues` / `from_doc`（開始アセットのもの）に入ります。steps が無い場合は `clues` / `doc`（結果自身のもの）に入ります。
-- `role` は Prefab の結果だけに付きます。`wrapper` は、入れ子の PrefabInstance を 1 つ以上持ち、自身の持ち物が GameObject と Transform（RectTransform）だけの prefab（入れ子の prefab のための `stripped` は数えません）、`leaf` はそれ以外です。1 つの prefab だけを包むバリアントも `wrapper` になります。
+- `role` は、入れ子の PrefabInstance を持ち、自身の持ち物が GameObject と Transform（RectTransform）だけの prefab にだけ `wrapper` と付きます（入れ子の prefab のための `stripped` は数えません）。付いていない Prefab は、それ以外（leaf）です。1 つの prefab だけを包むバリアントも `wrapper` になります。`leaf` を省くのは出力を小さくするためです。
 - `declares` は C# の宣言型（最大 3 件）、`notes` は Editor/ や Resources/ などのフォルダー規約の注記です。
 - `start.assets` は最大 10 件です。
 - `unsupported` は、開始点または結果に、本体を読んでいない種類（`describe_ontology` の `parsed: false`）が含まれるときだけ付きます。その種類からたどれる参照（TerrainData の木など）は、グラフに無いことを示します。
+- 答えが約 48,000 文字を超えるときは、`limit` を自動で小さくして収め、`truncated: true` と、件数を減らしたことを伝える `warnings` を付けます。呼び出し側のツール出力の上限を超えると、結果がファイルに退避されて読み直しが必要になるためです。
 - `warnings` は、存在しない種別名・参照種別名、C# シンボルが無い古い db（再 analyze の案内）に対して出ます。
 
 ## エラー

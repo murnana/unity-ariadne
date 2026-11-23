@@ -25,6 +25,7 @@
 | SE-19 | Editor/ や Resources/ 配下の結果 | `notes` にフォルダー規約の注記が出る |
 | SE-20 | C# シンボル無しの古い db でキーワード検索 | `warnings` に再 analyze の案内が出る |
 | SE-21 | CLI `guidgraph search --query` と同一 JSON | MCP の `search` と同じ結果になる |
-| SE-22 | Prefab を含む結果 | Prefab にだけ `role`（`wrapper` / `leaf`）が付く（xUnit 実装済み） |
+| SE-22 | Prefab を含む結果 | wrapper の prefab にだけ `role: wrapper` が付き、leaf や Prefab 以外には付かない（xUnit 実装済み） |
 | SE-23 | 入れ子の PrefabInstance と自前の MonoBehaviour を持つ prefab | `leaf` になる（xUnit 実装済み） |
 | SE-24 | 開始点か結果に TerrainData を含む | `unsupported: ["TerrainData"]` が付く。含まなければ付かない（xUnit 実装済み） |
+| SE-25 | 答えが約 48,000 文字を超える | `limit` が自動で小さくなり、`truncated: true` と `warnings` が付く（xUnit 実装済み） |

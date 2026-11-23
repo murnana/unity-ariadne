@@ -71,7 +71,7 @@ public sealed class PrefabRoleTests : IDisposable
     }
 
     [Fact]
-    public void SearchMatchesCarryRoleForPrefabsOnly()
+    public void SearchMatchesCarryRoleOnlyForWrappers()
     {
         using var db = CreateDatabase();
 
@@ -82,7 +82,7 @@ public sealed class PrefabRoleTests : IDisposable
             m => m.TryGetProperty("role", out var r) ? r.GetString() : null);
 
         Assert.Equal("wrapper", roles["Assets/Wrapper.prefab"]);
-        Assert.Equal("leaf", roles["Assets/WithScript.prefab"]);
+        Assert.Null(roles["Assets/WithScript.prefab"]); // leaf is the absence of a role
         Assert.Null(roles["Assets/M.mat"]);
     }
 
@@ -110,5 +110,26 @@ public sealed class PrefabRoleTests : IDisposable
         var prefabsOnly = GraphSearch.RunJson(db, new SearchQuery { From = new SearchStart { Types = ["Prefab"] } });
         using var doc2 = System.Text.Json.JsonDocument.Parse(prefabsOnly);
         Assert.False(doc2.RootElement.TryGetProperty("unsupported", out _));
+    }
+
+    [Fact]
+    public void OversizedAnswersAreCutDownAndSaySo()
+    {
+        using var db = CreateDatabase();
+        using var writer = db.CreateWriter();
+        for (var i = 0; i < 1500; i++)
+        {
+            writer.AddAsset($"bbbb{i:D28}", $"Assets/Bulk/{new string((char)97, 220)}_{i:D5}.prefab", "Prefab", "Assets");
+        }
+
+        writer.Commit();
+
+        var json = GraphSearch.RunJson(db, new SearchQuery { From = new SearchStart { Types = ["Prefab"] }, Limit = 200 });
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+
+        Assert.True(json.Length <= GraphSearch.MaxOutputChars, $"length {json.Length}");
+        Assert.True(doc.RootElement.GetProperty("truncated").GetBoolean());
+        Assert.Contains("output capped", doc.RootElement.GetProperty("warnings")[0].GetString());
+        Assert.Equal(1503, doc.RootElement.GetProperty("total_matches").GetInt32());
     }
 }

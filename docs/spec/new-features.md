@@ -124,7 +124,7 @@ VCS のリビジョン（Git の SHA、Subversion のリビジョン）による
 
 ## N-6. ラッパー prefab の種別（改善点 4）
 
-`search` の `matches[]` に `role` を追加します。
+`search` の `matches[]` に `role` を追加します（`wrapper` のときだけ付けます。全件に付けると出力が約 2.2k 文字増え、Prefab 全件の検索が呼び出し側の出力上限を超えたため）。
 
 - `wrapper`: 自身のコンポーネントを持たず、子が別 prefab のインスタンス（`prefab_instance`）だけで構成される prefab。
 - `leaf`: それ以外の prefab。

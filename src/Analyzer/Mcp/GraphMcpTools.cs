@@ -42,7 +42,8 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
     [Description("Lists every asset that directly references the given asset (reverse dependencies) " +
                  "with reference kind and count. Accepts a project-relative path (Assets/...), a file " +
                  "name unique in the project, or a GUID. summary=true returns counts per reference " +
-                 "kind and asset type plus the top referrers instead of every row.")]
+                 "kind and asset type plus the top referrers instead of every row. For many assets at once " +
+                 "use search with an 'in' step instead of calling this once per asset.")]
     public string FindReferences(
         [Description("Asset path, file name, or GUID")] string name,
         [Description("Return per-kind and per-type counts with top referrers instead of rows (default false)")]

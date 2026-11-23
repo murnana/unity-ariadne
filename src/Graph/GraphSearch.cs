@@ -79,6 +79,10 @@ public sealed record SearchQuery
 
     [JsonPropertyName("relax")]
     public bool? Relax { get; init; }
+
+    /// <summary>Set by <see cref="GraphSearch.RunJson"/> when it had to shrink the answer; shown in warnings.</summary>
+    [JsonIgnore]
+    internal string? OutputCapWarning { get; init; }
 }
 
 /// <summary>
@@ -109,8 +113,34 @@ public static class GraphSearch
     };
 
     /// <summary>Runs <paramref name="query"/> and returns the JSON answer (an <c>error</c> object on bad input).</summary>
-    public static string RunJson(GraphDatabase db, SearchQuery query, JsonSerializerOptions? options = null) =>
-        JsonSerializer.Serialize(Run(db, query), options ?? JsonOptions);
+    public static string RunJson(GraphDatabase db, SearchQuery query, JsonSerializerOptions? options = null)
+    {
+        var json = JsonSerializer.Serialize(Run(db, query), options ?? JsonOptions);
+        if (json.Length <= MaxOutputChars)
+        {
+            return json;
+        }
+
+        // An answer past the calling agent's tool-output limit is saved to a file and has to be re-read
+        // piece by piece; fewer matches in the answer are cheaper. Shrink the limit until it fits.
+        var limit = Math.Clamp(query.Limit ?? DefaultLimit, 1, MaxLimit);
+        for (var attempt = 0; attempt < 4 && json.Length > MaxOutputChars && limit > 1; attempt++)
+        {
+            limit = Math.Max(1, (int)(limit * 0.97 * MaxOutputChars / json.Length));
+            var capped = query with
+            {
+                Limit = limit,
+                OutputCapWarning = $"output capped at about {MaxOutputChars / 1000}k characters: showing the first {limit} " +
+                                   "matches; narrow the query (types, path_contains, kinds) or page with a lower limit",
+            };
+            json = JsonSerializer.Serialize(Run(db, capped), options ?? JsonOptions);
+        }
+
+        return json;
+    }
+
+    /// <summary>Answers longer than this are cut down to fewer matches (see <see cref="RunJson"/>).</summary>
+    public const int MaxOutputChars = 48_000;
 
     /// <summary>Runs <paramref name="query"/>; the result is an anonymous object shaped for JSON.</summary>
     public static object Run(GraphDatabase db, SearchQuery query)
@@ -151,6 +181,11 @@ public static class GraphSearch
         var relax = query.Relax ?? true;
         var ontology = GraphQueries.DescribeOntology(db);
         var warnings = UnknownTerms(steps, origin.Types, ontology);
+        if (query.OutputCapWarning is { } capWarning)
+        {
+            warnings.Add(capWarning);
+        }
+
         if (!db.HasCodeSymbols && origin.Keywords is { Length: > 0 })
         {
             warnings.Add("this graph was built by an older guidgraph without C# type names and doc comments; " +
@@ -240,7 +275,7 @@ public static class GraphSearch
                 Name = m.Asset.Name,
                 Type = m.Asset.AssetType,
                 m.Asset.Source,
-                Role = roles.TryGetValue(m.Asset.Guid, out var role) ? role : null,
+                Role = roles.TryGetValue(m.Asset.Guid, out var role) && role == "wrapper" ? role : null,
                 Path = reached ? FormatPath(m) : null,
                 // Keyword evidence belongs to the asset it was found on: the match itself when
                 // there are no steps, otherwise the start the path came from.
