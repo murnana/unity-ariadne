@@ -190,6 +190,7 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         var ontology = GraphQueries.DescribeOntology(db);
         return Serialize(new
         {
+            SearchGuide = SearchGuide,
             Classes = ontology.Classes
                 .Select(c => new
                 {
@@ -223,29 +224,19 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
 
     [McpServerTool(Name = "search")]
     [Description(
-        "Ontology search over the Unity project graph — the one call for questions like 'prefabs that use " +
-        "a subclass of Enemy', 'scripts about boss behaviour and the prefabs they are on', 'unused prefabs " +
-        "in the UI folder'. Nodes are typed by asset type (Scene, Prefab, Script, Material, ...), edges by " +
-        "relation (uses_script, prefab_instance, inherits, generic, ...; describe_ontology lists them with " +
-        "meanings). 'from' picks the start: one asset, or assets filtered by types / source / path_contains " +
-        "and ranked by keywords (matched against file names, folder names, C# type and member names and " +
-        "XML doc comments). 'steps' then follow typed relations in order (omit them to just list the " +
-        "starts). If nothing matches, the steps are relaxed (path filters, then relation kinds, then reach) " +
-        "and 'relaxed' says how. Each match carries its evidence: 'path' ('A -[kind]-> B' = A references " +
-        "B, 'A <-[kind]- B' = B references A), keyword 'clues' and 'doc' excerpt (as 'from_clues' / " +
-        "'from_doc' when they belong to the start 'from' the path came from), 'declares' (C# types), and 'notes' on folder conventions (Editor/, Resources/, ...); " +
-        "'relations' explains every relation used in the paths. Keywords are matched ignoring case, " +
-        "full-width/half-width and hiragana/katakana differences; names, clues and doc excerpts come back " +
-        "unchanged in their own language (Japanese, Korean, Chinese, ...). Example — prefabs using Enemy.cs or a " +
-        "subclass: from {asset: \"Enemy.cs\"}, steps [{direction: in, kinds: [inherits], max_hops: 10, " +
-        "include_self: true}, {direction: in, kinds: [uses_script], types: [Prefab]}].")]
+        "Ontology search over the project graph. 'from' picks the start (one asset, or assets filtered by " +
+        "types/source/path_contains and ranked by keywords matched against file, folder and C# names and doc " +
+        "comments); 'steps' follow typed relations in order (omit to list the starts). Empty results are " +
+        "relaxed automatically ('relaxed' says how). Matches carry 'path' ('A -[kind]-> B' = A references B), " +
+        "clues, doc excerpt, declares and notes; 'relations' explains the kinds used. Relation/type names and " +
+        "a worked example: describe_ontology.")]
     public string Search(
-        [Description("Start: {asset} or any of {keywords, match_all, types, source, path_contains}")] SearchStart from,
-        [Description("Typed path steps applied in order (0-8). Omit to return the start assets themselves")]
+        [Description("Start: {asset} or filters {keywords, match_all, types, source, path_contains}")] SearchStart from,
+        [Description("Path steps in order (0-8); omit to list the starts")]
         SearchStep[]? steps = null,
-        [Description("Keep only results that nothing references (unused-asset candidates)")] bool unreferenced = false,
+        [Description("Keep only unreferenced results")] bool unreferenced = false,
         [Description("Maximum number of matches listed (default 20, max 200)")] int limit = GraphSearch.DefaultLimit,
-        [Description("Relax the steps automatically when nothing matches (default true)")] bool relax = true)
+        [Description("Relax steps when nothing matches (default true)")] bool relax = true)
     {
         using var db = OpenDatabase();
         return GraphSearch.RunJson(db, new SearchQuery
@@ -281,6 +272,14 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
             Truncated = unresolved.Count > MaxListedResults ? (bool?)true : null,
         });
     }
+
+    private const string SearchGuide =
+        "search: keywords match ignoring case, width and kana; give synonyms in the user's language and English, " +
+        "e.g. [\"ボス\", \"boss\"]. Names, clues and docs come back unchanged. Example, prefabs using Enemy.cs or " +
+        "a subclass: from {asset: \"Enemy.cs\"}, steps [{direction: in, kinds: [inherits], max_hops: 10, " +
+        "include_self: true}, {direction: in, kinds: [uses_script], types: [Prefab]}]. Other examples: " +
+        "from {keywords: [\"boss\"], types: [Script]}; from {types: [Prefab], path_contains: [\"/UI/\"]} with " +
+        "unreferenced: true for unused prefabs. Step 'direction': out = dependencies, in = referrers.";
 
     private GraphDatabase OpenDatabase() => GraphDatabase.OpenFile(options.DbPath);
 

@@ -9,29 +9,27 @@ namespace GuidGraph.Graph;
 /// <summary>Where a search starts: one named asset, or every asset matching the filters.</summary>
 public sealed record SearchStart
 {
-    [Description("One asset by path, unique file name, or GUID. Mutually exclusive with the filters below")]
+    [Description("One asset (path, unique file name or GUID); exclusive with filters")]
     [JsonPropertyName("asset")]
     public string? Asset { get; init; }
 
-    [Description("Concept keywords (case-insensitive substrings, any language) matched against file names, " +
-                 "folder names, C# type and member names and XML doc comments. Give synonyms in both the " +
-                 "user's language and English, e.g. [\"ボス\", \"boss\"]")]
+    [Description("Concept keywords with synonyms in the user's language and English")]
     [JsonPropertyName("keywords")]
     public string[]? Keywords { get; init; }
 
-    [Description("Require every keyword to hit (default false: any keyword, ranked by how many hit)")]
+    [Description("Require every keyword (default: any, ranked)")]
     [JsonPropertyName("match_all")]
     public bool? MatchAll { get; init; }
 
-    [Description("Asset types to start from, e.g. [\"Script\"] or [\"Scene\"]")]
+    [Description("Start asset types, e.g. [\"Script\"]")]
     [JsonPropertyName("types")]
     public string[]? Types { get; init; }
 
-    [Description("Source to start from: Assets, Packages, PackageCache, ProjectSettings, BuiltIn")]
+    [Description("Assets, Packages, PackageCache, ProjectSettings or BuiltIn")]
     [JsonPropertyName("source")]
     public string? Source { get; init; }
 
-    [Description("Keep only start assets whose path contains any of these (folder or file-name clues), e.g. [\"/UI/\"]")]
+    [Description("Keep starts whose path contains any of these, e.g. [\"/UI/\"]")]
     [JsonPropertyName("path_contains")]
     public string[]? PathContains { get; init; }
 }
@@ -39,28 +37,27 @@ public sealed record SearchStart
 /// <summary>One hop pattern of a search, as clients send it.</summary>
 public sealed record SearchStep
 {
-    [Description("out = to what the asset references (dependencies); in = to what references it; both")]
+    [Description("out = dependencies, in = referrers, both")]
     [JsonPropertyName("direction")]
     public required string Direction { get; init; }
 
-    [Description("Relations (ref kinds) to follow, e.g. [\"inherits\"]. Omit for any relation")]
+    [Description("Ref kinds to follow, e.g. [\"inherits\"]; omit for any")]
     [JsonPropertyName("kinds")]
     public string[]? Kinds { get; init; }
 
-    [Description("Asset types the step must end on, e.g. [\"Prefab\"]. Omit for any type; " +
-                 "intermediate assets of a multi-hop step are not checked")]
+    [Description("Asset types the step must end on, e.g. [\"Prefab\"]")]
     [JsonPropertyName("types")]
     public string[]? Types { get; init; }
 
-    [Description("Follow up to this many hops (default 1, max 10) — e.g. 10 with [inherits] walks the class hierarchy")]
+    [Description("Max hops (default 1, max 10)")]
     [JsonPropertyName("max_hops")]
     public int? MaxHops { get; init; }
 
-    [Description("Also keep the step's own starting assets (zero hops), e.g. 'the class and its subclasses'")]
+    [Description("Also keep the step's starting assets (zero hops)")]
     [JsonPropertyName("include_self")]
     public bool? IncludeSelf { get; init; }
 
-    [Description("Keep only end assets whose path contains any of these, e.g. [\"/Enemies/\"]")]
+    [Description("Keep end assets whose path contains any of these")]
     [JsonPropertyName("path_contains")]
     public string[]? PathContains { get; init; }
 }
