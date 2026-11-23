@@ -21,7 +21,7 @@ public sealed class McpServerTests : IAsyncLifetime
     private static readonly string[] ExpectedToolNames =
     [
         "describe_ontology", "find_references", "get_neighbors", "impact_analysis", "list_folders",
-        "list_unresolved", "search", "search_nodes",
+        "list_unresolved", "search", "search_nodes", "summarize_project",
     ];
 
     private readonly string _dbPath =
@@ -120,6 +120,29 @@ public sealed class McpServerTests : IAsyncLifetime
         Assert.Equal(["Assets/Prefabs/Hero.prefab"], kind.GetProperty("top").EnumerateArray().Select(t => t.GetString()));
         var type = Assert.Single(result.GetProperty("by_type").EnumerateArray());
         Assert.Equal("Prefab", type.GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task SummarizeProjectListsScenesFoldersAndScripts()
+    {
+        var result = await CallAsync("summarize_project", new());
+
+        Assert.Equal(["Assets/Scenes/Main.unity"], result.GetProperty("scenes").EnumerateArray().Select(s => s.GetString()));
+        Assert.Contains(
+            result.GetProperty("folders").EnumerateArray(),
+            f => f.GetProperty("path").GetString() == "Assets/Prefabs");
+        Assert.Equal(0, result.GetProperty("scripts").GetProperty("assets").GetInt32());
+        Assert.False(result.TryGetProperty("readme", out _));
+        Assert.False(result.TryGetProperty("scenes_truncated", out _));
+    }
+
+    [Fact]
+    public async Task SummarizeProjectShrinksToMaxCharsAndFlagsTruncation()
+    {
+        var result = await CallAsync("summarize_project", new() { ["max_chars"] = 200, ["scene_limit"] = 0 });
+
+        Assert.True(result.GetProperty("scenes_truncated").GetBoolean());
+        Assert.Empty(result.GetProperty("scenes").EnumerateArray());
     }
 
     [Fact]

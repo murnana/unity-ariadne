@@ -8,7 +8,7 @@ using GuidGraph.Graph;
 namespace GuidGraph.Analyzer.Mcp;
 
 /// <summary>Tells <see cref="GraphMcpTools"/> which database file to query.</summary>
-public sealed record GraphMcpOptions(string DbPath);
+public sealed record GraphMcpOptions(string DbPath, string? ProjectPath = null);
 
 /// <summary>
 /// The MCP tools of the serve command. Each call opens the database
@@ -23,6 +23,7 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
     private const int MaxListedResults = 200;
     private const int DefaultSummaryTop = 5;
     private const int MaxSummaryTop = 20;
+    private const int SummaryFolderTypes = 4;
     private const int MaxAmbiguousCandidates = 10;
     private const int MaxSignatures = 12;
     private const int MaxFolderTypes = 6;
@@ -210,6 +211,97 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
                 .ToList(),
             Truncated = folders.Count > MaxListedResults ? (bool?)true : null,
         });
+    }
+
+    [McpServerTool(Name = "summarize_project")]
+    [Description("One-call project overview: scenes, build order, top-level folders with their asset types, " +
+                 "script counts and a README excerpt (only when the server knows the project folder). " +
+                 "Sized by max_chars; cut items carry truncated=true.")]
+    public string SummarizeProject(
+        [Description("Rough size limit of the answer in characters (default 1500)")] int max_chars = 1500,
+        [Description("Most scenes listed (default 20)")] int scene_limit = 20,
+        [Description("Folder levels below Assets, 1-3 (default 1)")] int folder_depth = 1,
+        [Description("README excerpt length, 0 = none (default 200)")] int readme_chars = 200)
+    {
+        using var db = OpenDatabase();
+        max_chars = Math.Clamp(max_chars, 200, 20000);
+        var scenes = GraphQueries.FindAssets(db, "", "Scene", "Assets", false, MaxListedResults)
+            .Select(a => a.Name).ToList();
+        var sceneTotal = GraphQueries.CountAssets(db, "Scene", "Assets");
+        var buildOrder = GraphQueries.BuildSceneOrder(db);
+        var folders = GraphQueries.ListFolders(db, "Assets", Math.Clamp(folder_depth, 1, 3))
+            .OrderByDescending(f => f.AssetCount)
+            .Select(f => new
+            {
+                f.Path,
+                Assets = f.AssetCount,
+                Types = f.ByType
+                    .OrderByDescending(t => t.Value).ThenBy(t => t.Key, StringComparer.Ordinal)
+                    .Take(SummaryFolderTypes).ToDictionary(t => t.Key, t => t.Value),
+            })
+            .ToList();
+        var readme = ReadReadme(Math.Clamp(readme_chars, 0, 2000));
+
+        var sceneCount = Math.Min(Math.Max(scene_limit, 0), scenes.Count);
+        var folderCount = folders.Count;
+        var readmeLength = readme?.Length ?? 0;
+        while (true)
+        {
+            var json = Serialize(new
+            {
+                Scenes = scenes.Take(sceneCount).ToList(),
+                ScenesTruncated = sceneCount < sceneTotal ? (bool?)true : null,
+                BuildOrder = buildOrder.Take(sceneCount).ToList(),
+                Folders = folders.Take(folderCount).ToList(),
+                FoldersTruncated = folderCount < folders.Count ? (bool?)true : null,
+                Scripts = new
+                {
+                    Assets = GraphQueries.CountAssets(db, "Script", "Assets"),
+                    Packages = GraphQueries.CountAssets(db, "Script", "Packages", "PackageCache"),
+                },
+                Readme = readme is null ? null : readme[..readmeLength],
+                ReadmeTruncated = readme is not null && readmeLength < readme.Length ? (bool?)true : null,
+            });
+            if (json.Length <= max_chars || (sceneCount == 0 && folderCount == 0 && readmeLength == 0))
+            {
+                return json;
+            }
+
+            // Shed the least useful parts first: scenes, then folders, then the README.
+            if (sceneCount > 0)
+            {
+                sceneCount--;
+            }
+            else if (folderCount > 0)
+            {
+                folderCount--;
+            }
+            else
+            {
+                readmeLength = Math.Max(0, readmeLength - 20);
+            }
+        }
+    }
+
+    /// <summary>First <paramref name="chars"/> characters of the project README, or null.</summary>
+    private string? ReadReadme(int chars)
+    {
+        if (chars <= 0 || options.ProjectPath is not { } root)
+        {
+            return null;
+        }
+
+        foreach (var name in new[] { "README.md", "Readme.md", "readme.md", "README.txt", "README" })
+        {
+            var path = Path.Combine(root, name);
+            if (File.Exists(path))
+            {
+                var text = File.ReadAllText(path).Trim();
+                return text.Length > chars ? text[..chars] : text;
+            }
+        }
+
+        return null;
     }
 
     [McpServerTool(Name = "describe_ontology")]

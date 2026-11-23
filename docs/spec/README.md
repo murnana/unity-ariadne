@@ -22,6 +22,7 @@
 - [describe_ontology](describe_ontology.md)
 - [search](search.md)
 - [list_unresolved](list_unresolved.md)
+- [summarize_project](summarize_project.md)
 
 ## 新機能（提案。未実装）
 

@@ -161,6 +161,52 @@ public static class GraphQueries
             name);
     }
 
+    /// <summary>Number of assets of <paramref name="assetType"/> whose source is any of <paramref name="sources"/>.</summary>
+    public static long CountAssets(GraphDatabase db, string assetType, params string[] sources)
+    {
+        using var command = db.Connection.CreateCommand();
+        var placeholders = string.Join(",", sources.Select((_, i) => $"$s{i}"));
+        command.CommandText =
+            $"SELECT COUNT(*) FROM assets WHERE asset_type = $type AND source IN ({placeholders})";
+        command.Parameters.AddWithValue("$type", assetType);
+        for (var i = 0; i < sources.Length; i++)
+        {
+            command.Parameters.AddWithValue($"$s{i}", sources[i]);
+        }
+
+        return Convert.ToInt64(command.ExecuteScalar());
+    }
+
+    /// <summary>
+    /// Scenes of the build settings (EditorBuildSettings m_Scenes) in build order. The enabled flag is
+    /// not stored in the graph, so disabled entries are listed too. Unresolved scenes are skipped.
+    /// </summary>
+    public static IReadOnlyList<string> BuildSceneOrder(GraphDatabase db)
+    {
+        var scenes = new List<(int Index, string Path)>();
+        using var command = db.Connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT DISTINCT r.property_path, a.path
+            FROM refs r JOIN assets a ON a.guid = r.to_guid
+            WHERE r.ref_kind = 'build_settings' AND r.property_path LIKE 'm\_Scenes[%' ESCAPE '\'
+              AND a.path IS NOT NULL
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var property = reader.GetString(0);
+            var open = property.IndexOf('[');
+            var close = property.IndexOf(']');
+            if (open >= 0 && close > open && int.TryParse(property[(open + 1)..close], out var index))
+            {
+                scenes.Add((index, reader.GetString(1)));
+            }
+        }
+
+        return scenes.OrderBy(s => s.Index).Select(s => s.Path).ToList();
+    }
+
     /// <summary>All assets that directly reference <paramref name="guid"/>, most refs first.</summary>
     public static IReadOnlyList<IncomingReference> FindReferences(GraphDatabase db, string guid)
     {

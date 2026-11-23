@@ -10,3 +10,4 @@ MCP ツールごとのテストケース一覧です。ID は `ツール略称-�
 - [describe_ontology](describe_ontology.md)
 - [search](search.md)
 - [list_unresolved](list_unresolved.md)
+- [summarize_project](summarize_project.md)

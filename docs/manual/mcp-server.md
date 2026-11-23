@@ -178,6 +178,22 @@ list_folders(path = "Assets", depth = 1)
 
 `path` の下のフォルダーを `depth` 階層(1–4)まで列挙し、それぞれに含まれる(サブフォルダーを含む)アセット数と、多い種類の上位 6 件を返します。`path` を空にすると最上位(`Assets` / `Packages` / `ProjectSettings` …)です。フォルダー名からプロジェクトの整理の仕方(`Characters/Enemies`、`UI`、`Levels` …)を読み取り、`search` の `path_contains` に使うための道具です。
 
+### summarize_project — プロジェクトの概要
+
+```
+summarize_project(max_chars = 1500, scene_limit = 20, folder_depth = 1, readme_chars = 200)
+```
+
+プロジェクトの全体像を 1 回で返します。「このプロジェクトは何でできているか」を最初に知りたいときに使います。
+
+- `scenes`: `Assets/` 内のシーン。`scene_limit` 件まで(超えると `scenes_truncated`)。
+- `build_order`: ビルド設定(EditorBuildSettings)のシーンの順序。有効・無効の区別は保存していないため、無効なシーンも含みます。
+- `folders`: `Assets/` の `folder_depth` 階層(1–3)までのフォルダーごとのアセット数と、多い種類の上位 4 件。
+- `scripts`: `assets`(`Assets/` 内のスクリプト数)と `packages`(パッケージ内の数)。
+- `readme`: プロジェクト直下の README の先頭 `readme_chars` 文字(0 で省略)。**サーバーがプロジェクトのフォルダーを知っているときだけ**付きます(現状は付きません)。
+
+出力が `max_chars` を超えるときは、シーン、フォルダー、README の順に切り詰め、切り詰めた項目に `*_truncated: true` を付けます。
+
 ### describe_ontology — 語彙(種類と関係)の一覧
 
 ```
@@ -219,6 +235,7 @@ list_unresolved()
 | このマテリアルが最終的に入っているシーンは? | `search`(`in` に数ホップ、終点 `Scene`) |
 | このプロジェクトにどんな種類・関係があるか | `describe_ontology` |
 | 「ボス」に関係するスクリプトやアセットは? | `search`(`from: {keywords: ["boss", "ボス"]}`) |
+| このプロジェクトは何でできている?(最初の 1 回) | `summarize_project` |
 | このプロジェクトのフォルダー構成は? | `list_folders` |
 | UI フォルダーのプレハブが使っているスクリプトは? | `search`(`from: {types: ["Prefab"], path_contains: ["/UI/"]}` → `uses_script` を `out`) |
 | プロジェクトの参照切れを棚卸ししたい | `list_unresolved` |
