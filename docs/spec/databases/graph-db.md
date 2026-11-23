@@ -161,4 +161,4 @@ N-8 `expanded_count` 用です。「A が B を直接配置している数」を
 **スキーマ変更の手順**: `SchemaVersion` を 4 に上げます。増分更新では、変更されたアセットの `placements` を、その `from_guid` の行ごと作り直します。全再構築と行単位で一致するように、差分テストへ追加します。
 
 
-関連: [データベース一覧](README.md)、[provenance.db](provenance-db.md)
+関連: [データベース一覧](README.md)
