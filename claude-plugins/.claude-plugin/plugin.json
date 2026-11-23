@@ -1,13 +1,13 @@
 {
-  "name": "guidgraph",
-  "displayName": "GuidGraph",
+  "name": "unity-guidgraph",
+  "displayName": "Unity GuidGraph",
   "description": "Unityプロジェクトの依存関係グラフ(SQLite)をMCPで照会します。事前に guidgraph をインストールし、analyze で graph.db を作成してください。",
   "author": {
     "name": "murnana",
     "url": "https://github.com/murnana"
   },
-  "homepage": "https://github.com/murnana/unity-ariadne",
-  "repository": "https://github.com/murnana/unity-ariadne",
+  "homepage": "https://github.com/murnana/unity-guidgraph",
+  "repository": "https://github.com/murnana/unity-guidgraph",
   "license": "MIT",
   "keywords": ["unity", "mcp", "dependency-graph", "sqlite"]
 }
