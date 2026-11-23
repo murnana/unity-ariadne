@@ -82,12 +82,21 @@
 
 ### 保存先（graph.db とは別の db）
 
-識別情報は、graph.db とは別の SQLite ファイル（例: `provenance.db`）に持ちます。graph.db のスキーマは変えないので、`PRAGMA user_version` は上げません。VCS を移行しても、graph.db を作り直さずに済みます。
+識別情報は、graph.db とは別の SQLite ファイル（例: `provenance.db`）に持ちます。VCS の識別情報は graph.db に入れないので、VCS を移行しても、graph.db を作り直さずに済みます。graph.db 側の変更は、不変の `graph_id` を持たせることだけです。
 
 | テーブル | 列 | 説明 |
 |---|---|---|
-| `snapshots` | `id`, `graph_db_id`, `analyzed_at`, `vcs_kind`, `repo_url`, `revision`, `dirty` | 解析ごとの記録。`graph_db_id` は graph.db に埋め込んだ ID で、対応づけに使います |
+| `snapshots` | `id`, `graph_id`, `analyzed_at`, `vcs_kind`, `repo_url`, `revision`, `dirty` | 解析ごとの記録。`graph_id` で graph.db と結びつけます |
+| `asset_revisions` | `snapshot_id`, `asset_guid`, `revision`, `file_hash` | アセットごとの最終変更リビジョン。キーはアセットの GUID で、パスは持ちません |
 | `repo_aliases` | `old_repo_url`, `new_repo_url`, `note` | リポジトリの URL 変更や VCS 移行の対応表。手動または `guidgraph vcs-alias` で登録します |
+
+### graph.db との対応づけ
+
+- 対応づけには、ファイル名やパスではなく ID を使います。ファイルの移動や改名を検知できない VCS（Subversion など）でも、識別が壊れないようにするためです。
+- graph.db に、作成時に一度だけ発行する不変の ID `graph_id`（UUID）を持たせます。`analyze --full` で作り直した場合は新しい ID を発行し、増分更新では変えません。
+- アセットの対応づけは、パスではなくアセットの GUID（`.meta` の `guid`）で行います。Unity ではファイルを移動しても GUID は変わらないため、VCS が改名を追跡できなくても、同じアセットとして扱えます。
+- この ID を持たせるため、graph.db のスキーマを変えます。新しいテーブル `graph_meta(key, value)` に `graph_id` を保存し、`PRAGMA user_version` を上げます。増分更新が全再構築と行単位で一致することの検証では、`graph_meta` を比較の対象から外します（`graph_id` は全再構築で変わるため）。
+- 古い db（`graph_meta` が無い）は、再 analyze を案内します。provenance.db 側に対応する `graph_id` の記録が無い場合は、`stale_reason: "unknown"` にします。
 
 ### 判定
 
@@ -98,9 +107,9 @@
 5. `kind` が `none`、または provenance.db が無い場合は、解析時刻と `Assets/` 内の `.meta` / `.unity` / `.prefab` の更新時刻を比べます（`stale_reason: "mtime"`）。
 6. VCS コマンドが失敗したときは `stale` を省き、`stale_reason: "unknown"` にします。
 
-**実装上の注意**: 毎回 VCS コマンドを実行すると重くなるため、結果を数十秒キャッシュします。外部コマンドの実行は、`analyze` と `serve` の起動時に一度だけ可否を確認します。
+**実装上の注意**: 毎回 VCS コマンドを実行すると重くなるため、結果を数十秒キャッシュします。外部コマンドの実行方法（権限や環境の制約）は、実装時に検討します。
 **効果**: 「最新か未確認」という確認の往復がなくなります。1 応答あたり約 40 トークン増えます。
-**互換性**: 応答へのフィールド追加だけです。graph.db は変わりません。
+**互換性**: 応答へのフィールド追加と、graph.db への `graph_meta` テーブルの追加です。
 
 ## N-5. `summarize_project`（改善点 7）
 
