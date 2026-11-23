@@ -378,7 +378,8 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
 
     [McpServerTool(Name = "list_unresolved")]
     [Description("Lists all unresolved GUIDs (dangling references: no asset with that GUID exists in " +
-                 "the project), most-referenced first, with sample referrer paths.")]
+                 "the project), most-referenced first, with sample referrer paths and, when guessable, a hint with the " +
+                 "packages it probably belongs to (package_candidates, basis).")]
     public string ListUnresolved()
     {
         using var db = OpenDatabase();
@@ -394,6 +395,7 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
                     u.RefCount,
                     u.ReferrerCount,
                     SampleReferrers = u.SampleReferrers,
+                    Hint = GraphQueries.HintForUnresolved(db, u.Guid),
                 })
                 .ToList(),
             Truncated = unresolved.Count > MaxListedResults ? (bool?)true : null,
