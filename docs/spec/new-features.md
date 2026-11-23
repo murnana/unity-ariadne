@@ -61,86 +61,36 @@
 **対象**: 全ツールの応答（`meta` を 1 つ付ける）。
 
 ```json
-{"meta": {"analyzed_at": "2026-11-23T09:00:00Z", "stale": true,
-          "roots": [
-            {"path": ".", "kind": "git", "repo_url": "https://example.com/team/game.git",
-             "revision": "3aa0764...", "stale": false},
-            {"path": "Assets/ThirdParty", "kind": "svn", "repo_url": "https://svn.example.com/repo",
-             "revision": "1204", "stale": true, "stale_reason": "revision_changed"}],
-          "unversioned": {"stale": false}}}
+{"meta": {"analyzed_at": "2026-11-23T09:00:00Z", "stale": true, "stale_count": 3}}
 ```
 
-**方針**: 鮮度の基準は、バージョン管理システム（VCS）が発行するリビジョンと、リポジトリ URL とします。ファイルの更新時刻は、VCS の管理下にないファイルの代替にだけ使います。
+**方針**: 解析時刻と、ファイルの更新時刻を比べるだけにします。バージョン管理システム（VCS）には依存しません。
 
-1 つのプロジェクトに VCS が複数ある場合（複数のリモート、サブモジュール、一部のフォルダーだけ別の VCS）に対応するため、「VCS ルート」を単位にします。応答の `stale` は、どれか 1 つのルートでも古ければ true です。
+- `analyzed_at`: graph.db ファイルの最終更新時刻（UTC）です。`analyze`（全再構築と増分更新）が書き終えた時刻にあたります。スキーマは変えません。
+- `stale`: `Assets/` 内の `.meta` / `.unity` / `.prefab` のうち、`analyzed_at` より後に更新されたものが 1 つでもあれば true です。
+- `stale_count`: その数です。上限 1000 で打ち切ります。
+- 削除されたファイルは検出しません。
 
-### VCS ルート
+### プロジェクトの場所
 
-VCS ルートは、1 つの VCS の作業コピーの最上位ディレクトリです。プロジェクトの中に複数あってもよく、プロジェクトのルートがその外側にあるリポジトリの内側にある場合（リポジトリの下位フォルダーに Unity プロジェクトがある）も 1 つのルートです。
+走査にはプロジェクトのパスが必要ですが、graph.db は持っていません。`serve` に任意の引数 `--project <path>` を追加し、プラグインの `launch.mjs` が渡します。
 
-| 状況 | ルートの扱い |
-|---|---|
-| Git のリポジトリ | `.git`（ディレクトリ）があるディレクトリを 1 ルートとする |
-| Git のサブモジュール | `.git`（ファイル）があるディレクトリを別ルートとし、`role: submodule`、親のルートを `parent_root_id` に持つ |
-| Git のワークツリー | `.git`（ファイル）で、`gitdir` がサブモジュールの形でないもの。別ルートにはせず、そのワークツリー自身を 1 ルートとする |
-| 複数のリモート | 1 ルートに複数のリモートを持つ（`repo_remotes`） |
-| 一部のフォルダーだけ Subversion | そのフォルダーを別ルート（`kind: svn`）とする。外側の Git からは、そのフォルダーは対象外（無視または未追跡）になる |
-| `svn:externals` | 外部参照の先を別ルートとし、`role: external` とする |
-| 入れ子の別 VCS | 内側のルートが優先する |
-| VCS の管理下にない | どのルートにも属さず、`unversioned` として更新時刻で判定する |
+- 指定がないときは、`meta` に `analyzed_at` だけを載せ、`stale` は省きます。
+- パスが存在しないときも同様です。
 
-- アセットが属するルートは、そのアセットのパスを含む最も内側のルートです（最長一致）。
-- Subversion 1.6 以前の作業コピーは各フォルダーに `.svn` があるため、最も外側のものを 1 ルートとして扱います。
-- 検出は解析時に行い、`vcs_roots` に保存します。`.meta` のパスは使わず、アセットの GUID で結びつけます。
+### 実装上の注意
 
-### 識別情報
+- 毎回の走査は重くなるため、結果を数十秒キャッシュします。
+- 走査するのは更新時刻だけで、ファイルの中身は読みません。
+- db ファイルをコピーすると更新時刻が変わるため、共有した db では `analyzed_at` が実際の解析時刻と違うことがあります。
+- 時刻の精度やタイムゾーンの違い（ファイルシステムによる）を避けるため、比較は秒単位にします。
 
-| 項目 | Git | Subversion | VCS なし |
-|---|---|---|---|
-| `kind` | `git` | `svn` | `none` |
-| リモート | `git remote -v` の全リモート。主はアップストリームのリモート、なければ `origin` | `svn info` の Repository Root（1 つ） | なし |
-| `revision` | `git rev-parse HEAD`（SHA） | `svn info` の Revision | なし |
-| 未コミットの変更 | `git status --porcelain` | `svn status` | 更新時刻で判定 |
+**効果**: 「最新か未確認」という確認の往復がなくなります。1 応答あたり約 30 トークン増えます。
+**互換性**: 応答へのフィールド追加と、`serve` の任意引数の追加だけです。graph.db は変わりません。
 
-- 値はすべて文字列で保存し、VCS 固有の型を db のスキーマに持ち込みません。
-- `kind` ごとの取得処理は `IVcsProvider`（検出、識別情報の取得、変更ファイルの一覧）に分け、後から Perforce や Plastic SCM などを足せるようにします。
-- Git のサブモジュールの親のリビジョンには、サブモジュールの指すコミットが含まれます。サブモジュール側の `revision` と食い違うときは、サブモジュールが親の指定と違うコミットにあることを意味するので、`stale_reason: "submodule_mismatch"` にします。
+### 将来の拡張（今回は対象外）
 
-### 保存先（graph.db とは別の db）
-
-識別情報は、graph.db とは別の SQLite ファイル（`provenance.db`）に、ルートごとに持ちます。graph.db のスキーマは変えないので、`PRAGMA user_version` は上げません。VCS を移行しても、graph.db を作り直さずに済みます。
-
-| テーブル | 列 | 説明 |
-|---|---|---|
-| `snapshots` | `id`, `analyzed_at` | 解析ごとの記録 |
-| `vcs_roots` | `id`, `root_path`, `kind`, `role`, `parent_root_id` | VCS ルート。プロジェクトに複数あってよい |
-| `repo_remotes` | `root_id`, `name`, `url`, `is_primary` | ルートごとのリモート。Git は複数、Subversion は 1 つ |
-| `root_states` | `snapshot_id`, `root_id`, `revision`, `dirty` | 解析時の、ルートごとのリビジョンと未コミットの有無 |
-| `asset_revisions` | `snapshot_id`, `asset_guid`, `root_id`, `revision`, `file_hash` | アセットごとの最終変更リビジョン。キーは GUID で、パスは持たない。ルートの管理下にないアセットは `root_id` が NULL |
-| `repo_aliases` | `old_repo_url`, `new_repo_url`, `note` | リポジトリの URL 変更や VCS 移行の対応表。手動または `guidgraph vcs-alias` で登録します |
-
-### graph.db との対応づけ
-
-- 対応づけには、ファイル名やパスではなく、アセットの GUID（`.meta` の `guid`）を使います。ファイルの移動や改名を検知できない VCS（Subversion など）でも、Unity では GUID が変わらないため、同じアセットとして扱えます。
-- provenance.db の `asset_guid` は graph.db の `assets.guid` と同じ値です。graph.db には、新しい列もテーブルも追加しません（`PRAGMA user_version` は上げません）。
-- 古い db でも、`assets.guid` があれば使えます。provenance.db に記録が無いアセットは、`stale_reason: "unknown"` として扱います。
-- provenance.db は、graph.db と同じプロジェクト用のフォルダーに置きます（プラグインでは、プロジェクトごとの db フォルダー）。
-
-### 判定
-
-ルートごとに次のとおり判定し、全体の `stale` は、どれか 1 つでも true なら true にします。
-
-1. 現在のルートを検出し、`vcs_roots` と照合します。照合は、リモートの URL のどれか 1 つが一致するか（`repo_aliases` で読み替えた後で）、なければ `root_path` と `kind` が一致するかで行います。
-2. 照合できたルートは、最新の `root_states` の `revision` と現在の `revision` を比べます。同じなら `stale: false` です。ただし、未コミットの変更に `.meta` / `.unity` / `.prefab` が含まれていれば `stale: true`、`stale_reason: "uncommitted_changes"` にします。
-3. `revision` が違えば `stale: true`、`stale_reason: "revision_changed"` です。
-4. 照合できなかったルートは `stale: true`、`stale_reason: "root_added"`（解析時になかったルート）にします。解析時にあって現在はないルートは `stale_reason: "root_removed"` です。
-5. 解析時と同じルートでも、すべてのリモートが一致せず、別名の登録もないときは `stale_reason: "repo_mismatch"` にします。別のリポジトリで作った db を使っている可能性があります。
-6. どのルートにも属さないアセットは、解析時刻と `.meta` / `.unity` / `.prefab` の更新時刻を比べます（`unversioned`、`stale_reason: "mtime"`）。provenance.db が無い場合は、全体をこの方式にします。
-7. VCS コマンドが失敗したルートは `stale` を省き、`stale_reason: "unknown"` にします。
-
-**実装上の注意**: 毎回 VCS コマンドを実行すると重くなるため、結果を数十秒キャッシュします。ルートが多いときは並列に実行します。外部コマンドの実行方法（権限や環境の制約）は、実装時に検討します。
-**効果**: 「最新か未確認」という確認の往復がなくなります。1 応答あたり約 40 トークン増えます（ルートが増えると、ルート 1 つあたり約 30 トークン増えます）。ルートが 1 つだけの通常のプロジェクトでは `roots` を省略した短い形にする案もあります。
-**互換性**: 応答へのフィールド追加だけです。graph.db は変わりません。
+VCS のリビジョン（Git の SHA、Subversion のリビジョン）による判定は、今回は扱いません。必要になったときに、別の仕組みとして追加します。
 
 ## N-5. `summarize_project`（改善点 7）
 
@@ -252,6 +202,6 @@ VCS ルートは、1 つの VCS の作業コピーの最上位ディレクトリ
 | 順 | 項目 | 理由 |
 |---|---|---|
 | 1 | N-1、N-5 | 効果が大きく、既存の出力を変えない |
-| 2 | N-4、N-6、N-7、N-9 | 追加フィールドが中心。N-4 は VCS 連携と別 db の設計が要る |
+| 2 | N-4、N-6、N-7、N-9 | 追加フィールドが中心 |
 | 3 | N-2、N-3 | 既定の出力が変わるため、実測してから決める |
 | 4 | N-8 | 効果は大きいが、実装とデータ検証が最も重い |
