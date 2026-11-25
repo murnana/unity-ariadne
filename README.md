@@ -4,7 +4,7 @@
 
 Unityプロジェクトを解析して依存関係グラフをSQLiteに構築するCLIツールです。**Unity Editor不要**で、ファイルを直接パースし、`dotnet run` のみで動きます。
 
-「このアセットを消しても大丈夫?」「このマテリアルを変えたら何が壊れる?」— grepの効かないGUID参照層の問いに、AIエージェント(Claude Code等)が数クエリで答えられるようになります。実測でトークン消費**84%削減**しました([効果測定](docs/development/benchmark.md))。
+「このアセットを消しても大丈夫?」「このマテリアルを変えたら何が壊れる?」— grepの効かないGUID参照層の問いに、AIエージェント(Claude Code等)が数クエリで答えられるようになります。
 
 ## 何を解析するか
 
@@ -53,22 +53,8 @@ claude mcp add guidgraph -- dotnet run --project <このリポジトリ>/src/Ana
 | [docs/manual/schema.md](docs/manual/schema.md) | SQLiteスキーマ、ref_kind一覧、sqlite3で直接引くクエリ例 |
 | [docs/manual/memory-jsonl.md](docs/manual/memory-jsonl.md) | `export` が書き出す memory.jsonl のフォーマット仕様 |
 | [docs/manual/limitations.md](docs/manual/limitations.md) | 既知の制約と近似 — 「グラフに出ないもの」の一覧 |
-| [docs/development/benchmark.md](docs/development/benchmark.md) | 効果測定(グラフ有無でのトークン消費比較、84%削減) |
 
 開発者向け: 実装の詳細は [docs/development/internals.md](docs/development/internals.md)、テストフィクスチャの扱いは [docs/development/fixtures.md](docs/development/fixtures.md) をご覧ください。
-
-## 効果測定(要約)
-
-グラフの有無で同一調査タスク3種をClaude Codeに解かせて比較しました(読み取り専用ツール、正答は全条件で一致):
-
-| タスク | 削減率 |
-|---|---:|
-| 影響範囲調査(マテリアルの直接参照元) | **79%** |
-| 未使用アセット探し(未参照プレハブ、15分8秒 → 56秒) | **88%** |
-| 実装箇所特定(コードシンボル — grepで既に最適) | -3% |
-| **合計**(3,555,423 → 563,854 トークン) | **84%** |
-
-グラフは逆依存(「誰がこれを参照しているか」)を問うタスクで圧倒的に効き、コードシンボル検索では効きません。方法・全数値・考察は [docs/development/benchmark.md](docs/development/benchmark.md) をご覧ください。
 
 ## リポジトリ構成
 
