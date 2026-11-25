@@ -1,6 +1,6 @@
 # CLI リファレンス
 
-命令を入力して GuidGraph を使う方法です。開発の知識がある人向けです。初めて使う場合は[入門マニュアル](getting-started.md)を読んでください。
+命令を入力して GuidGraph を使う方法です。開発の知識がある人向けです。初めて使う場合は入門マニュアル([Windows 版](getting-started-windows.md) / [macOS 版](getting-started-macos.md))を読んでください。
 
 ## セットアップ
 

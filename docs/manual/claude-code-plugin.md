@@ -2,7 +2,7 @@
 
 `unity-guidgraph` プラグイン(Claude Code に追加する機能)の動きと設定を説明します。このプラグインを入れると、Claude Code から GuidGraph を使えます。調べた結果のファイル(グラフ、`graph.db`)は、初回の起動時に自動で作られます。使える機能は [mcp-server.md](mcp-server.md) のとおりです。
 
-初めて入れる場合は、[入門マニュアル](getting-started.md)の手順で入れてください。
+初めて入れる場合は、入門マニュアル([Windows 版](getting-started-windows.md) / [macOS 版](getting-started-macos.md))の手順で入れてください。
 
 ## 入れる前に確認してください
 

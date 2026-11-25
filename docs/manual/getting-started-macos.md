@@ -1,6 +1,6 @@
-# GuidGraph 入門マニュアル
+# GuidGraph 入門マニュアル(macOS)
 
-Unity を使い慣れていて、Claude Code を初めて使う人向けの説明です。Windows(64ビットの x64)と、Apple Silicon の Mac を対象にしています。Linux と Intel の Mac には対応していません。
+Unity を使い慣れていて、Claude Code を初めて使う人向けの説明です。Apple Silicon の Mac を対象にしています。Windows を使う場合は [Windows 版](getting-started-windows.md)を読んでください。Intel の Mac と Linux には対応していません。
 
 ## このマニュアルでできること
 
@@ -8,7 +8,7 @@ Unity のプロジェクトについて、Claude Code に日本語で質問で�
 
 ## はじめる前に準備するもの
 
-- Windows のパソコン、または Apple Silicon の Mac
+- Apple Silicon の Mac
   - Mac は、リンゴのマークから「この Mac について」を開きます。「チップ」が「Apple」で始まれば使えます。【要確認:画面の表示】
 - インターネット接続
 - 調べたい Unity のプロジェクト(`Assets` フォルダがあるもの)
@@ -48,22 +48,13 @@ GuidGraph は、Unity のファイルの保存形式が「Force Text」でない
 
 ### 1. 命令を入力する画面を開く
 
-- Windows:スタートボタンを押して「PowerShell」と入力し、表示された項目を開きます。
-- Mac:「アプリケーション」の「ユーティリティ」から「ターミナル」を開きます。【要確認:画面の表示】
+「アプリケーション」の「ユーティリティ」から「ターミナル」を開きます。【要確認:画面の表示】
 
 ### 2. Claude Code を入れる
 
 すでに入っている場合は、手順3に進みます。
 
 **次の命令は、Anthropic のサイトから取得したプログラムをすぐに実行します。**
-
-Windows(PowerShell):
-
-```powershell
-irm https://claude.ai/install.ps1 | iex
-```
-
-Mac:
 
 ```sh
 curl -fsSL https://claude.ai/install.sh | bash
@@ -97,8 +88,7 @@ Node.js は、このあと追加する機能を動かすためのソフトです
 
 1. [Node.js のダウンロードページ](https://nodejs.org/en/download)を開きます。
 2. 自分のパソコン向けのインストーラー(ソフトを入れるためのファイル)を取得します。
-   - Windows:名前の最後が `.msi` のファイルです。【要確認:画面のボタン】
-   - Mac:Apple Silicon(arm64)向けのファイルです。【要確認:ファイルの種類と画面のボタン】
+   - Apple Silicon(arm64)向けのファイルです。【要確認:ファイルの種類と画面のボタン】
 3. 取得したファイルを開き、画面の案内に従って入れます。
 
 ### 6. GuidGraph を入れる
@@ -108,12 +98,10 @@ Node.js は、このあと追加する機能を動かすためのソフトです
 1. [GuidGraph の配布ページ](https://github.com/murnana/unity-guidgraph/releases)を開きます。
 2. 一番新しい版の「Assets」を開きます。これはファイルの一覧です。Unity の Assets フォルダとは別のものです。
 3. 次のファイルを取得します。【要確認:次の版のファイル名】
-   - Windows:名前の最後が `win-x64.msi` のファイル
-   - Mac:名前の最後が `osx-arm64.pkg` のファイル
+   - 名前の最後が `osx-arm64.pkg` のファイル
 4. 取得したファイルを開きます。
 5. 警告が表示されたら、実行を許可します。
-   - Windows:「詳細情報」を押してから「実行」を押します。【要確認:警告画面の表示】
-   - Mac:「システム設定」の「プライバシーとセキュリティ」を開き、「このまま開く」を押します。【要確認:画面の表示】
+   「システム設定」の「プライバシーとセキュリティ」を開き、「このまま開く」を押します。【要確認:画面の表示】
 6. 画面の案内に従って入れます。
 
 ### 7. 準備ができたことを確認する
@@ -157,28 +145,15 @@ Node.js は、このあと追加する機能を動かすためのソフトです
 - **30日間使わないグラフは、自動で削除されます。** もう一度起動すると、作り直されます。
 
 1. `Assets` フォルダがある場所へ移動します。
-   - Windows:エクスプローラーで、`Assets` の1つ上のフォルダを右クリックして「パスのコピー」を選びます。`cd ` に続けて貼り付けます。【要確認:画面の表示】
-   - Mac:`cd ` と入力します。続けて、同じフォルダを画面にドラッグします。【要確認:操作】
+   `cd ` と入力します。続けて、`Assets` の1つ上のフォルダを画面にドラッグします。Enter キーを押します。【要確認:操作】
 
-   Windows の入力例は次のとおりです。`"` は1組だけにします。
+   入力すると、次のような形になります。
 
-   ```powershell
-   cd "C:\Projects\MyGame"
+   ```sh
+   cd /Users/you/Projects/MyGame
    ```
 
 2. Claude Code を起動します。最初の作成には時間がかかるため、待ち時間を10分に延ばします。`600000` はミリ秒で、10分のことです。
-
-   Windows(PowerShell):
-
-   ```powershell
-   $env:MCP_TIMEOUT = "600000"
-   ```
-
-   ```powershell
-   claude
-   ```
-
-   Mac:
 
    ```sh
    MCP_TIMEOUT=600000 claude
@@ -246,18 +221,6 @@ Player.prefab はどこで使われていますか
 **Q. 10分待っても、つながりません。**
 
 先にグラフだけを作ります。Claude Code を終了し、`Assets` フォルダがある場所で、次の2行を順に入力します。
-
-Windows(PowerShell):
-
-```powershell
-$script = (Get-ChildItem "$HOME\.claude\plugins" -Recurse -Filter launch.mjs | Where-Object FullName -like "*unity-guidgraph*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
-```
-
-```powershell
-node $script --update --data-dir "$HOME\.claude\plugins\data\unity-guidgraph-murnana-claude-code-plugin" --project .
-```
-
-Mac:
 
 ```sh
 script=$(find ~/.claude/plugins -name launch.mjs -path '*unity-guidgraph*' -exec ls -t {} + | head -n 1)

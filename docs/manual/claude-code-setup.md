@@ -1,6 +1,6 @@
 # Claude Code セットアップガイド(ソースから)
 
-プログラムのもと(ソース)を取得して組み立て、Claude Code に登録する手順です。開発の知識がある人向けです。通常は[入門マニュアル](getting-started.md)の方法を使ってください。
+プログラムのもと(ソース)を取得して組み立て、Claude Code に登録する手順です。開発の知識がある人向けです。通常は入門マニュアル([Windows 版](getting-started-windows.md) / [macOS 版](getting-started-macos.md))の方法を使ってください。
 
 命令の詳細は [cli.md](cli.md)、機能の仕様は [mcp-server.md](mcp-server.md) にあります。
 
@@ -8,7 +8,7 @@
 
 - **情報の送信**:質問すると、調べた結果(ファイル名、コード内の説明文など)が AI サービスへ送られます。仕事のプロジェクトでは、先に責任者の許可を得てください。
 - 会社や学校のパソコンでは、ソフトを入れる前に管理者の許可を得てください。
-- Claude Code を入れて、ログインしておきます([入門マニュアル](getting-started.md)の手順2から4)。
+- Claude Code を入れて、ログインしておきます(入門マニュアル([Windows 版](getting-started-windows.md) / [macOS 版](getting-started-macos.md))の手順2から4)。
 - Git(ソースを取得するソフト)を入れておきます。
 - 対応する環境は Windows と macOS です。Linux には対応していません。
 

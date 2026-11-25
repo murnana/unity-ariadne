@@ -2,7 +2,7 @@
 
 `serve` コマンドは、グラフ DB を [Model Context Protocol](https://modelcontextprotocol.io)(stdio トランスポート)で公開します。Claude Code などの MCP クライアントから、Unity プロジェクトの参照関係を調べられます。
 
-この文書は、開発の知識がある人向けの仕様です。ここに書くツールは Claude Code が呼び出すもので、利用者は日本語で質問します。初めて使う場合は[入門マニュアル](getting-started.md)を読んでください。
+この文書は、開発の知識がある人向けの仕様です。ここに書くツールは Claude Code が呼び出すもので、利用者は日本語で質問します。初めて使う場合は入門マニュアル([Windows 版](getting-started-windows.md) / [macOS 版](getting-started-macos.md))を読んでください。
 
 **質問すると、調べた結果(ファイル名、コード内の説明文など)が AI サービスへ送られます。仕事のプロジェクトでは、先に責任者の許可を得てください。**
 

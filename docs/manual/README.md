@@ -2,7 +2,7 @@
 
 GuidGraph は、Unity プロジェクトのファイル同士の参照関係を調べるツールです。Unity Editor は使いません。Claude Code につなぐと、「このマテリアルはどこから使われていますか」のように日本語で質問できます。
 
-**初めて使う場合は、[入門マニュアル](getting-started.md)を読んでください。** Claude Code を入れるところから、最初の質問までを説明します。
+**初めて使う場合は、自分のパソコンに合う入門マニュアルを読んでください:[Windows 版](getting-started-windows.md) / [macOS 版](getting-started-macos.md)。** Claude Code を入れるところから、最初の質問までを説明します。
 
 ## このマニュアルの対象
 
@@ -22,7 +22,8 @@ Intel の Mac 向けのインストーラーはありません。**Linux には�
 
 | やりたいこと | 文書 |
 |---|---|
-| 入れて、質問できるようにする | [getting-started.md](getting-started.md) |
+| Windows で入れて、質問できるようにする | [getting-started-windows.md](getting-started-windows.md) |
+| Mac で入れて、質問できるようにする | [getting-started-macos.md](getting-started-macos.md) |
 | 結果に出てこない参照を知る(**ファイルを削除する前に読んでください**) | [limitations.md](limitations.md) |
 
 ## 開発の知識がある人向けの文書
