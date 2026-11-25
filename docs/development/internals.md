@@ -80,7 +80,7 @@ Non-obvious facts about Unity's file formats and about how the analyzer handles 
 - The code layer is never updated per file (type resolution depends on the global type index; Resources/Addressables on global path/key sets). `GraphUpdater` reruns it wholesale when any .cs changed, the asset-path set changed, or an Addressables group changed. ProjectSettings is redone wholesale, keyed on `settings_files`.
 - Removed-but-referenced GUIDs become Unresolved in place; Unresolved/BuiltIn rows without incoming refs are dropped. Renames update the row without re-analysis.
 - **Invariant: update result == fresh full build, row for row** (`GraphUpdaterTests` compares rowid-independent dumps).
-- A db with a different `user_version` (or not SQLite) makes `TryOpenForUpdate` return null → `analyze` rebuilds. `CreateWriter` is one transaction, so a failed update rolls back.
+- A graph db with a different `user_version` makes `TryOpenForUpdate` return null → `analyze` rebuilds. Any other non-empty file (not SQLite, another application's db, locked or corrupt) is refused by `GraphDatabase.CanReplace`, with or without `--full`, because a rebuild deletes the file. "Graph db" means `user_version` > 0 plus the `assets`/`objects`/`refs` tables and both views: a schema change that drops or renames one of them must keep old databases recognised. `CreateWriter` is one transaction, so a failed update rolls back.
 
 ## Claude Code plugin launcher (not part of `guidgraph`)
 

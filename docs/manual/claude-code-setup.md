@@ -52,6 +52,7 @@ dotnet build
 dotnet run --project <guidgraph>/src/Analyzer -- analyze <unity-project> --db <graph.db>
 ```
 
+- `<graph.db>` には、新しいファイル名か、このツールで作った DB を指定してください。それ以外の中身があるファイルを指定すると、ファイルは変更されず、エラーで終了します。
 - 所要時間の目安は中規模プロジェクトで数秒〜十数秒です。最後に `Wrote <graph.db> (N refs)` と出れば成功です。
 - **パッケージ由来の参照(URP、TextMesh Pro 等)まで解決したい場合**は、先に対象プロジェクトを一度 Unity で開いて `Library/PackageCache` を生成しておいてください。なくても動作しますが、パッケージ GUID が Unresolved 扱いになります。
 - `<graph.db>` を Unity プロジェクト内に置く場合は、`.gitignore` への追加をお忘れなく(`graph.db` は再生成可能な成果物です)。Unity に読ませたくない場合は `Assets/` の外に置いてください。
@@ -128,6 +129,7 @@ claude mcp add guidgraph -e DOTNET_ROOT="$HOME/.dotnet" -- \
 | `/mcp` で guidgraph が failed | まず登録したコマンドをそのままターミナルで実行してみてください(stderr にエラーが出ます)。大半は次のどれかです ↓ |
 | `dotnet: command not found` | 登録コマンドの `dotnet` を絶対パスにしてください(手順 1・4) |
 | 起動直後にエラー終了 | `--db` のパス誤りです。サーバーは起動時に DB パスを検証して即エラーになる仕様です。絶対パスで指定し直してください |
+| `analyze` が `not a readable guidgraph database` で終了する | `--db` に、このツールで作ったものではないファイル、または読み取れないファイル(壊れた DB、他のプロセスがロック中の DB)を指定しています。パスを確認してください。壊れた DB を作り直す場合は、そのファイルを自分で削除してから実行します |
 | アセットが `not_found` になる | `analyze` を実行し忘れて DB が古い、または対象プロジェクトが違います。`search_nodes` で部分一致検索して DB の中身を確かめてください |
 | パッケージのアセットが Unresolved | `Library/PackageCache` 未生成が原因です。対象プロジェクトを一度 Unity で開いてから `analyze --full` を実行してください |
 | 参照が「あるはずなのに出ない」 | 仕様上グラフに出ないものがあります。[limitations.md](limitations.md) をご参照ください |
