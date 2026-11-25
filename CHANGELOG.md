@@ -9,7 +9,7 @@
 
 ### Changed
 
-- **破壊的変更**: プロジェクト名を Unity Ariadne から GuidGraph に変更した。実行コマンドは `ariadne` から `guidgraph` に、環境変数は `ARIADNE_FIXTURES` / `ARIADNE_BIN` / `ARIADNE_RETENTION_DAYS` から `GUIDGRAPH_*` に、MCP サーバー名とプラグイン名は `unity-ariadne` から `guidgraph` に、名前空間とプロジェクト名は `UnityAriadne.*` から `GuidGraph.*` になった。スキルのコマンドは `/guidgraph:search-graph` / `/guidgraph:update-graph` になり、プラグインのデータディレクトリも変わるため、`graph.db` は新しい場所で作り直される。Windows インストーラーの UpgradeCode は変えていないため、旧版の上に上書きできる。
+- **破壊的変更**: プロジェクト名を Unity Ariadne から GuidGraph に変更した。実行コマンドは `ariadne` から `guidgraph` に、環境変数は `ARIADNE_FIXTURES` / `ARIADNE_BIN` / `ARIADNE_RETENTION_DAYS` から `GUIDGRAPH_*` に、MCP サーバー名は `unity-ariadne` から `guidgraph` に、プラグイン名は `unity-ariadne` から `unity-guidgraph` に、名前空間とプロジェクト名は `UnityAriadne.*` から `GuidGraph.*` になった。スキルのコマンドは `/unity-guidgraph:search-graph` / `/unity-guidgraph:update-graph` になり、プラグインのデータディレクトリも変わるため、`graph.db` は新しい場所で作り直される。Windows インストーラーの UpgradeCode は変えていないため、旧版の上に上書きできる。
 - Claude Code プラグインの `plugin.json` から `version` を外した。アーリーアクセス版の marketplace が `develop` のコミットに追従できるようにするため。正式版の `version` は外部 marketplace のエントリにだけ書く。`release.yml` の `verify-plugin-version` ジョブは、タグとの一致ではなく `version` が無いことを検証する。
 
 ### Fixed

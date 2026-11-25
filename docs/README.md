@@ -31,7 +31,7 @@ Unityプロジェクト
 |---|---|
 | [manual/claude-code-setup.md](manual/claude-code-setup.md) | チェックアウトから Claude Code で使えるまでの通し手順(SDK 準備 → 解析 → MCP 登録 → 運用) |
 | [manual/cli.md](manual/cli.md) | セットアップと CLI コマンドリファレンス(`analyze` / `report` / `export` / `serve`)、差分更新の仕組み |
-| [manual/mcp-server.md](manual/mcp-server.md) | MCP サーバーのセットアップと 5 ツールのリファレンス、活用パターン |
+| [manual/mcp-server.md](manual/mcp-server.md) | MCP サーバーのセットアップと 11 ツールのリファレンス、活用パターン |
 | [manual/claude-code-plugin.md](manual/claude-code-plugin.md) | Claude Code プラグインで MCP サーバーを自動登録する手順(環境変数の説明を含む) |
 | [manual/schema.md](manual/schema.md) | SQLite スキーマ、ref_kind 一覧、sqlite3 で直接引くクエリ例 |
 | [manual/memory-jsonl.md](manual/memory-jsonl.md) | `export` が書き出す memory.jsonl のフォーマット仕様 |
@@ -45,14 +45,21 @@ Unityプロジェクト
 
 ## 開発記録([development/](development/))
 
-開発者向けの資料です。**残課題は [GitHub Issues](https://github.com/murnana/unity-ariadne/issues) で管理**しています。
+開発者向けの資料です。**残課題は [GitHub Issues](https://github.com/murnana/unity-guidgraph/issues) で管理**しています。
 
 | ドキュメント | 内容 |
 |---|---|
 | [development/internals.md](development/internals.md) | 実装メモ — Unity のファイル形式の癖と、パーサー・差分更新の設計上の事実(英語) |
 | [development/fixtures.md](development/fixtures.md) | テストフィクスチャの用意の仕方(リポジトリには同梱していません) |
-| [development/benchmark.md](development/benchmark.md) | 効果測定 — グラフ有無でのトークン消費比較(84%削減)の方法と全数値 |
+| [development/benchmark.md](development/benchmark.md) | 効果測定の方法と結果 |
 | [development/release.md](development/release.md) | リリース手順 |
+
+## 仕様とテストケース
+
+| ドキュメント | 内容 |
+|---|---|
+| [spec/](spec/README.md) | MCP ツールと graph.db の仕様 |
+| [test-cases/](test-cases/README.md) | MCP ツールのテストケースと、エージェントに聞く比較用の質問 |
 
 ## 関連資料(リポジトリ直下)
 

@@ -9,29 +9,27 @@ namespace GuidGraph.Graph;
 /// <summary>Where a search starts: one named asset, or every asset matching the filters.</summary>
 public sealed record SearchStart
 {
-    [Description("One asset by path, unique file name, or GUID. Mutually exclusive with the filters below")]
+    [Description("One asset (path, unique file name or GUID); exclusive with filters")]
     [JsonPropertyName("asset")]
     public string? Asset { get; init; }
 
-    [Description("Concept keywords (case-insensitive substrings, any language) matched against file names, " +
-                 "folder names, C# type and member names and XML doc comments. Give synonyms in both the " +
-                 "user's language and English, e.g. [\"ボス\", \"boss\"]")]
+    [Description("Concept keywords with synonyms in the user's language and English")]
     [JsonPropertyName("keywords")]
     public string[]? Keywords { get; init; }
 
-    [Description("Require every keyword to hit (default false: any keyword, ranked by how many hit)")]
+    [Description("Require every keyword (default: any, ranked)")]
     [JsonPropertyName("match_all")]
     public bool? MatchAll { get; init; }
 
-    [Description("Asset types to start from, e.g. [\"Script\"] or [\"Scene\"]")]
+    [Description("Start asset types, e.g. [\"Script\"]")]
     [JsonPropertyName("types")]
     public string[]? Types { get; init; }
 
-    [Description("Source to start from: Assets, Packages, PackageCache, ProjectSettings, BuiltIn")]
+    [Description("Assets, Packages, PackageCache, ProjectSettings or BuiltIn")]
     [JsonPropertyName("source")]
     public string? Source { get; init; }
 
-    [Description("Keep only start assets whose path contains any of these (folder or file-name clues), e.g. [\"/UI/\"]")]
+    [Description("Keep starts whose path contains any of these, e.g. [\"/UI/\"]")]
     [JsonPropertyName("path_contains")]
     public string[]? PathContains { get; init; }
 }
@@ -39,28 +37,27 @@ public sealed record SearchStart
 /// <summary>One hop pattern of a search, as clients send it.</summary>
 public sealed record SearchStep
 {
-    [Description("out = to what the asset references (dependencies); in = to what references it; both")]
+    [Description("out = dependencies, in = referrers, both")]
     [JsonPropertyName("direction")]
     public required string Direction { get; init; }
 
-    [Description("Relations (ref kinds) to follow, e.g. [\"inherits\"]. Omit for any relation")]
+    [Description("Ref kinds to follow, e.g. [\"inherits\"]; omit for any")]
     [JsonPropertyName("kinds")]
     public string[]? Kinds { get; init; }
 
-    [Description("Asset types the step must end on, e.g. [\"Prefab\"]. Omit for any type; " +
-                 "intermediate assets of a multi-hop step are not checked")]
+    [Description("Asset types the step must end on, e.g. [\"Prefab\"]")]
     [JsonPropertyName("types")]
     public string[]? Types { get; init; }
 
-    [Description("Follow up to this many hops (default 1, max 10) — e.g. 10 with [inherits] walks the class hierarchy")]
+    [Description("Max hops (default 1, max 10)")]
     [JsonPropertyName("max_hops")]
     public int? MaxHops { get; init; }
 
-    [Description("Also keep the step's own starting assets (zero hops), e.g. 'the class and its subclasses'")]
+    [Description("Also keep the step's starting assets (zero hops)")]
     [JsonPropertyName("include_self")]
     public bool? IncludeSelf { get; init; }
 
-    [Description("Keep only end assets whose path contains any of these, e.g. [\"/Enemies/\"]")]
+    [Description("Keep end assets whose path contains any of these")]
     [JsonPropertyName("path_contains")]
     public string[]? PathContains { get; init; }
 }
@@ -82,6 +79,10 @@ public sealed record SearchQuery
 
     [JsonPropertyName("relax")]
     public bool? Relax { get; init; }
+
+    /// <summary>Set by <see cref="GraphSearch.RunJson"/> when it had to shrink the answer; shown in warnings.</summary>
+    [JsonIgnore]
+    internal string? OutputCapWarning { get; init; }
 }
 
 /// <summary>
@@ -112,8 +113,34 @@ public static class GraphSearch
     };
 
     /// <summary>Runs <paramref name="query"/> and returns the JSON answer (an <c>error</c> object on bad input).</summary>
-    public static string RunJson(GraphDatabase db, SearchQuery query, JsonSerializerOptions? options = null) =>
-        JsonSerializer.Serialize(Run(db, query), options ?? JsonOptions);
+    public static string RunJson(GraphDatabase db, SearchQuery query, JsonSerializerOptions? options = null)
+    {
+        var json = JsonSerializer.Serialize(Run(db, query), options ?? JsonOptions);
+        if (json.Length <= MaxOutputChars)
+        {
+            return json;
+        }
+
+        // An answer past the calling agent's tool-output limit is saved to a file and has to be re-read
+        // piece by piece; fewer matches in the answer are cheaper. Shrink the limit until it fits.
+        var limit = Math.Clamp(query.Limit ?? DefaultLimit, 1, MaxLimit);
+        for (var attempt = 0; attempt < 4 && json.Length > MaxOutputChars && limit > 1; attempt++)
+        {
+            limit = Math.Max(1, (int)(limit * 0.97 * MaxOutputChars / json.Length));
+            var capped = query with
+            {
+                Limit = limit,
+                OutputCapWarning = $"output capped at about {MaxOutputChars / 1000}k characters: showing the first {limit} " +
+                                   "matches; narrow the query (types, path_contains, kinds) or page with a lower limit",
+            };
+            json = JsonSerializer.Serialize(Run(db, capped), options ?? JsonOptions);
+        }
+
+        return json;
+    }
+
+    /// <summary>Answers longer than this are cut down to fewer matches (see <see cref="RunJson"/>).</summary>
+    public const int MaxOutputChars = 48_000;
 
     /// <summary>Runs <paramref name="query"/>; the result is an anonymous object shaped for JSON.</summary>
     public static object Run(GraphDatabase db, SearchQuery query)
@@ -154,6 +181,11 @@ public static class GraphSearch
         var relax = query.Relax ?? true;
         var ontology = GraphQueries.DescribeOntology(db);
         var warnings = UnknownTerms(steps, origin.Types, ontology);
+        if (query.OutputCapWarning is { } capWarning)
+        {
+            warnings.Add(capWarning);
+        }
+
         if (!db.HasCodeSymbols && origin.Keywords is { Length: > 0 })
         {
             warnings.Add("this graph was built by an older guidgraph without C# type names and doc comments; " +
@@ -223,7 +255,10 @@ public static class GraphSearch
         var symbols = GraphQueries.LoadCodeSymbols(db);
         var clueOf = keywordStarts.ToDictionary(k => k.Asset.Guid, StringComparer.Ordinal);
         var usedKinds = new SortedSet<string>(StringComparer.Ordinal);
-        var listed = results.Take(limit).Select(m =>
+        var page = results.Take(limit).ToList();
+        var roles = GraphQueries.PrefabRoles(
+            db, page.Where(m => m.Asset.AssetType == "Prefab").Select(m => m.Asset.Guid).Distinct().ToList());
+        var listed = page.Select(m =>
         {
             foreach (var hop in m.Path)
             {
@@ -240,6 +275,7 @@ public static class GraphSearch
                 Name = m.Asset.Name,
                 Type = m.Asset.AssetType,
                 m.Asset.Source,
+                Role = roles.TryGetValue(m.Asset.Guid, out var role) && role == "wrapper" ? role : null,
                 Path = reached ? FormatPath(m) : null,
                 // Keyword evidence belongs to the asset it was found on: the match itself when
                 // there are no steps, otherwise the start the path came from.
@@ -269,6 +305,9 @@ public static class GraphSearch
                     ? $"A -[{k}]-> B: {meaning.Out}"
                     : $"A -[{k}]-> B"),
             Relaxed = NullIfEmpty(relaxed),
+            Unsupported = NullIfEmpty(
+                starts.Select(a => a.AssetType).Concat(page.Select(m => m.Asset.AssetType))
+                    .Where(t => !OntologyGlossary.IsParsed(t)).Distinct().Order(StringComparer.Ordinal).ToList()),
             Warnings = NullIfEmpty(warnings),
         };
     }
@@ -339,7 +378,7 @@ public static class GraphSearch
         return matches.Where(m => !referenced.Contains(m.Asset.Guid)).ToList();
     }
 
-    private static List<string> UnknownTerms(
+    internal static List<string> UnknownTerms(
         IEnumerable<TraversalStep> steps, IEnumerable<string>? startTypes, Ontology ontology)
     {
         var knownKinds = ontology.Relations.Select(r => r.RefKind).ToHashSet(StringComparer.OrdinalIgnoreCase);

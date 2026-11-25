@@ -1,16 +1,16 @@
 # GuidGraph
 
-[![CI](https://github.com/murnana/unity-ariadne/actions/workflows/ci.yml/badge.svg)](https://github.com/murnana/unity-ariadne/actions/workflows/ci.yml) [![CodeQL](https://github.com/murnana/unity-ariadne/actions/workflows/codeql.yml/badge.svg)](https://github.com/murnana/unity-ariadne/actions/workflows/codeql.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Release](https://img.shields.io/github/v/release/murnana/unity-ariadne)](https://github.com/murnana/unity-ariadne/releases)
+[![CI](https://github.com/murnana/unity-guidgraph/actions/workflows/ci.yml/badge.svg)](https://github.com/murnana/unity-guidgraph/actions/workflows/ci.yml) [![CodeQL](https://github.com/murnana/unity-guidgraph/actions/workflows/codeql.yml/badge.svg)](https://github.com/murnana/unity-guidgraph/actions/workflows/codeql.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Release](https://img.shields.io/github/v/release/murnana/unity-guidgraph)](https://github.com/murnana/unity-guidgraph/releases)
 
 Unityプロジェクトを解析して依存関係グラフをSQLiteに構築するCLIツールです。**Unity Editor不要**で、ファイルを直接パースし、`dotnet run` のみで動きます。
 
-「このアセットを消しても大丈夫?」「このマテリアルを変えたら何が壊れる?」— grepの効かないGUID参照層の問いに、AIエージェント(Claude Code等)が数クエリで答えられるようになります。実測でトークン消費**84%削減**しました([効果測定](docs/development/benchmark.md))。
+「このアセットを消しても大丈夫?」「このマテリアルを変えたら何が壊れる?」— grepの効かないGUID参照層の問いに、AIエージェント(Claude Code等)が数クエリで答えられるようになります。
 
 ## 何を解析するか
 
 - **アセット層**: シーン / プレハブ / マテリアル等のYAML、.meta、ProjectSettings、shadergraph等のJSON埋め込み参照、Addressablesグループ
 - **コード層**: C#をRoslynで構文解析します — 継承、シリアライズフィールド、GetComponent、Resources.Load / Addressables.Loadのリテラルキー等
-- 参照は19種のref_kindに分類され、SQLiteに1参照=1行で入ります(→ [docs/manual/schema.md](docs/manual/schema.md))
+- 参照は18種のref_kindに分類され、SQLiteに1参照=1行で入ります(→ [docs/manual/schema.md](docs/manual/schema.md))
 
 ## 使い方
 
@@ -40,7 +40,7 @@ dotnet run --project src/Analyzer -- serve --db graph.db                      # 
 claude mcp add guidgraph -- dotnet run --project <このリポジトリ>/src/Analyzer -- serve --db <graph.dbのパス>
 ```
 
-ツールは8つあります(`find_references` / `impact_analysis` / `get_neighbors` / `search_nodes` / `list_unresolved` / `search` / `describe_ontology` / `list_folders`)。`search` は、アセットの種類(Scene / Prefab / Script …)と参照の種類(`uses_script` / `inherits` …)の連鎖に、ファイル名・フォルダー名・C# の XML ドキュメントコメントの手がかりを組み合わせたオントロジー検索で、CLI の `search` コマンドからも同じものを使えます。アセット名はプロジェクト相対パス・(一意な)ファイル名・GUIDのいずれでも指定できます。ツール呼び出しごとにDBを読み直すため、`analyze` でグラフを作り直せばサーバー再起動なしで反映されます。詳細は [docs/manual/mcp-server.md](docs/manual/mcp-server.md) をご覧ください。
+ツールは11あります(`find_references` / `impact_analysis` / `get_neighbors` / `search_nodes` / `list_unresolved` / `search` / `describe_ontology` / `list_folders` / `summarize_project` / `expanded_count` / `unreachable`)。`search` は、アセットの種類(Scene / Prefab / Script …)と参照の種類(`uses_script` / `inherits` …)の連鎖に、ファイル名・フォルダー名・C# の XML ドキュメントコメントの手がかりを組み合わせたオントロジー検索で、CLI の `search` コマンドからも同じものを使えます。アセット名はプロジェクト相対パス・(一意な)ファイル名・GUIDのいずれでも指定できます。ツール呼び出しごとにDBを読み直すため、`analyze` でグラフを作り直せばサーバー再起動なしで反映されます。詳細は [docs/manual/mcp-server.md](docs/manual/mcp-server.md) をご覧ください。
 
 ## ドキュメント
 
@@ -48,27 +48,13 @@ claude mcp add guidgraph -- dotnet run --project <このリポジトリ>/src/Ana
 |---|---|
 | [docs/manual/claude-code-setup.md](docs/manual/claude-code-setup.md) | チェックアウトから Claude Code で使えるまでの通し手順 |
 | [docs/manual/cli.md](docs/manual/cli.md) | セットアップとCLIコマンドリファレンス、差分更新の仕組み |
-| [docs/manual/mcp-server.md](docs/manual/mcp-server.md) | MCPサーバーのセットアップと5ツールのリファレンス |
+| [docs/manual/mcp-server.md](docs/manual/mcp-server.md) | MCPサーバーのセットアップとツールのリファレンス |
 | [docs/manual/claude-code-plugin.md](docs/manual/claude-code-plugin.md) | Claude Code プラグインで MCP サーバーを自動登録する手順 |
 | [docs/manual/schema.md](docs/manual/schema.md) | SQLiteスキーマ、ref_kind一覧、sqlite3で直接引くクエリ例 |
 | [docs/manual/memory-jsonl.md](docs/manual/memory-jsonl.md) | `export` が書き出す memory.jsonl のフォーマット仕様 |
 | [docs/manual/limitations.md](docs/manual/limitations.md) | 既知の制約と近似 — 「グラフに出ないもの」の一覧 |
-| [docs/development/benchmark.md](docs/development/benchmark.md) | 効果測定(グラフ有無でのトークン消費比較、84%削減) |
 
 開発者向け: 実装の詳細は [docs/development/internals.md](docs/development/internals.md)、テストフィクスチャの扱いは [docs/development/fixtures.md](docs/development/fixtures.md) をご覧ください。
-
-## 効果測定(要約)
-
-グラフの有無で同一調査タスク3種をClaude Codeに解かせて比較しました(読み取り専用ツール、正答は全条件で一致):
-
-| タスク | 削減率 |
-|---|---:|
-| 影響範囲調査(マテリアルの直接参照元) | **79%** |
-| 未使用アセット探し(未参照プレハブ、15分8秒 → 56秒) | **88%** |
-| 実装箇所特定(コードシンボル — grepで既に最適) | -3% |
-| **合計**(3,555,423 → 563,854 トークン) | **84%** |
-
-グラフは逆依存(「誰がこれを参照しているか」)を問うタスクで圧倒的に効き、コードシンボル検索では効きません。方法・全数値・考察は [docs/development/benchmark.md](docs/development/benchmark.md) をご覧ください。
 
 ## リポジトリ構成
 

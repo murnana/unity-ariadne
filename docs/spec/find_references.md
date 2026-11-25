@@ -1,0 +1,43 @@
+# find_references
+
+アセットを直接参照するアセット（逆依存）を、参照種別と回数つきで返します。
+
+## 引数
+
+| 名前 | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `name` | string | はい | パス、一意のファイル名、または GUID |
+| `summary` | bool | いいえ | true なら種別ごとの件数と上位の参照元を返す（既定 false） |
+| `top` | int | いいえ | summary 時に参照の種類ごとに返すパスの数。1〜20（既定 5） |
+
+## 出力
+
+```json
+{"asset": {...}, "total_referrers": 12,
+ "references": [{"from": "Assets/A.prefab", "kind": "uses_script", "ref_count": 2, "source": "Assets"}],
+ "truncated": true}
+```
+
+- `references` は最大 200 件。`from` は参照元のパス、`ref_count` は同じ種別の参照の数です。
+- 同じ参照元でも種別が違えば別の行になります。
+
+### `summary: true` の出力
+
+```json
+{"asset": {...}, "total_referrers": 24,
+ "by_kind": [{"kind": "generic", "referrers": 12, "refs": 21, "top": ["Assets/A.prefab"]}],
+ "by_type": [{"type": "Prefab", "referrers": 12}]}
+```
+
+- `references` は返しません。`by_kind` は `referrers` の多い順、`by_type` は参照元のアセット種別ごとの件数です。
+- `summary` が false の間は上の出力と同一です。
+
+## エラー
+
+`not_found` / `ambiguous`（共通仕様）。
+
+## 備考
+
+直接参照のみです。間接参照は `impact_analysis` を使います。
+
+`summary` は 1 アセットの内訳用です。多数のアセットについて数や参照元を知りたいときは、アセットごとに呼ばず、`search` の `in` ステップを使います（呼び出しごとに会話全体が読み込まれるため、往復が増えるほど高くつきます）。

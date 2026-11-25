@@ -166,7 +166,7 @@ function main() {
   keepAlive.unref();
 
   // The server inherits stdin/stdout, so the MCP stream does not pass through this process.
-  const server = spawn(guidgraph, ['serve', '--db', dbPath], { stdio: 'inherit' });
+  const server = spawn(guidgraph, ['serve', '--db', dbPath, '--project', projectDir], { stdio: 'inherit' });
   server.on('error', (e) => fail(`cannot run ${guidgraph}: ${e.message}`));
   server.on('exit', (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
   for (const signal of ['SIGINT', 'SIGTERM']) {

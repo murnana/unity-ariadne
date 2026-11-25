@@ -1,5 +1,6 @@
 using System.IO.Pipelines;
 using System.Text.Json;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -20,8 +21,8 @@ public sealed class McpServerTests : IAsyncLifetime
 {
     private static readonly string[] ExpectedToolNames =
     [
-        "describe_ontology", "find_references", "get_neighbors", "impact_analysis", "list_folders",
-        "list_unresolved", "search", "search_nodes",
+        "describe_ontology", "expanded_count", "find_references", "get_neighbors", "impact_analysis",
+        "list_folders", "list_unresolved", "search", "search_nodes", "summarize_project", "unreachable",
     ];
 
     private readonly string _dbPath =
@@ -108,6 +109,63 @@ public sealed class McpServerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task FindReferencesSummaryGroupsByKindAndType()
+    {
+        var result = await CallAsync("find_references", new() { ["name"] = "Sky.mat", ["summary"] = true });
+
+        Assert.Equal(1, result.GetProperty("total_referrers").GetInt32());
+        Assert.False(result.TryGetProperty("references", out _));
+        var kind = Assert.Single(result.GetProperty("by_kind").EnumerateArray());
+        Assert.Equal("generic", kind.GetProperty("kind").GetString());
+        Assert.Equal(1, kind.GetProperty("referrers").GetInt32());
+        Assert.Equal(["Assets/Prefabs/Hero.prefab"], kind.GetProperty("top").EnumerateArray().Select(t => t.GetString()));
+        var type = Assert.Single(result.GetProperty("by_type").EnumerateArray());
+        Assert.Equal("Prefab", type.GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task AnswersCarryAnalyzedAtWithoutStaleWhenProjectUnknown()
+    {
+        var result = await CallAsync("find_references", new() { ["name"] = "Sky.mat" });
+
+        var meta = result.GetProperty("meta");
+        Assert.Matches(@"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$", meta.GetProperty("analyzed_at").GetString());
+        Assert.False(meta.TryGetProperty("stale", out _));
+    }
+
+    [Fact]
+    public async Task SummarizeProjectListsScenesFoldersAndScripts()
+    {
+        var result = await CallAsync("summarize_project", new());
+
+        Assert.Equal(["Assets/Scenes/Main.unity"], result.GetProperty("scenes").EnumerateArray().Select(s => s.GetString()));
+        Assert.Contains(
+            result.GetProperty("folders").EnumerateArray(),
+            f => f.GetProperty("path").GetString() == "Assets/Prefabs");
+        Assert.Equal(0, result.GetProperty("scripts").GetProperty("assets").GetInt32());
+        Assert.False(result.TryGetProperty("readme", out _));
+        Assert.False(result.TryGetProperty("scenes_truncated", out _));
+    }
+
+    [Fact]
+    public async Task SummarizeProjectShrinksToMaxCharsAndFlagsTruncation()
+    {
+        var result = await CallAsync("summarize_project", new() { ["max_chars"] = 200, ["scene_limit"] = 0 });
+
+        Assert.True(result.GetProperty("scenes_truncated").GetBoolean());
+        Assert.Empty(result.GetProperty("scenes").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task FindReferencesDefaultOutputUnchangedWithoutSummary()
+    {
+        var result = await CallAsync("find_references", new() { ["name"] = "Sky.mat", ["summary"] = false });
+
+        Assert.True(result.TryGetProperty("references", out _));
+        Assert.False(result.TryGetProperty("by_kind", out _));
+    }
+
+    [Fact]
     public async Task ImpactAnalysisRoundTripsOverMcp()
     {
         var result = await CallAsync("impact_analysis", new() { ["name"] = "Sky.mat", ["depth"] = 5 });
@@ -124,6 +182,16 @@ public sealed class McpServerTests : IAsyncLifetime
     {
         var result = await CallAsync("find_references", new() { ["name"] = "Missing.mat" });
         Assert.Equal("not_found", result.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task ListUnresolvedClampsLimitButKeepsTotal()
+    {
+        var result = await CallAsync("list_unresolved", new() { ["limit"] = 0 });
+
+        Assert.Equal(1, result.GetProperty("total_unresolved").GetInt32());
+        Assert.Single(result.GetProperty("unresolved").EnumerateArray());
+        Assert.False(result.TryGetProperty("truncated", out _));
     }
 
     [Fact]
@@ -260,6 +328,24 @@ public sealed class McpServerTests : IAsyncLifetime
         });
         Assert.Equal("ＨＥＲＯ → file name: Hero.prefab",
             Assert.Single(result.GetProperty("matches").EnumerateArray()).GetProperty("clues")[0].GetString());
+    }
+
+    [Fact]
+    public async Task ExpandedCountAsksForReanalyzeOnADbWithoutPlacements()
+    {
+        // What a schema v3 database lacks; the tools re-open the file on every call.
+        using (var connection = new SqliteConnection($"Data Source={_dbPath};Pooling=False"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "DROP TABLE placements; DROP TABLE placement_removals";
+            command.ExecuteNonQuery();
+        }
+
+        var result = await CallAsync("expanded_count", new() { ["asset"] = "Sky.mat", ["scene"] = "Main.unity" });
+
+        Assert.Equal("outdated_db", result.GetProperty("error").GetString());
+        Assert.Contains("analyze", result.GetProperty("hint").GetString());
     }
 
     private async Task<JsonElement> CallAsync(string tool, Dictionary<string, object?> arguments)

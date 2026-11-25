@@ -1,28 +1,27 @@
 # CLI リファレンス
 
+命令を入力して GuidGraph を使う方法です。開発の知識がある人向けです。初めて使う場合は入門マニュアル([Windows 版](getting-started-windows.md) / [macOS 版](getting-started-macos.md))を読んでください。
+
 ## セットアップ
 
 ### 必要なもの
 
-- **.NET 10 SDK** が必要です。`dotnet` が PATH にない場合:
-
-  ```sh
-  export PATH="$HOME/.dotnet:$PATH"
-  ```
-
+- インストーラーで入れた `guidgraph`、またはソースと **.NET 10 SDK** が必要です。ソースの取得と SDK の準備は [claude-code-setup.md](claude-code-setup.md) の手順1と2を見てください。
 - 解析対象は **Assets/ ディレクトリを持つ Unity プロジェクト**である必要があります(なければ `analyze` はエラーで終了します)。
-- Unity 側の Asset Serialization は **Force Text** を推奨します。バイナリシリアライズされたアセットの中身は解析できません([limitations.md](limitations.md) 参照)。
+- Unity 側の Asset Serialization は **Force Text** を推奨します。Force Text でないアセットの中身は調べられません([limitations.md](limitations.md) 参照)。
 - パッケージ由来の GUID(URP、TextMesh Pro など)まで解決したい場合は、対象プロジェクトを一度 Unity で開いて `Library/PackageCache` を生成しておいてください。なくても動作しますが、パッケージ GUID が Unresolved 扱いになります。
 
-### ビルドと実行
+### 命令の実行のしかた
+
+この文書の例は、インストーラーで入れた `guidgraph` を使います。
+
+ソースから使う場合は、ソースのフォルダに移動し、例の `guidgraph` を `dotnet run --project src/Analyzer --` に置き換えます。
 
 ```sh
-dotnet build          # ビルドのみ
-dotnet test           # テスト実行
-dotnet run --project src/Analyzer -- <command> ...
+dotnet run --project src/Analyzer -- analyze "<Unity プロジェクト>" --db graph.db
 ```
 
-以降のコマンド例では `dotnet run --project src/Analyzer --` を省略して記載します。
+`<` と `>` で囲んだ部分は、記号ごと自分の場所に置き換えます。`[ ]` の中は省略できます。`|` は、どちらか一方を指定する意味です。どちらの記号も入力しません。
 
 ## コマンド一覧
 
@@ -30,7 +29,7 @@ dotnet run --project src/Analyzer -- <command> ...
 analyze <unity-project-path> [--db <path>] [--full]
 report  --db <path>
 export  --db <path> --jsonl <path> [--include-packages]
-serve   --db <path>
+serve   --db <path> [--project <unity-project-path>]
 search  --db <path> (--query <json> | --query-file <path or ->)
 ```
 
@@ -38,18 +37,20 @@ search  --db <path> (--query <json> | --query-file <path or ->)
 
 ## analyze — グラフの構築・更新
 
-```sh
-analyze <unity-project-path> --db graph.db
-```
+Unity プロジェクトを調べて、参照関係のグラフを SQLite のファイルに書き込みます。
 
-Unity プロジェクトを 1 パスで解析し、依存関係グラフを SQLite に書き込みます。
+**`--db` には、新しいファイル名、空のファイル、またはこのツールで作ったグラフを指定します。**
+
+```sh
+guidgraph analyze "<Unity プロジェクト>" --db graph.db
+```
 
 | オプション | 意味 |
 |---|---|
-| `--db <path>` | 出力先の SQLite ファイル。**省略すると in-memory で解析してサマリーだけ表示します**(ファイルは作られません。ドライラン用途) |
+| `--db <path>` | 出力先の SQLite ファイル。**省略すると、ファイルを作らずに結果の要約だけを表示します**(試しに実行するときに使います) |
 | `--full` | 既存 DB があっても差分更新せず、削除してフル再構築します |
 
-`--db` には、新しいパス、空のファイル、またはこのツールで作った DB を指定します。それ以外のファイル(ほかのアプリの SQLite データベース、読み取れない DB を含む)を指定すると、`--full` の有無にかかわらず、ファイルを変更せずにエラー(終了コード 1)で終わります。別のパスを指定するか、不要なファイルであれば自分で削除してから実行し直してください。
+それ以外の中身があるファイルは変更せず、エラー(終了コード 1)で終わります。`--full` を付けても同じです。ほかのアプリの SQLite データベースや、読み取れないグラフも同じ扱いです。別の場所を指定するか、不要なファイルであれば自分で削除してから実行します。
 
 ### 差分更新(インクリメンタル更新)
 
@@ -57,12 +58,15 @@ Unity プロジェクトを 1 パスで解析し、依存関係グラフを SQLi
 
 - ファイルごとのコンテンツハッシュ(SHA-256)で追加 / 変更 / 移動 / 削除を検出し、**変更のあったファイルだけ再解析**します。
 - ハッシュは「解析が実際に読むバイト列」だけを対象にします。テクスチャなどバイナリ本体の編集はハッシュを変えません(.meta しか参照を持たないため、これは正しい挙動です)。
-- **コード層(C# 由来の参照)はファイル単位では更新されません**。型解決がプロジェクト全体の宣言型インデックスに依存するため、.cs が 1 つでも増減・変更されるか、アセットパス集合が変わる(何かの追加 / 削除 / リネーム)と、コード層全体を再解析します。出力の `Code layer: re-analyzed (global resolution)` がその印です。
+- **C# の参照(コード層)は、ファイル単位では更新しません**。型の判定に、プロジェクト全体の情報を使うためです。
+  - .cs が1つでも追加、削除、変更されると、全体を調べ直します。
+  - ファイルの追加、削除、名前の変更があった場合も同じです。
+  - 調べ直すと `Code layer: re-analyzed (global resolution)` と表示されます。
 - ProjectSettings は変更があれば全体を再解析します(約 10 ファイルなので安価です)。
-- **更新結果はフル再構築と行単位で一致する**ことがテストで保証されています。結果を信用してかまいません。
-- このツールで作った、スキーマバージョンが異なる DB を指定した場合は、確認なしで削除してフル再構築します。
+- 差分更新と全体の作り直しで、結果が同じになることをテストで確認しています。
+- このツールで作った古い形式のグラフを指定した場合は、確認なしで削除して作り直します。
 
-目安(フィクスチャ: 14,559 GUID、PackageCache 込み): フル構築 約 8 秒 → 変更なし更新 約 2.4 秒、コード層再解析あり 約 4 秒です。
+参考値(テスト用のプロジェクト、14,559 GUID、PackageCache を含む)は次のとおりです。全体の作成が約8秒、変更なしの更新が約2.4秒、C# の調べ直しがある更新が約4秒です。時間はプロジェクトとパソコンで変わります。
 
 ### 出力の読み方
 
@@ -85,17 +89,17 @@ Unresolved GUIDs: 83 (details: report --db graph.db)
 Wrote graph.db (86729 refs)
 ```
 
-`Unresolved GUIDs` は「参照されているが該当アセットが存在しない GUID」を指します。削除済みアセットへの参照切れ、または PackageCache 未生成によるパッケージ GUID 未解決のいずれかです。詳細は `report` でご確認ください。
+`Unresolved GUIDs` は「参照されているが該当アセットが存在しない GUID」を指します。削除済みアセットへの参照切れ、または PackageCache 未生成によるパッケージ GUID 未解決のいずれかです。詳細は `report` で確認してください。まず対象を Unity で一度開き、`analyze` に `--full` を付けて実行します。残ったものは、表示される参照元を Unity で確認します。
 
 ---
 
 ## report — 参照切れ GUID の一覧
 
 ```sh
-report --db graph.db
+guidgraph report --db graph.db
 ```
 
-未解決 GUID を参照数の多い順に、参照元アセットのサンプルパス付きで列挙します。プロジェクトの参照切れ(dangling reference)の棚卸しにお使いください。
+未解決 GUID を参照数の多い順に、参照元アセットのサンプルパス付きで列挙します。プロジェクトの参照切れを調べるときに使います。
 
 ```
 Unresolved GUIDs: 83
@@ -108,8 +112,10 @@ Unresolved GUIDs: 83
 
 ## export — memory.jsonl の書き出し
 
+**`--jsonl` には新しいファイル名を指定します。同じ名前のファイルがあると、確認なしで上書きします。**
+
 ```sh
-export --db graph.db --jsonl out.jsonl [--include-packages]
+guidgraph export --db graph.db --jsonl out.jsonl
 ```
 
 グラフをアセット単位に集約し、MCP memory サーバー(`@modelcontextprotocol/server-memory`)互換の JSONL に書き出します。フォーマットの詳細は [memory-jsonl.md](memory-jsonl.md) をご覧ください。
@@ -117,17 +123,21 @@ export --db graph.db --jsonl out.jsonl [--include-packages]
 | オプション | 意味 |
 |---|---|
 | `--jsonl <path>` | 出力先(必須) |
-| `--include-packages` | PackageCache 由来のノードとエッジも全部出力します。デフォルトでは PackageCache アセットは「Assets 側から参照されているターゲット」としてのみ現れます |
+| `--include-packages` | PackageCache 由来のノードとエッジも全部出力します。指定しない場合、PackageCache アセットは「Assets 側から参照されているターゲット」としてのみ現れます |
 
 ---
 
 ## serve — MCP サーバー(stdio)
 
+AI のツールにつなぐと、調べた結果(ファイル名、コード内の説明文など)が AI サービスへ送られます。仕事のプロジェクトでは、先に責任者の許可を得てください。
+
 ```sh
-serve --db graph.db
+guidgraph serve --db graph.db --project "<Unity プロジェクト>"
 ```
 
-グラフ DB を MCP(stdio)で公開します。起動時に DB を 1 回開いてパスを検証し、以降は**ツール呼び出しごとに読み取り専用で開き直す**ため、サーバーを起動したまま別ターミナルで `analyze` を実行すればグラフの更新が即座に反映されます。再起動は不要です。
+`serve` は接続を待ち続ける命令です。画面が止まって見えても正常です。Ctrl キーを押しながら C キーを押すと止まります。Claude Code に登録した場合は、Claude Code が自動で実行します。
+
+グラフ DB を MCP(stdio)で公開します。`--project` は省略できます。指定すると、各応答の `meta` に、グラフが古いかどうか(`stale`)が載ります([mcp-server.md](mcp-server.md) の「グラフの鮮度」を参照)。起動時に DB を 1 回開いてパスを検証し、以降は**ツール呼び出しごとに読み取り専用で開き直す**ため、サーバーを起動したまま別ターミナルで `analyze` を実行すればグラフの更新が即座に反映されます。再起動は不要です。
 
 セットアップとツールの詳細は [mcp-server.md](mcp-server.md) をご覧ください。
 
@@ -135,11 +145,23 @@ serve --db graph.db
 
 ## search — オントロジー検索
 
-```sh
-search --db graph.db --query '{"from": {"keywords": ["ボス", "boss"], "types": ["Script"]}, "steps": [{"direction": "in", "kinds": ["uses_script"], "types": ["Prefab"]}]}'
-search --db graph.db --query-file query.json
-echo '{"from": {"types": ["Prefab"], "source": "Assets"}, "unreferenced": true}' | search --db graph.db --query-file -
+条件を JSON で書いて指定します。PowerShell では、次の内容を `query.json` に UTF-8 で保存して使います。
+
+```json
+{"from": {"types": ["Prefab"], "source": "Assets"}, "unreferenced": true}
 ```
+
+```sh
+guidgraph search --db graph.db --query-file query.json
+```
+
+macOS では、命令に直接書くこともできます。
+
+```sh
+guidgraph search --db graph.db --query '{"from": {"keywords": ["ボス", "boss"], "types": ["Script"]}, "steps": [{"direction": "in", "kinds": ["uses_script"], "types": ["Prefab"]}]}'
+```
+
+上の `query.json` の例は、どこからも参照されていないプレハブを探します。結果に出ても、削除してよいとは限りません([limitations.md](limitations.md))。
 
 MCP の `search` ツールと**同じ機能**を CLI から使います。クエリは MCP ツールの引数と同じ形の JSON(`from` / `steps` / `unreferenced` / `limit` / `relax`)で、出力も同じ JSON(人が読みやすいよう字下げ付き、UTF-8)です。クエリと結果の詳細は [mcp-server.md の search](mcp-server.md#search--オントロジー検索種類関係名前意味) をご覧ください。
 
@@ -152,20 +174,33 @@ MCP の `search` ツールと**同じ機能**を CLI から使います。クエ
 
 ## 典型的なワークフロー
 
-```sh
-# 1. 初回: グラフを構築
-analyze ~/MyUnityProject --db graph.db
+1. グラフを作ります。
 
-# 2. 参照切れを確認
-report --db graph.db
+   ```sh
+   guidgraph analyze "<Unity プロジェクト>" --db graph.db
+   ```
 
-# 3. AI エージェントに公開(どちらか)
-serve --db graph.db                          # MCP サーバー
-export --db graph.db --jsonl memory.jsonl    # memory サーバー用 JSONL
+2. 参照切れを確認します。
 
-# 4. プロジェクトを編集したら差分更新(数秒)
-analyze ~/MyUnityProject --db graph.db
-```
+   ```sh
+   guidgraph report --db graph.db
+   ```
+
+3. 使い方に合わせて、次のどちらか一方を実行します。
+
+   AI のツールから調べる場合:
+
+   ```sh
+   guidgraph serve --db graph.db
+   ```
+
+   memory サーバー用のファイルを書き出す場合:
+
+   ```sh
+   guidgraph export --db graph.db --jsonl memory.jsonl
+   ```
+
+4. プロジェクトを編集したら、手順1の命令をもう一度実行します。変更分だけを更新します。
 
 ---
 

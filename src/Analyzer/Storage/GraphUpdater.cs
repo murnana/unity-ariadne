@@ -170,6 +170,7 @@ public static class GraphUpdater
         }
 
         writer.DeleteUnreferencedTargets();
+        writer.RebuildPlacements();
         writer.Commit();
         return summary;
     }

@@ -161,6 +161,168 @@ public static class GraphQueries
             name);
     }
 
+    /// <summary>
+    /// Role of each prefab among <paramref name="guids"/>: "wrapper" = it contains at least one nested
+    /// PrefabInstance (class 1001) and nothing of its own beyond GameObjects and Transforms (stripped
+    /// placeholders of the nested prefabs do not count); "leaf" = anything else. Non-prefab guids are absent.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> PrefabRoles(GraphDatabase db, IReadOnlyCollection<string> guids)
+    {
+        var roles = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (guids.Count == 0)
+        {
+            return roles;
+        }
+
+        using var command = db.Connection.CreateCommand();
+        var names = guids.Select((_, i) => $"$g{i}").ToList();
+        command.CommandText =
+            $"""
+            SELECT a.guid,
+                   SUM(o.class_id = 1001),
+                   SUM(o.class_id NOT IN (1, 4, 224, 1001) AND o.is_stripped = 0)
+            FROM assets a JOIN objects o ON o.asset_id = a.id
+            WHERE a.asset_type = 'Prefab' AND a.guid IN ({string.Join(",", names)})
+            GROUP BY a.guid
+            """;
+        var index = 0;
+        foreach (var guid in guids)
+        {
+            command.Parameters.AddWithValue(names[index++], guid);
+        }
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var nested = reader.GetInt64(1);
+            var own = reader.GetInt64(2);
+            roles[reader.GetString(0)] = nested > 0 && own == 0 ? "wrapper" : "leaf";
+        }
+
+        return roles;
+    }
+
+    /// <summary>A guess at which package an unresolved GUID belongs to, and what the guess rests on.</summary>
+    public sealed record PackageHint(IReadOnlyList<string> PackageCandidates, string Basis);
+
+    private const int MaxPackageCandidates = 3;
+
+    /// <summary>
+    /// Where an unresolved GUID might live, or null when nothing points anywhere. Two bases, tried in order:
+    /// "referrer_package" — referrers that sit inside packages (the GUID was probably in that package or one it
+    /// depends on); "referrer_dependencies" — referrers in Assets/ that also use assets of some packages, which are
+    /// the likeliest owners of what is missing. Only a guess: the packages named are not verified to contain it.
+    /// </summary>
+    public static PackageHint? HintForUnresolved(GraphDatabase db, string guid)
+    {
+        var own = PackageCounts(db,
+            """
+            SELECT DISTINCT ref.path
+            FROM refs r JOIN objects o ON o.id = r.from_object_id JOIN assets ref ON ref.id = o.asset_id
+            WHERE r.to_guid = $guid AND ref.path IS NOT NULL
+            """, guid);
+        if (own.Count > 0)
+        {
+            return new PackageHint(own, "referrer_package");
+        }
+
+        var used = PackageCounts(db,
+            """
+            SELECT target.path
+            FROM refs r JOIN objects o ON o.id = r.from_object_id
+            JOIN assets target ON target.guid = r.to_guid
+            WHERE target.path IS NOT NULL AND o.asset_id IN (
+                SELECT o2.asset_id FROM refs r2 JOIN objects o2 ON o2.id = r2.from_object_id WHERE r2.to_guid = $guid)
+            """, guid);
+        return used.Count > 0 ? new PackageHint(used, "referrer_dependencies") : null;
+    }
+
+    /// <summary>Package names (Packages/name or Library/PackageCache/name@hash) of the paths a query returns, most frequent first.</summary>
+    private static List<string> PackageCounts(GraphDatabase db, string sql, string guid)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        using var command = db.Connection.CreateCommand();
+        command.CommandText = sql;
+        command.Parameters.AddWithValue("$guid", guid);
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var package = PackageNameOf(reader.GetString(0));
+            if (package is not null)
+            {
+                counts[package] = counts.GetValueOrDefault(package) + 1;
+            }
+        }
+
+        return counts
+            .OrderByDescending(c => c.Value).ThenBy(c => c.Key, StringComparer.Ordinal)
+            .Take(MaxPackageCandidates).Select(c => c.Key).ToList();
+    }
+
+    /// <summary>"com.unity.ugui" for Packages/com.unity.ugui/... or Library/PackageCache/com.unity.ugui@abc/...; null otherwise.</summary>
+    public static string? PackageNameOf(string path)
+    {
+        const string cache = "Library/PackageCache/";
+        const string embedded = "Packages/";
+        var rest = path.StartsWith(cache, StringComparison.Ordinal) ? path[cache.Length..]
+            : path.StartsWith(embedded, StringComparison.Ordinal) ? path[embedded.Length..]
+            : null;
+        if (rest is null)
+        {
+            return null;
+        }
+
+        var name = rest.Split('/')[0];
+        var at = name.IndexOf('@');
+        return at > 0 ? name[..at] : name;
+    }
+
+    /// <summary>Number of assets of <paramref name="assetType"/> whose source is any of <paramref name="sources"/>.</summary>
+    public static long CountAssets(GraphDatabase db, string assetType, params string[] sources)
+    {
+        using var command = db.Connection.CreateCommand();
+        var placeholders = string.Join(",", sources.Select((_, i) => $"$s{i}"));
+        command.CommandText =
+            $"SELECT COUNT(*) FROM assets WHERE asset_type = $type AND source IN ({placeholders})";
+        command.Parameters.AddWithValue("$type", assetType);
+        for (var i = 0; i < sources.Length; i++)
+        {
+            command.Parameters.AddWithValue($"$s{i}", sources[i]);
+        }
+
+        return Convert.ToInt64(command.ExecuteScalar());
+    }
+
+    /// <summary>
+    /// Scenes of the build settings (EditorBuildSettings m_Scenes) in build order. The enabled flag is
+    /// not stored in the graph, so disabled entries are listed too. Unresolved scenes are skipped.
+    /// </summary>
+    public static IReadOnlyList<string> BuildSceneOrder(GraphDatabase db)
+    {
+        var scenes = new List<(int Index, string Path)>();
+        using var command = db.Connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT DISTINCT r.property_path, a.path
+            FROM refs r JOIN assets a ON a.guid = r.to_guid
+            WHERE r.ref_kind = 'build_settings' AND r.property_path LIKE 'm\_Scenes[%' ESCAPE '\'
+              AND a.path IS NOT NULL
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var property = reader.GetString(0);
+            var open = property.IndexOf('[');
+            var close = property.IndexOf(']');
+            if (open >= 0 && close > open && int.TryParse(property[(open + 1)..close], out var index))
+            {
+                scenes.Add((index, reader.GetString(1)));
+            }
+        }
+
+        return scenes.OrderBy(s => s.Index).Select(s => s.Path).ToList();
+    }
+
     /// <summary>All assets that directly reference <paramref name="guid"/>, most refs first.</summary>
     public static IReadOnlyList<IncomingReference> FindReferences(GraphDatabase db, string guid)
     {
@@ -843,7 +1005,7 @@ public static class GraphQueries
             .ToList();
     }
 
-    private static (Dictionary<string, AssetNode> Assets, List<(string From, string To, string Kind)> Edges)
+    internal static (Dictionary<string, AssetNode> Assets, List<(string From, string To, string Kind)> Edges)
         LoadTypedGraph(GraphDatabase db)
     {
         var assets = new Dictionary<string, AssetNode>(StringComparer.Ordinal);

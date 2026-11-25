@@ -87,6 +87,18 @@ public static class OntologyGlossary
         ("Folder", ["Folder"]),
         ("Unresolved", ["Unknown"]));
 
+    /// <summary>
+    /// Asset types whose files are binary formats the analyzer never opens: all their edges come from the
+    /// .meta side only (TerrainData additionally hides its terrain-layer and tree references, LightingData
+    /// its lightmap references). Text formats that merely carry no GUID references are not listed.
+    /// </summary>
+    public static IReadOnlySet<string> BodyNotParsedTypes { get; } = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "Texture", "Model", "SpeedTree", "AudioClip", "VideoClip", "Font", "TerrainData", "Assembly",
+    };
+
+    public static bool IsParsed(string assetType) => !BodyNotParsedTypes.Contains(assetType);
+
     public static string CategoryOf(string assetType) =>
         TypeCategories.TryGetValue(assetType, out var category) ? category : "Other";
 
