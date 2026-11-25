@@ -58,6 +58,15 @@ static int Analyze(string[] args)
         return 1;
     }
 
+    // A full rebuild deletes the --db file, so a mistyped path must not cost the user a file.
+    if (dbPath is not null && !GraphDatabase.CanReplace(dbPath))
+    {
+        Console.Error.WriteLine(
+            $"error: '{dbPath}' exists and is not a readable guidgraph database; it was left untouched. " +
+            "Choose another --db path, or delete the file yourself if you no longer need it.");
+        return 1;
+    }
+
     var dictionary = UnityProjectScanner.Scan(projectPath);
 
     // Phase 4b: an existing database is updated in place (only changed files are
