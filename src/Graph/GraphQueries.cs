@@ -1005,7 +1005,7 @@ public static class GraphQueries
             .ToList();
     }
 
-    private static (Dictionary<string, AssetNode> Assets, List<(string From, string To, string Kind)> Edges)
+    internal static (Dictionary<string, AssetNode> Assets, List<(string From, string To, string Kind)> Edges)
         LoadTypedGraph(GraphDatabase db)
     {
         var assets = new Dictionary<string, AssetNode>(StringComparer.Ordinal);

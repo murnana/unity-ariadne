@@ -40,7 +40,7 @@ dotnet run --project src/Analyzer -- serve --db graph.db                      # 
 claude mcp add guidgraph -- dotnet run --project <このリポジトリ>/src/Analyzer -- serve --db <graph.dbのパス>
 ```
 
-ツールは8つあります(`find_references` / `impact_analysis` / `get_neighbors` / `search_nodes` / `list_unresolved` / `search` / `describe_ontology` / `list_folders`)。`search` は、アセットの種類(Scene / Prefab / Script …)と参照の種類(`uses_script` / `inherits` …)の連鎖に、ファイル名・フォルダー名・C# の XML ドキュメントコメントの手がかりを組み合わせたオントロジー検索で、CLI の `search` コマンドからも同じものを使えます。アセット名はプロジェクト相対パス・(一意な)ファイル名・GUIDのいずれでも指定できます。ツール呼び出しごとにDBを読み直すため、`analyze` でグラフを作り直せばサーバー再起動なしで反映されます。詳細は [docs/manual/mcp-server.md](docs/manual/mcp-server.md) をご覧ください。
+ツールは11あります(`find_references` / `impact_analysis` / `get_neighbors` / `search_nodes` / `list_unresolved` / `search` / `describe_ontology` / `list_folders` / `summarize_project` / `expanded_count` / `unreachable`)。`search` は、アセットの種類(Scene / Prefab / Script …)と参照の種類(`uses_script` / `inherits` …)の連鎖に、ファイル名・フォルダー名・C# の XML ドキュメントコメントの手がかりを組み合わせたオントロジー検索で、CLI の `search` コマンドからも同じものを使えます。アセット名はプロジェクト相対パス・(一意な)ファイル名・GUIDのいずれでも指定できます。ツール呼び出しごとにDBを読み直すため、`analyze` でグラフを作り直せばサーバー再起動なしで反映されます。詳細は [docs/manual/mcp-server.md](docs/manual/mcp-server.md) をご覧ください。
 
 ## ドキュメント
 
@@ -48,7 +48,7 @@ claude mcp add guidgraph -- dotnet run --project <このリポジトリ>/src/Ana
 |---|---|
 | [docs/manual/claude-code-setup.md](docs/manual/claude-code-setup.md) | チェックアウトから Claude Code で使えるまでの通し手順 |
 | [docs/manual/cli.md](docs/manual/cli.md) | セットアップとCLIコマンドリファレンス、差分更新の仕組み |
-| [docs/manual/mcp-server.md](docs/manual/mcp-server.md) | MCPサーバーのセットアップと5ツールのリファレンス |
+| [docs/manual/mcp-server.md](docs/manual/mcp-server.md) | MCPサーバーのセットアップとツールのリファレンス |
 | [docs/manual/claude-code-plugin.md](docs/manual/claude-code-plugin.md) | Claude Code プラグインで MCP サーバーを自動登録する手順 |
 | [docs/manual/schema.md](docs/manual/schema.md) | SQLiteスキーマ、ref_kind一覧、sqlite3で直接引くクエリ例 |
 | [docs/manual/memory-jsonl.md](docs/manual/memory-jsonl.md) | `export` が書き出す memory.jsonl のフォーマット仕様 |

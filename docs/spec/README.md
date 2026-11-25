@@ -25,7 +25,7 @@
 - [list_unresolved](list_unresolved.md)
 - [summarize_project](summarize_project.md)
 - [expanded_count](expanded_count.md)
-- [unreachable](unreachable.md)（提案）
+- [unreachable](unreachable.md)
 
 ## 新機能（提案。未実装）
 

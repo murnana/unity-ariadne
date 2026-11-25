@@ -6,7 +6,7 @@ AI エージェント（Claude Code）に実際に聞く質問です。グラフ
 
 | ID | 分類 | 質問 | 期待する答え | 主に使うツール |
 |---|---|---|---|---|
-| AQ-01 | 全プレハブ横断 | Assets/ 以下のプレハブのうち、どのシーンからも入れ子（プレハブの中のプレハブ）を含めて使われていないものを列挙してください。 | 5 件: `Grass_A_A` / `Grass_A_B` / `Grass_A_C`（Assets/Art/Meshes/Scatter/Grass_A/）、`Terrain_Rivers`（Assets/Art/Prefabs/Compositions/）、`Preset_House_02_B`（Assets/Art/Prefabs/Houses/）。Assets/ のプレハブ 141 件のうち、シーンから到達できるのは 136 件 | `search`（シーンから Prefab へ `out` を最大 10 段） |
+| AQ-01 | 全プレハブ横断 | Assets/ 以下のプレハブのうち、どのシーンからも入れ子（プレハブの中のプレハブ）を含めて使われていないものを列挙してください。 | 5 件: `Grass_A_A` / `Grass_A_B` / `Grass_A_C`（Assets/Art/Meshes/Scatter/Grass_A/）、`Terrain_Rivers`（Assets/Art/Prefabs/Compositions/）、`Preset_House_02_B`（Assets/Art/Prefabs/Houses/）。Assets/ のプレハブ 141 件のうち、シーンから到達できるのは 136 件 | `unreachable`（既定の引数） |
 | AQ-02 | プロジェクト概要 | このプロジェクトの構成（フォルダごとの資産の種類、シーン、主要スクリプトの役割）を概要としてまとめてください。 | シーンは Demo / Loader / VFXTestScene の 3 つ。ビルド順は Loader → Demo。フォルダごとの種類（Art に Model・Prefab・Texture など）を挙げる。スクリプトの役割は名前からの推定と分かる書き方にする | `summarize_project`、`list_folders` |
 | AQ-03 | 特定対象の起点 | Atlas_Mat.mat を参照しているアセットを、種別ごとの件数とあわせて挙げてください。 | 24 件: Prefab 12 件（Assets/Art/Prefabs/Foliage/Trees and Bushes/）、`.st9`（SpeedTree）の `.meta` 経由 12 件（Meshes 側 11、Textures 側 1） | `find_references`（`summary`） |
 | AQ-04 | 特定対象の起点 | RuntimeLoader.cs を使っているシーンやプレハブと、その役割を教えてください。 | 使っている側と、スクリプトの役割（起動時にシーンを読み込む等）を、グラフの参照とコードの内容から説明する | `find_references`、`search` |
@@ -15,7 +15,7 @@ AI エージェント（Claude Code）に実際に聞く質問です。グラフ
 ## 確かめること
 
 - 回答が期待する答えと一致する（AQ-02・AQ-04 は事実の食い違いがないこと）。
-- AQ-01・AQ-05 のように多数の対象を扱う質問で、対象ごとにツールを呼び直さず、1〜2 回の `search` で済んでいる。
+- AQ-01・AQ-05 のように多数の対象を扱う質問で、対象ごとにツールを呼び直さず、1〜2 回の呼び出し（AQ-01 は `unreachable`、AQ-05 は `search`）で済んでいる。
 - ツールの結果が呼び出し側の出力上限を超えて、ファイルへ退避されていない（退避されると読み直しでターンが増える。search は約 48,000 文字で自動的に件数を減らす）。
 - AQ-02 で、グラフなしより多くのトークンを使っていない。
 

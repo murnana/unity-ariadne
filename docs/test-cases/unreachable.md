@@ -1,6 +1,6 @@
-# unreachable テストケース（提案）
+# unreachable テストケース
 
-前提: 小規模なグラフ（シーン S → prefab A → prefab B、孤立した prefab C、A だけが参照する prefab D の参照元が C、など）。フィクスチャ依存のケースは `[FixtureFact]` にする。
+前提: 小規模なグラフ（シーン S → prefab A → prefab B、孤立した prefab C、A だけが参照する prefab D の参照元が C、など）。実装は `tests/GuidGraph.Tests/UnreachableTests.cs`。UN-13 はサンプルプロジェクトで手で確かめる。
 
 | ID | 入力 | 期待結果 |
 |---|---|---|
@@ -16,5 +16,5 @@
 | UN-10 | ルートが 0 件（シーンが無いプロジェクト） | `error: no_roots` |
 | UN-11 | 存在しない `types` / `kinds` | `warnings` に `describe_ontology` を案内する文 |
 | UN-12 | 常に | 限界（動的な読み込みを検出できない）を伝える `notes` が付く |
-| UN-13 | `[FixtureFact]` サンプルの既定 | `candidates` 141、`reachable` 136、`unreachable` 5。5 件は [agent-questions.md](agent-questions.md) の AQ-01 と一致する |
+| UN-13 | （手動）サンプルプロジェクトで既定 | `candidates` 141、`reachable` 136、`unreachable` 5。5 件は [agent-questions.md](agent-questions.md) の AQ-01 と一致する |
 | UN-14 | 読み取り専用 | 呼び出し前後で db ファイルが変化しない |

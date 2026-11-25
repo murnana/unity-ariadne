@@ -1,4 +1,4 @@
-# unreachable（提案）
+# unreachable
 
 ルート（既定はシーン）から参照をたどっても到達できないアセットを返します。「どのシーンからも、入れ子や間接参照を含めて使われていない prefab」のような、全件を横断する質問に 1 回で答えます。
 
@@ -32,9 +32,10 @@
  "truncated": true, "warnings": ["..."], "notes": ["..."], "meta": {...}}
 ```
 
+- `build_only` が効いたときは `roots.build_only: true` を付け、`notes` に「無効なビルド設定のシーンも含む」ことを足します。シーンのルートが無いのに指定したときは `warnings` で無視を伝えます。
 - `candidates` は調べる対象の数、`reachable` は到達できた数、`unreachable` は到達できなかった数です（`candidates = reachable + unreachable`）。
 - `matches` は到達できなかったアセットで、パスの順です。`limit` を超えると `truncated: true`。
-- `referrers`: そのアセットを直接参照しているアセットの数。**0 なら誰からも参照されていません。1 以上なら、参照元もまたルートから到達できません**（そうでなければ到達できているため）。`referrer_samples` はその参照元の例（最大 3 件、`referrers` が 1 以上のときだけ）。
+- `referrers`: そのアセットを直接参照しているアセットの数（自分自身は数えず、`kinds` を指定したときはその種類だけを数えます）。**0 なら誰からも参照されていません。1 以上なら、参照元もまたルートから到達できません**（そうでなければ到達できているため）。`referrer_samples` はその参照元の例（最大 3 件、`referrers` が 1 以上のときだけ）。
 - `notes`（各件）: `search` と同じパス由来の注記（`Resources`、`Editor`、`StreamingAssets`、PackageCache など）。**`Resources` 配下のものは、参照が無くても名前で読み込まれうる**ため、そのまま削除してよいとは言えません。
 - トップレベルの `notes`: 次の限界を常に付けます。
 
@@ -47,23 +48,17 @@
 
 ## エラーと警告
 
-- ルートが 0 件のとき: `{error: "no_roots", roots, hint}`。
+- ルートが 0 件のとき: `{error: "no_roots", roots, hint, warnings?}`。
+- 出力が約 48,000 文字を超えるときは件数を減らし、`warnings` と `truncated` で伝えます。
 - 存在しない種別名 / 参照種別名: `warnings` に `describe_ontology` を案内する文（`search` と同じ）。
 - `not_found` などアセット指定のエラーは、このツールには出ません（アセットを指定する引数が無いため）。
 
-## 実装の方針
+## 実装
 
-- 新しいテーブルは要りません。ルートの GUID 集合から、`GraphQueries.Traverse` と同じ辺（`asset_edges` の `ref_kind <> 'corresponding_source'`）で幅優先に到達集合を 1 回で求めます。
-- 結果の整形（`notes`、`referrers`）は `search` の整形を共有します。出力は約 48,000 文字の上限内に収まる件数（50 件 × 約 150 文字）です。
-- 参照元の判定（`referrers`）は、到達の計算とは別に、対象ごとに `asset_edges` の入りの辺を数えます。
+- `src/Graph/Unreachable.cs`。新しいテーブルはありません。ルートの GUID 集合から、`asset_edges` の `ref_kind <> 'corresponding_source'` の辺で幅優先に到達集合を 1 回で求めます（段数の上限なし）。
+- `notes` は `search` と同じ `OntologyGlossary.PathNotes` です。
 
 ## 効果と互換性
 
-- **効果**: AQ-01（[test-cases/agent-questions.md](../test-cases/agent-questions.md)）のような質問が、`search` の全件列挙と読み直しを使わず、1 回の呼び出しで済む見込みです。実測はこれからです。
-- **互換性**: ツールの追加だけです。ツール定義が 1 つ増え、固定コストが約 700 文字増えます。
-
-## 決めたいこと
-
-1. `build_only` を入れるか（案: 入れる。既定は false）。
-2. `roots` の既定を、Scene のほかにビルド設定のシーンだけにするか（案: 全シーン。Q1 の期待する答えは全シーンを使った値）。
-3. `limit` の既定（案: 50）。
+- **効果**: AQ-01（[test-cases/agent-questions.md](../test-cases/agent-questions.md)）の期待する答え（141 / 136 / 5 件）が、サンプルプロジェクトで 1 回の呼び出し（約 830 文字）で返ります。
+- **互換性**: ツールの追加だけです。ツール定義が 1 つ増え、固定コストが約 1,400 文字増えます。

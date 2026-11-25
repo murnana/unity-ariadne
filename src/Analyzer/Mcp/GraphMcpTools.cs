@@ -438,6 +438,34 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         }));
     }
 
+    [McpServerTool(Name = "unreachable")]
+    [Description("Assets that no root reaches through any chain of references, e.g. prefabs no scene uses even " +
+                 "indirectly (default: types=[Prefab], roots=[Scene]). One call for the whole project; matches " +
+                 "carry their direct referrer count (those referrers are unreachable too) and folder notes. " +
+                 "Static references only: loads by name are not seen.")]
+    public string Unreachable(
+        [Description("Asset types to check (default [\"Prefab\"])")] string[]? types = null,
+        [Description("Asset types to start from (default [\"Scene\"])")] string[]? roots = null,
+        [Description("Where checked assets and roots live (default Assets)")] string? source = null,
+        [Description("Start only from scenes listed in the build settings (default false)")] bool build_only = false,
+        [Description("Ref kinds to follow; omit for all")] string[]? kinds = null,
+        [Description("Check only assets whose path contains any of these")] string[]? path_contains = null,
+        [Description("Maximum number of matches listed (default 50, max 200)")]
+        int limit = UnreachableSearch.DefaultLimit)
+    {
+        using var db = OpenDatabase();
+        return AddMeta(UnreachableSearch.RunJson(db, new UnreachableQuery
+        {
+            Types = types,
+            Roots = roots,
+            Source = source,
+            BuildOnly = build_only,
+            Kinds = kinds,
+            PathContains = path_contains,
+            Limit = limit,
+        }));
+    }
+
     [McpServerTool(Name = "list_unresolved")]
     [Description("Lists all unresolved GUIDs (dangling references: no asset with that GUID exists in " +
                  "the project), most-referenced first, with sample referrer paths and, when guessable, a hint with the " +
@@ -473,7 +501,8 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         "a subclass: from {asset: \"Enemy.cs\"}, steps [{direction: in, kinds: [inherits], max_hops: 10, " +
         "include_self: true}, {direction: in, kinds: [uses_script], types: [Prefab]}]. Other examples: " +
         "from {keywords: [\"boss\"], types: [Script]}; from {types: [Prefab], path_contains: [\"/UI/\"]} with " +
-        "unreferenced: true for unused prefabs. Step 'direction': out = dependencies, in = referrers.";
+        "unreferenced: true for prefabs nothing references (for ones no scene reaches, use the unreachable tool). " +
+        "Step 'direction': out = dependencies, in = referrers.";
 
     private GraphDatabase OpenDatabase() => GraphDatabase.OpenFile(options.DbPath);
 

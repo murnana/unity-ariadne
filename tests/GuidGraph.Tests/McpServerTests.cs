@@ -21,7 +21,7 @@ public sealed class McpServerTests : IAsyncLifetime
     private static readonly string[] ExpectedToolNames =
     [
         "describe_ontology", "expanded_count", "find_references", "get_neighbors", "impact_analysis",
-        "list_folders", "list_unresolved", "search", "search_nodes", "summarize_project",
+        "list_folders", "list_unresolved", "search", "search_nodes", "summarize_project", "unreachable",
     ];
 
     private readonly string _dbPath =

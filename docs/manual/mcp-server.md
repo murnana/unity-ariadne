@@ -223,6 +223,24 @@ expanded_count(asset, scene, max_depth = 10)
 - `m_Modifications` による差し替え(あるアセットを別のものに付け替える)は、新しいアセットを PrefabInstance ごとに 1 回だけ数え、元のアセットからは引きません。
 - バイナリ本体を読んでいない種類(Texture / Model など)は `unsupported` に載ります。
 
+### unreachable — シーンから到達できないアセット
+
+```
+unreachable(types = ["Prefab"], roots = ["Scene"], source = "Assets", build_only = false,
+            kinds, path_contains, limit = 50)
+```
+
+`roots` のアセットから参照を(入れ子や間接参照も含めて)たどっても届かない `types` のアセットを返します。「どのシーンからも使われていない prefab は?」のように、全件を調べる質問に 1 回で答えます。
+
+- `candidates`(調べた数) = `reachable`(届いた数) + `unreachable`(届かなかった数)。`matches` はパス順で、`limit`(1〜200)を超えると `truncated: true` です。
+- 各件の `referrers` は直接参照しているアセットの数です。**0 なら参照元がありません。1 以上でも、その参照元はどれもルートから届きません**。例は `referrer_samples`(最大 3 件)。
+- 各件の `notes` は `search` と同じフォルダー由来の注記です。`Resources` 配下のものは、参照が無くても名前で読み込まれえます。
+- `source` は調べるアセットとルートの置き場です。ルートから先は、どの置き場のアセットもたどります。
+- `build_only: true` は、シーンのルートをビルド設定(EditorBuildSettings)に載っているものに絞ります。有効・無効の区別は保存していないため、無効なシーンも含みます。
+- `kinds` を指定すると、その種類の参照だけをたどります(`referrers` も同じ範囲で数えます)。
+- ルートが 0 件のときは `error: "no_roots"` です。
+- **静的な参照しか見ません。** `Resources.Load` の変数パス、Addressables の動的な key、文字列でのシーン名・アセット名、リフレクションによる読み込みは検出できないため、結果に載ったことは未使用の証明になりません。
+
 ### describe_ontology — 語彙(種類と関係)の一覧
 
 ```
@@ -268,6 +286,7 @@ list_unresolved(limit = 20)
 | 「ボス」に関係するスクリプトやアセットは? | `search`(`from: {keywords: ["boss", "ボス"]}`) |
 | このプロジェクトは何でできている?(最初の 1 回) | `summarize_project` |
 | このアセットはシーンにいくつ展開される? | `expanded_count` |
+| どのシーンからも(間接的にも)使われていない prefab は? | `unreachable` |
 | このプロジェクトのフォルダー構成は? | `list_folders` |
 | UI フォルダーのプレハブが使っているスクリプトは? | `search`(`from: {types: ["Prefab"], path_contains: ["/UI/"]}` → `uses_script` を `out`) |
 | プロジェクトの参照切れを棚卸ししたい | `list_unresolved` |

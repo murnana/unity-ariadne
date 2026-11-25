@@ -378,7 +378,7 @@ public static class GraphSearch
         return matches.Where(m => !referenced.Contains(m.Asset.Guid)).ToList();
     }
 
-    private static List<string> UnknownTerms(
+    internal static List<string> UnknownTerms(
         IEnumerable<TraversalStep> steps, IEnumerable<string>? startTypes, Ontology ontology)
     {
         var knownKinds = ontology.Relations.Select(r => r.RefKind).ToHashSet(StringComparer.OrdinalIgnoreCase);
