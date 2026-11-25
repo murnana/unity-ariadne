@@ -1,13 +1,29 @@
-# 既知の制約と近似
+# 結果に出てこない参照
 
-GuidGraph は Unity Editor API を使わず、ファイルを直接パースします。この設計上、**原理的にグラフに現れない依存関係**がいくつかあります。「参照があるはずなのに出てこない」ときはまずこちらをご確認ください。
+## 最初に読んでください
+
+**一覧に出ないファイルも、使われている場合があります。** ファイルを削除する前に、次の順に進めてください。
+
+1. Unity を閉じて、プロジェクトのフォルダ全体を別の場所にコピーします。
+2. ファイルを削除します。
+3. Unity で開き、そのファイルを使いそうな場面を再生して確認します。
+
+主に、次の参照は出てきません。
+
+- 文字の形で保存されていないファイルの中にある参照(ライティングや地形のデータなど)
+- Unity が取り込むときに作る参照
+- プログラムの中で組み立てた名前による読み込み
+
+## くわしい内容
+
+ここからは、開発の知識がある人向けです。GuidGraph は Unity Editor API を使わず、ファイルを直接読みます。そのため、**グラフに現れない参照関係**があります。
 
 ## アセット層
 
 ### バイナリアセットの中身は読みません
 
 - 解析対象はテキスト(YAML / JSON / .cs / .meta)のみです。バイナリアセットは GUID 辞書にノードとして登録されますが、**その中身が持つ参照は見えません**。
-- **`LightingData.asset` と `TerrainData.asset` は Force Text 設定でも常にバイナリ**です。LightingData はシーン参照とベイク済みライトマップ / プローブ参照を、TerrainData は .terrainlayer 参照を持ちますが、どちらもグラフには出ません。実プロジェクトでは「ライティングデータ経由でしか繋がっていない依存チェーン」が丸ごと欠ける可能性があります。
+- **`LightingData.asset` と `TerrainData.asset` は Force Text 設定でも常にバイナリ**です。LightingData はシーン参照とベイク済みライトマップ / プローブ参照を、TerrainData は .terrainlayer 参照を持ちますが、どちらもグラフには出ません。実プロジェクトでは「ライティングデータ経由でしかつながっていない依存」がすべて出ない可能性があります。
 - そもそも Asset Serialization が **Force Text でないプロジェクト**では、YAML アセットもバイナリになり .meta 層とコード層しか解析できません。
 
 ### Unity のインポート結果にしか存在しない依存
@@ -17,7 +33,7 @@ GuidGraph は Unity Editor API を使わず、ファイルを直接パースし�
 - インポーターが割り当てるサブアセットスクリプト(例: `.inputactions` → InputActionAsset.cs、shadergraph → *Metadata.cs)
 - `.shader` の名前文字列による依存(例: TerrainLit → TerrainLitBase.shader — シェーダー名での参照)
 
-※ AssetDatabase.GetDependencies との突合テストで、**ツール側に余計なエッジがないこと**(過検出ゼロ)は確認済みです。欠けるのは上記のカテゴリのみです。
+※ AssetDatabase.GetDependencies との突合テストで、テストに使ったプロジェクトでは、**余分な参照がないこと**を確認しています。出てこない参照は、このページのほかの項目にもあります。
 
 ### 対応 Unity バージョン
 
@@ -33,7 +49,7 @@ GuidGraph は Unity Editor API を使わず、ファイルを直接パースし�
 
 - Roslyn の **syntax-only** 解析を行います。型解決はプロジェクト内の全 .cs の宣言型インデックスに対する名前照合で行います。
 - **DLL にしかない型はエッジを生みません**(UnityEngine.* コア型など)。パッケージソース(URP / uGUI / TMP / Cinemachine 等)は .cs のため解決されます。
-- **曖昧な型名はスキップします**: 同じ単純名の非ネスト型が複数の名前空間に存在し、スコープ内で一意に決まらない場合、エッジを張らずに諦めます(`analyze` 出力の `skipped: ... ambiguous type names`)。
+- **曖昧な型名はスキップします**: 同じ単純名の非ネスト型が複数の名前空間に存在し、スコープ内で一意に決まらない場合、参照を記録しません(`analyze` 出力の `skipped: ... ambiguous type names`)。
 - 同一ファイル内での型参照はエッジにしません(自己参照は無意味なためです)。
 
 ### プリプロセッサの近似
@@ -45,7 +61,7 @@ GuidGraph は Unity Editor API を使わず、ファイルを直接パースし�
 - `Resources.Load` / `Addressables.Load*` は**文字列リテラル引数のみ**解決します。変数・連結・補間で組み立てたキーはスキップされます(出力の `non-literal` カウント)。
 - Addressables のキー照合(アドレス + ラベル)は**大文字小文字を区別します**。
 - `AssetReference` フィールド経由のインスタンス呼び出し(`myRef.LoadAssetAsync()`)はキーを取らないため、コード層ではスキップされます — フィールド自体が `asset_reference` エッジとしてアセット層に出るため、依存としては欠けません。
-- `addressables_load` は削除済みアセットを指すエントリに当たると dangling GUID をターゲットにできます(コード層で唯一です)。
+- 削除済みのファイルを指す Addressables の登録がある場合、`addressables_load` の参照先は未解決の GUID になります(コード層ではこの場合だけです)。
 
 ### その他のスコープ外
 
@@ -54,8 +70,8 @@ GuidGraph は Unity Editor API を使わず、ファイルを直接パースし�
 
 ## クエリ・エクスポート層
 
-- `corresponding_source` エッジ(prefab の `m_CorrespondingSourceObject`)は件数が膨大なため、**MCP ツールと jsonl エクスポートからは除外**されています。SQLite の refs テーブルには残っているため、必要な場合は直接引いてください([schema.md](schema.md))。
-- MCP ツールのリストは件数の上限(多くは 200 件、`search_nodes` は 100 件)で打ち切られます(`truncated: true`。[mcp-server.md](mcp-server.md) の「共通の出力仕様」)。全件必要な場合は SQLite を直接引いてください。
+- `corresponding_source` エッジ(prefab の `m_CorrespondingSourceObject`)は件数が膨大なため、**MCP ツールと jsonl エクスポートからは除外**されています。SQLite の refs テーブルには残っているため、必要な場合は直接調べてください([schema.md](schema.md))。
+- MCP ツールのリストは件数の上限(多くは 200 件、`search_nodes` は 100 件)で打ち切られます(`truncated: true`。[mcp-server.md](mcp-server.md) の「共通の出力仕様」)。全件が必要な場合は SQLite を直接調べてください。
 
 ## 未解決 GUID は「エラー」ではありません
 

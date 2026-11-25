@@ -1,6 +1,14 @@
 # SQLite スキーマと直接クエリ
 
-`analyze --db graph.db` が書き出す SQLite は、MCP サーバーや `export` を介さず `sqlite3` で直接引くことができます。AI エージェントに sqlite3 の読み取りを許可してこの DB を渡すだけでも実用になります。
+`analyze --db graph.db` が書き出す SQLite のファイルを、`sqlite3` で直接調べる方法です。SQL の知識がある人向けです。
+
+`sqlite3` は [SQLite の配布ページ](https://sqlite.org/download.html)から入手して、先に入れます。次の命令で、読み取り専用で開きます。開いたら、SQL を入力して Enter キーを押します。
+
+```sh
+sqlite3 -readonly graph.db
+```
+
+AI のツールに読ませることもできます。その場合も読み取り専用にします。結果は AI サービスへ送られるため、仕事のプロジェクトでは先に責任者の許可を得てください。
 
 ## スキーマ
 
@@ -82,8 +90,8 @@ CREATE TABLE settings_files (  -- 差分更新用: スキャンした ProjectSet
 
 - **ProjectSettings のアセットは GUID を持ちません**。そのため `assets.guid` にプロジェクト相対パス(`ProjectSettings/EditorBuildSettings.asset` など)がそのまま入ります。GUID 列が 32 桁 16 進とは限らない点にご注意ください。
 - **ビルトインアセットは解決済みです**: `...d000...` → `Library/unity default resources`、`...e000...` → `Library/unity editor resources`、`...f000...` → `Resources/unity_builtin_extra`(`source = 'BuiltIn'`)。
-- **.meta 由来・JSON ファイル由来の参照は擬似オブジェクト**(`file_id = 0, class_id = 0`)にぶら下がります。実アンカーが 0 になることはないため衝突しません。
-- **コード層の参照は MonoScript 擬似オブジェクト**(`file_id = 11500000, class_id = 115`、name = 最初の非ネスト宣言型)にぶら下がります。解決済み参照が 1 つ以上あるスクリプトにだけ作られます。
+- **.meta 由来・JSON ファイル由来の参照は擬似オブジェクト**(`file_id = 0, class_id = 0`)にひも付けます。実アンカーが 0 になることはないため衝突しません。
+- **コード層の参照は MonoScript 擬似オブジェクト**(`file_id = 11500000, class_id = 115`、name = 最初の非ネスト宣言型)にひも付けます。解決済み参照が 1 つ以上あるスクリプトにだけ作られます。
 - **`code_symbols` には、すべての .cs で宣言された型**(ドキュメントコメントが無くても)と、**XML ドキュメントコメント付きのメンバー**(メソッド・コンストラクター・プロパティ・インデクサー・フィールド・イベント・列挙値・演算子)が入ります。`doc` は `<summary>` と `<remarks>` の本文(どちらも無ければコメント全体)をプレーンテキストにしたもので、`<see cref="X"/>` などは名前に置き換え、1000 文字で打ち切ります。`#if !UNITY_EDITOR` の中の宣言は入りません。コード層の一部として、.cs が 1 つでも変わると全体が作り直されます。
 - MCP サーバーと jsonl エクスポートは `corresponding_source` を除外しますが、**refs テーブルには入っています**。生 SQL で数えると多めに出るのはそのためです。
 
@@ -119,7 +127,9 @@ CREATE TABLE settings_files (  -- 差分更新用: スキャンした ProjectSet
 
 ## クエリ例
 
-パスから GUID を引きます(以降の例の下ごしらえです):
+`Assets/Materials/Fog.mat` などの場所は例です。自分のファイルの場所に置き換えます。何も出ない場合は、場所のつづりを確認します。
+
+パスから GUID を調べます:
 
 ```sql
 SELECT guid FROM assets WHERE path = 'Assets/Materials/Fog.mat';
@@ -146,6 +156,8 @@ WHERE e.from_guid = (SELECT guid FROM assets WHERE path = 'Assets/Prefabs/House.
 ```
 
 **未参照プレハブ(Assets 配下、どこからも参照されていない .prefab):**
+
+結果に出ても、削除してよいとは限りません([limitations.md](limitations.md))。控えを取り、削除後に Unity で動作を確認してください。
 
 ```sql
 SELECT p.path
@@ -187,7 +199,7 @@ WHERE r.to_guid = (SELECT guid FROM assets WHERE path = 'Assets/Materials/Fog.ma
 
 ## 注意
 
-- DB ファイルは `analyze` が更新中にトランザクションで書き換えます。読み取り専用で開けば途中状態を見ることはありません(単一トランザクションでコミットされます)。
+- DB ファイルは `analyze` が更新中にトランザクションで書き換えます。差分更新中に読み取り専用で開いても、途中の状態は見えません(1つのトランザクションで確定します)。`--full` の実行中はファイルを作り直すため、読み取らないでください。
 - スキーマ変更時は `PRAGMA user_version` がバンプされます。自作スクリプトでバージョンを確認する場合は `PRAGMA user_version;` で `4` を期待してください。
 - `placements` と `placement_removals` は `refs` / `objects` から導いた集計で、`analyze`(全再構築・増分更新とも)の最後に作り直します。そのため増分更新と全再構築は行単位で一致します。
 

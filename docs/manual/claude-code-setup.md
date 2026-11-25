@@ -1,137 +1,216 @@
-# Claude Code セットアップガイド
+# Claude Code セットアップガイド(ソースから)
 
-このリポジトリをチェックアウトした直後から、**自分の Unity プロジェクトを Claude Code で照会できるようになるまで**の手順をご紹介します。個々のコマンドの詳細は [cli.md](cli.md)、MCP ツールの仕様は [mcp-server.md](mcp-server.md) をご参照ください。
+プログラムのもと(ソース)を取得して組み立て、Claude Code に登録する手順です。開発の知識がある人向けです。通常は[入門マニュアル](getting-started.md)の方法を使ってください。
 
-登場するパスは 3 つあります。混同しないようご注意ください:
+命令の詳細は [cli.md](cli.md)、機能の仕様は [mcp-server.md](mcp-server.md) にあります。
 
-| 記号 | 意味 | 例 |
+## はじめる前に
+
+- **情報の送信**:質問すると、調べた結果(ファイル名、コード内の説明文など)が AI サービスへ送られます。仕事のプロジェクトでは、先に責任者の許可を得てください。
+- 会社や学校のパソコンでは、ソフトを入れる前に管理者の許可を得てください。
+- Claude Code を入れて、ログインしておきます([入門マニュアル](getting-started.md)の手順2から4)。
+- Git(ソースを取得するソフト)を入れておきます。
+- 対応する環境は Windows と macOS です。Linux には対応していません。
+
+この説明では、次の3つの場所を使います。`<` と `>` で囲んだ部分は、記号ごと自分の場所に置き換えます。空白を含む場所は `"` で囲みます。
+
+| 記号 | 意味 | 例(macOS) |
 |---|---|---|
-| `<guidgraph>` | このリポジトリのチェックアウト先 | `~/Projects/guidgraph` |
-| `<unity-project>` | 解析対象の Unity プロジェクト(`Assets/` を持つディレクトリ) | `~/Projects/MyGame` |
-| `<graph.db>` | 解析結果の SQLite ファイル。置き場所は自由です | `~/Projects/MyGame/graph.db` |
+| `<guidgraph>` | 取得したソースのフォルダ | `~/Projects/unity-guidgraph` |
+| `<unity-project>` | 調べる Unity プロジェクト(`Assets` があるフォルダ) | `~/Projects/MyGame` |
+| `<graph.db>` | 結果を保存する専用のファイル | `~/Projects/MyGame/graph.db` |
 
-## 1. .NET 10 SDK を用意する
+## 1. ソースを取得する
 
-このツールは .NET 10(LTS)でビルド・実行します。まず確認してください:
+ソースを置きたいフォルダで、次の命令を入力します。【要確認:公開後に使うブランチ】
 
 ```sh
-dotnet --version   # 10.x ならOK
+git clone https://github.com/murnana/unity-guidgraph.git
 ```
 
-`dotnet` コマンドが見つからない場合:
+`unity-guidgraph` フォルダが作られます。
 
-- インストール済みで PATH にないだけであれば(公式インストールスクリプトの既定は `~/.dotnet` です):
+## 2. .NET 10 SDK を用意する
 
-  ```sh
-  export PATH="$HOME/.dotnet:$PATH"
-  ```
-
-- 未インストールの場合は [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/10.0) のインストーラーか、公式スクリプトをお使いください:
-
-  ```sh
-  curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0
-  export PATH="$HOME/.dotnet:$PATH"
-  ```
-
-**この時点で `which dotnet` の結果を控えておいてください**(例: `/Users/you/.dotnet/dotnet`)。後の MCP 登録では Claude Code がサーバープロセスを起動するため、シェルの PATH 設定に頼らず `dotnet` の絶対パスで登録するのが確実です。
-
-## 2. ビルドを確認する
+.NET 10 SDK は、プログラムを組み立てる道具です。次の命令で確認します。
 
 ```sh
-cd <guidgraph>
+dotnet --version
+```
+
+`10.` で始まる番号が表示されれば、手順3に進みます。
+
+表示されない場合は、[配布ページ](https://dotnet.microsoft.com/download/dotnet/10.0)のインストーラーで入れます。macOS では、次の方法も使えます。**この命令は、Microsoft のサイトから取得したプログラムをすぐに実行します。**
+
+```sh
+curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0
+```
+
+入れたのに `dotnet` が見つからない場合は、使えるように設定します。
+
+macOS:
+
+```sh
+export PATH="$HOME/.dotnet:$PATH"
+```
+
+Windows(PowerShell):
+
+```powershell
+$env:PATH = "$HOME\.dotnet;$env:PATH"
+```
+
+次に、`dotnet` の場所を調べて書き留めます。手順5で使います。
+
+macOS:
+
+```sh
+which dotnet
+```
+
+Windows(PowerShell):
+
+```powershell
+(Get-Command dotnet).Source
+```
+
+## 3. 組み立てを確認する
+
+```sh
+cd "<guidgraph>"
+```
+
+```sh
 dotnet build
 ```
 
-これだけで動きます。追加のセットアップ(NuGet の手動復元、グローバルツールのインストール等)は不要です。動作確認したい場合は `dotnet test` をお使いください(数十秒)。実際の Unity プロジェクトを使うテストは、フィクスチャをリポジトリに同梱していないためスキップされますが正常です([../development/fixtures.md](../development/fixtures.md))。
+エラーが表示されずに終われば、次に進みます。追加の設定は必要ありません。
 
-## 3. グラフ DB を構築する
+テストを実行する場合は `dotnet test` を使います。実際の Unity プロジェクトを使うテストは、材料のファイルを含めていないため省かれます([fixtures.md](../development/fixtures.md))。
 
-解析対象の Unity プロジェクトに対して `analyze` を 1 回実行します:
+## 4. グラフを作る
 
-```sh
-dotnet run --project <guidgraph>/src/Analyzer -- analyze <unity-project> --db <graph.db>
-```
+グラフは、調べた結果のファイルです。
 
-- 所要時間の目安は中規模プロジェクトで数秒〜十数秒です。最後に `Wrote <graph.db> (N refs)` と出れば成功です。
-- **パッケージ由来の参照(URP、TextMesh Pro 等)まで解決したい場合**は、先に対象プロジェクトを一度 Unity で開いて `Library/PackageCache` を生成しておいてください。なくても動作しますが、パッケージ GUID が Unresolved 扱いになります。
-- `<graph.db>` を Unity プロジェクト内に置く場合は、`.gitignore` への追加をお忘れなく(`graph.db` は再生成可能な成果物です)。Unity に読ませたくない場合は `Assets/` の外に置いてください。
+**`--db` には、新しいファイル名か、このツールで作ったグラフを指定します。ほかのファイルを指定すると、そのファイルは削除されて中身が失われます。**
 
-## 4. Claude Code に MCP サーバーを登録する
-
-**Unity プロジェクト側のディレクトリで**登録してください(Claude Code の MCP 登録は既定でカレントプロジェクトに紐づくためです):
+先に調べる Unity プロジェクトを Unity で一度開くと、パッケージの中のファイルも調べられます。
 
 ```sh
-cd <unity-project>
-claude mcp add guidgraph -- \
-  <dotnetの絶対パス> run --project <guidgraph>/src/Analyzer -- serve --db <graph.dbの絶対パス> --project <unity-projectの絶対パス>
+dotnet run --project "<guidgraph>/src/Analyzer" -- analyze "<unity-project>" --db "<graph.db>"
 ```
 
-具体例:
+最後に `Wrote <graph.db> (N refs)` と表示されたら、作成は終わりです。`N` は参照の数です。かかる時間は、プロジェクトの大きさとパソコンの性能で変わります。
+
+Git を使うプロジェクトの中にグラフを置く場合は、`.gitignore`(Git の対象から外すファイルの一覧)に追加します。Unity に読ませない場合は、`Assets` の外に置きます。
+
+## 5. Claude Code に登録する
+
+「登録」は、Claude Code から GuidGraph を呼べるようにする設定です。場所はすべて絶対パス(ドライブ名や `/` から始まる、省略のない場所)で書きます。
+
+調べる Unity プロジェクトのフォルダへ移動します。
 
 ```sh
-cd ~/Projects/MyGame
-claude mcp add guidgraph -- \
-  ~/.dotnet/dotnet run --project ~/Projects/guidgraph/src/Analyzer -- serve --db ~/Projects/MyGame/graph.db --project ~/Projects/MyGame
+cd "<unity-project>"
 ```
 
-- `serve` の `--project` は省略できます。指定すると、応答でグラフが古いかどうか(`stale`)が分かります([mcp-server.md](mcp-server.md) の「グラフの鮮度」)。
-- **パスはすべて絶対パスで書いてください。** Claude Code が起動するサーバープロセスの作業ディレクトリは登録時のシェルと同じとは限りません。
-- スコープを変えたい場合は `--scope` を付けてください: `--scope project` はリポジトリの `.mcp.json` に書き込まれチームで共有できます(ただしパスが各自のマシンで一致している必要があります)。`--scope user` は全プロジェクト共通です。既定(`local`)は自分のマシンのそのプロジェクトのみです。
-- 登録内容の確認・削除: `claude mcp list` / `claude mcp remove guidgraph` をお使いください。
-
-## 5. 動作確認
-
-Unity プロジェクトのディレクトリで Claude Code を起動し、次の手順で確認します:
-
-1. `/mcp` で `guidgraph` が connected になっていることを確認してください。初回接続は `dotnet run` がビルドを走らせるため数秒〜数十秒かかることがあります(タイムアウトした場合は下の「publish して登録する」をご参照ください)。
-2. 試しに聞いてみてください:
-
-   > search_nodes で "Player" を含むアセットを探して
-
-   > Assets/Materials/Fog.mat を参照しているアセットは?(find_references)
-
-使える 11 ツール(`find_references` / `impact_analysis` / `get_neighbors` / `search_nodes` / `list_unresolved` / `search` / `describe_ontology` / `list_folders` / `summarize_project` / `expanded_count` / `unreachable`)と活用パターンは [mcp-server.md](mcp-server.md) をご覧ください。
-
-## 6. 日常の運用
-
-- **Unity プロジェクトを編集したら `analyze` を再実行するだけです**(手順 3 と同じコマンド)。既存 DB は差分更新され数秒で終わります。
-- **MCP サーバーの再起動は不要です。** ツール呼び出しごとに DB を開き直すため、`analyze` の結果は次のツール呼び出しから反映されます。
-- グラフの鮮度は自動では追従しません。「最近の変更が反映されていない気がする」と思ったら `analyze` を実行してください。
-
-## 任意: publish して登録する(起動を速くする)
-
-`dotnet run` は起動のたびにビルドチェックが走ります。頻繁に使う場合は一度発行してバイナリを直接登録するとサーバー起動が速くなります:
+次の命令を1行で入力します。`<dotnet>` は手順2で書き留めた場所です。【要確認:Windows の PowerShell での動き】
 
 ```sh
-cd <guidgraph>
-dotnet publish src/Analyzer -c Release -o publish
+claude mcp add guidgraph -- "<dotnet>" run --project "<guidgraph>/src/Analyzer" -- serve --db "<graph.db>" --project "<unity-project>"
 ```
+
+`serve` の `--project` は省略できます。指定すると、グラフが古いかどうかが分かります([mcp-server.md](mcp-server.md) の「グラフの鮮度」)。
+
+登録できたことは、次の命令で確認します。一覧に `guidgraph` が表示されます。
 
 ```sh
-cd <unity-project>
-claude mcp add guidgraph -- \
-  <guidgraph>/publish/guidgraph serve --db <graph.dbの絶対パス> --project <unity-projectの絶対パス>
+claude mcp list
 ```
 
-この場合、リポジトリを更新(git pull)したら `dotnet publish` を再実行してください。
+### 登録の範囲を変える
 
-なお発行したバイナリも実行時に .NET ランタイムを探します。インストールスクリプトで `~/.dotnet` にだけ入れた環境(システム標準の場所に .NET がない環境)では、登録時に環境変数で場所を教えてください:
+指定しない場合は、自分のパソコンの、そのプロジェクトだけに登録します。範囲は `--scope` で変えます。
+
+- `--scope user`:自分の全プロジェクトで使います。
+- `--scope project`:プロジェクトの `.mcp.json` に書き込み、チームと共有します。**自分の利用者名を含む場所も共有されます。先にチームの了承を得てください。** 場所が各自のパソコンで同じでないと動きません。
 
 ```sh
-claude mcp add guidgraph -e DOTNET_ROOT="$HOME/.dotnet" -- \
-  <guidgraph>/publish/guidgraph serve --db <graph.dbの絶対パス> --project <unity-projectの絶対パス>
+claude mcp add --scope user guidgraph -- "<dotnet>" run --project "<guidgraph>/src/Analyzer" -- serve --db "<graph.db>" --project "<unity-project>"
 ```
 
-## トラブルシューティング
+登録を消す命令は次のとおりです。
 
-| 症状 | 原因と対処 |
+```sh
+claude mcp remove guidgraph
+```
+
+## 6. 動きを確認する
+
+1. Unity プロジェクトのフォルダで `claude` を起動します。
+2. `/mcp` と入力し、`guidgraph` がつながっていることを確認します。初回は組み立てが走るため、時間がかかります。時間切れになる場合は、下の「起動を速くする」を使います。
+3. 次のように質問します。`Player` と `Fog.mat` は、自分のプロジェクトにある名前に置き換えます。
+
+   ```text
+   名前に Player を含むファイルを探して
+   ```
+
+   ```text
+   Fog.mat を参照しているファイルは?
+   ```
+
+該当するファイルの一覧が回答されます。
+
+## 7. 日常の使い方
+
+- Unity のファイルを変更したら、手順4の命令をもう一度実行します。2回目からは、変更分だけを更新します。
+- グラフは自動では新しくなりません。
+- Claude Code の再起動は必要ありません。次の質問から新しい結果を使います。
+
+## 起動を速くする(省略できます)
+
+`dotnet run` は、起動のたびに組み立ての確認をします。先に実行用のファイルを作ると、起動が速くなります。この作業を publish と呼びます。
+
+1. ソースのフォルダで、次を入力します。
+
+   ```sh
+   dotnet publish src/Analyzer -c Release -o publish
+   ```
+
+2. Unity プロジェクトのフォルダで、前の登録を消します。
+
+   ```sh
+   claude mcp remove guidgraph
+   ```
+
+3. 次のどちらか一方で登録し直します。Windows では、実行用のファイル名は `guidgraph.exe` です。
+
+   .NET を配布ページのインストーラーで入れた場合:
+
+   ```sh
+   claude mcp add guidgraph -- "<guidgraph>/publish/guidgraph" serve --db "<graph.db>" --project "<unity-project>"
+   ```
+
+   macOS で、手順2の命令を使って `~/.dotnet` に入れた場合:
+
+   ```sh
+   claude mcp add guidgraph -e DOTNET_ROOT="$HOME/.dotnet" -- "<guidgraph>/publish/guidgraph" serve --db "<graph.db>" --project "<unity-project>"
+   ```
+
+ソースを更新(`git pull`)したら、手順1の publish をもう一度実行します。
+
+## うまく動かないとき
+
+| 症状 | 対処 |
 |---|---|
-| `/mcp` で guidgraph が failed | まず登録したコマンドをそのままターミナルで実行してみてください(stderr にエラーが出ます)。大半は次のどれかです ↓ |
-| `dotnet: command not found` | 登録コマンドの `dotnet` を絶対パスにしてください(手順 1・4) |
-| 起動直後にエラー終了 | `--db` のパス誤りです。サーバーは起動時に DB パスを検証して即エラーになる仕様です。絶対パスで指定し直してください |
-| アセットが `not_found` になる | `analyze` を実行し忘れて DB が古い、または対象プロジェクトが違います。`search_nodes` で部分一致検索して DB の中身を確かめてください |
-| パッケージのアセットが Unresolved | `Library/PackageCache` 未生成が原因です。対象プロジェクトを一度 Unity で開いてから `analyze --full` を実行してください |
-| 参照が「あるはずなのに出ない」 | 仕様上グラフに出ないものがあります。[limitations.md](limitations.md) をご参照ください |
+| `/mcp` で `guidgraph` が失敗になる | 登録した命令の `--` より後ろを、そのまま入力します。失敗の理由が表示されます。理由が出ず、入力待ちに戻らなければ起動できています。Ctrl キーと C キーで止めます |
+| `dotnet` が見つからない | 登録する `dotnet` を絶対パスにします(手順2) |
+| 起動してすぐ終了する | `--db` の場所の誤りが考えられます。絶対パスで指定し直します |
+| ファイルが `not_found` になる | グラフが古いか、別のプロジェクトを指定しています。手順4を実行し直します |
+| パッケージのファイルが「未解決」になる | 対象を Unity で一度開いてから、次を実行します。`dotnet run --project "<guidgraph>/src/Analyzer" -- analyze "<unity-project>" --db "<graph.db>" --full` |
+| あるはずの参照が出ない | [limitations.md](limitations.md) を確認します |
+
+直らない場合は、[Issues](https://github.com/murnana/unity-guidgraph/issues) で報告できます。報告は誰でも読めるため、仕事の情報は書かないでください。
 
 ---
 

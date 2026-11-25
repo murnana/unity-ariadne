@@ -1,39 +1,39 @@
 # GuidGraph 利用者マニュアル
 
-GuidGraph は、Unity プロジェクトのファイル同士の参照関係を調べるツールです。Unity Editor は使いません。Claude Code につなぐと、「このマテリアルはどこから使われている?」のように日本語で質問できます。
+GuidGraph は、Unity プロジェクトのファイル同士の参照関係を調べるツールです。Unity Editor は使いません。Claude Code につなぐと、「このマテリアルはどこから使われていますか」のように日本語で質問できます。
+
+**初めて使う場合は、[入門マニュアル](getting-started.md)を読んでください。** Claude Code を入れるところから、最初の質問までを説明します。
 
 ## このマニュアルの対象
 
 - Unity を使い慣れている人を対象にしています。
-- Claude Code に詳しくなくても読めます。Claude Code は Anthropic の AI コーディングツールです。使う場合は、先にインストールとログインを済ませてください。
+- Claude Code に詳しくなくても読めます。Claude Code は Anthropic の AI コーディングツールです。入れ方とログインの方法は、入門マニュアルの手順2から4で説明します。
 
-## 対応環境
+## 対応する環境
 
-| OS | インストーラー |
+| パソコン | インストーラー(ソフトを入れるためのファイル) |
 |---|---|
-| Windows | `.msi` |
+| Windows(64ビットの x64) | `.msi` |
 | macOS(Apple Silicon) | `.pkg` |
 
-Intel Mac 向けのインストーラーはありません。**Linux には対応していません。**
+Intel の Mac 向けのインストーラーはありません。**Linux には対応していません。**
 
-## はじめかた
+## 初めての人向けの文書
 
-Claude Code から使う場合は、**プラグイン**をおすすめします。MCP サーバー(Claude Code と外部ツールをつなぐ仕組み)の登録と、解析結果のファイル `graph.db` の作成が自動になります。
-
-→ [claude-code-plugin.md](claude-code-plugin.md)
-
-ほかの使い方は次のとおりです。
-
-| やりたいこと | 読む文書 |
+| やりたいこと | 文書 |
 |---|---|
-| ソースからビルドして Claude Code に登録する | [claude-code-setup.md](claude-code-setup.md) |
-| Claude Code を使わず、コマンドで解析する | [cli.md](cli.md) |
+| 入れて、質問できるようにする | [getting-started.md](getting-started.md) |
+| 結果に出てこない参照を知る(**ファイルを削除する前に読んでください**) | [limitations.md](limitations.md) |
 
-## 必要になったら読む文書
+## 開発の知識がある人向けの文書
 
-| 知りたいこと | 文書 |
+次の文書は、命令の入力やプログラムの知識がある人向けです。
+
+| やりたいこと | 文書 |
 |---|---|
-| Claude Code が使うツールの仕様 | [mcp-server.md](mcp-server.md) |
-| 結果に出てこない参照(**アセットを削除する前に読んでください**) | [limitations.md](limitations.md) |
-| `graph.db` を SQL で直接調べる(SQL の知識が必要) | [schema.md](schema.md) |
-| `export` が書き出す memory.jsonl の形式 | [memory-jsonl.md](memory-jsonl.md) |
+| プラグイン(Claude Code に追加する機能)の動きと設定を知る | [claude-code-plugin.md](claude-code-plugin.md) |
+| プログラムを自分で組み立てて、Claude Code に登録する | [claude-code-setup.md](claude-code-setup.md) |
+| Claude Code を使わず、命令で調べる | [cli.md](cli.md) |
+| Claude Code が使う機能(MCP のツール)の仕様を知る | [mcp-server.md](mcp-server.md) |
+| 調べた結果のファイルを SQL で調べる | [schema.md](schema.md) |
+| `export` 命令が書き出す memory.jsonl の形式を知る | [memory-jsonl.md](memory-jsonl.md) |

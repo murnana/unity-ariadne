@@ -1,123 +1,212 @@
 # Claude Code プラグイン
 
-`unity-guidgraph` プラグインを入れると、Claude Code を開いたプロジェクトの依存関係グラフを MCP サーバー(`guidgraph serve`)として自動で登録できます。`claude mcp add` を手で打つ必要がなく、グラフ(`graph.db`)の作成も初回の起動時に自動で行います。ツールの中身は [mcp-server.md](mcp-server.md) と同じです。
+`unity-guidgraph` プラグイン(Claude Code に追加する機能)の動きと設定を説明します。このプラグインを入れると、Claude Code から GuidGraph を使えます。調べた結果のファイル(グラフ、`graph.db`)は、初回の起動時に自動で作られます。使える機能は [mcp-server.md](mcp-server.md) のとおりです。
 
-プラグインは `guidgraph` コマンドを呼ぶだけで、.NET SDK も `dotnet run` も使いません。**先にインストーラーで `guidgraph` を入れてください。**
+初めて入れる場合は、[入門マニュアル](getting-started.md)の手順で入れてください。
+
+## 入れる前に確認してください
+
+- 質問すると、調べた結果(ファイル名、コード内の説明文など)が AI サービスへ送られます。仕事のプロジェクトでは、先に責任者の許可を得てください。
+- 会社や学校のパソコンでは、ソフトを入れる前に管理者の許可を得てください。
+- **30日間使わないプロジェクトのグラフは、自動で削除されます。** もう一度開くと、作り直されます。
 
 ## 必要なもの
 
-- `guidgraph`(インストーラーで PATH に入ります)
-- **Node.js 20.12 以降**(PATH に `node` があること)。プラグインの起動用スクリプト(`scripts/launch.mjs`)が使います。`node --version` で確認できます
+- Claude Code(ログイン済みのもの)
+- `guidgraph`(インストーラーで入れます)
+- Node.js 20.12 以降
+
+このプラグインは、入れた `guidgraph` を使います。.NET SDK(プログラムを組み立てる道具)は必要ありません。
 
 ## 導入手順
 
-1. [Releases](https://github.com/murnana/unity-guidgraph/releases) のインストーラーで `guidgraph` を入れます(Windows は `.msi`、macOS は `.pkg`)。
-2. **ターミナルと Claude Code を再起動します**(Windows は PATH の変更が起動済みのプロセスに反映されないためです)。`guidgraph --help` と `node --version` が動けば準備完了です。
-3. Claude Code に marketplace を登録し、プラグインを入れます。marketplace は [murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin) で管理しています。
+1. [配布ページ](https://github.com/murnana/unity-guidgraph/releases)のインストーラーで `guidgraph` を入れます。Windows は `.msi`、macOS は `.pkg` です。
+2. ターミナル(命令を入力する画面)と Claude Code を閉じて、開き直します。
+3. 次の2つの命令が動くことを確認します。
+
+   ```sh
+   guidgraph --help
+   ```
+
+   ```sh
+   node --version
+   ```
+
+4. プラグインの配布元(marketplace)を登録します。
 
    ```sh
    claude plugin marketplace add murnana/murnana-claude-code-plugin
+   ```
+
+5. プラグインを入れます。
+
+   ```sh
    claude plugin install unity-guidgraph@murnana-claude-code-plugin
    ```
 
-4. Unity プロジェクトのルートで Claude Code を起動し、`/mcp` に `guidgraph` が出ていることを確認します。**`graph.db` は初回の起動時にプラグインが自動で作ります。事前の `analyze` は要りません。**
+6. `Assets` フォルダがある場所で Claude Code を起動します。大きなプロジェクトは、先に[グラフを自分で作成](#グラフを自分で作成更新する)してください。
+7. `/mcp` と入力し、「plugin:unity-guidgraph:guidgraph」がつながっていることを確認します。
 
-## graph.db の保存先と自動作成
+## グラフの作成と更新
 
-プラグインは `scripts/launch.mjs` を起動し、これが次のことを行ってから `guidgraph serve --db <graph.db> --project <プロジェクト>` を実行します。`guidgraph` 本体は保存先の管理を知りません(`--db` で渡されたファイルを開くだけです)。
+自動で作られるのは初回だけです。ファイルを変更したら、次のどちらかで更新します。
 
-1. `graph.db` の保存先をプロジェクトごとに決める
-2. 無ければ `guidgraph analyze` で作る(初回のみ)
-3. 使われなくなったプロジェクトのデータを掃除する
+最初の作成には時間がかかります。時間切れになると作成は中止され、結果は残りません。待ち時間は、環境変数(パソコンに登録しておく設定値)の `MCP_TIMEOUT` で延ばせます。単位はミリ秒です。
 
-`graph.db` は**プロジェクトの中ではなく、プラグインのデータディレクトリ**(`~/.claude/plugins/data/<id>/`。Windows は `%USERPROFILE%\.claude\plugins\data\<id>\`)の、プロジェクトごとのフォルダに置かれます。`<id>` は `unity-guidgraph@murnana-claude-code-plugin` の記号を `-` に置き換えた `unity-guidgraph-murnana-claude-code-plugin` です。プロジェクトのフォルダは汚れず、`.gitignore` への追加も要りません。
+### Claude Code に頼む
+
+「グラフを更新して」と入力します。`/unity-guidgraph:update-graph` と入力しても同じです。ファイルを変更した直後で結果が合わないときは、Claude が自分で更新することもあります。
+
+### グラフを自分で作成・更新する
+
+`Assets` フォルダがある場所で、次の2行を順に入力します。1行目は起動用のファイル(`launch.mjs`)を探し、2行目はそれを実行します。
+
+Windows(PowerShell):
+
+```powershell
+$script = (Get-ChildItem "$HOME\.claude\plugins" -Recurse -Filter launch.mjs | Where-Object FullName -like "*unity-guidgraph*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+```
+
+```powershell
+node $script --update --data-dir "$HOME\.claude\plugins\data\unity-guidgraph-murnana-claude-code-plugin" --project .
+```
+
+macOS:
+
+```sh
+script=$(find ~/.claude/plugins -name launch.mjs -path '*unity-guidgraph*' -exec ls -t {} + | head -n 1)
+```
+
+```sh
+node "$script" --update --data-dir ~/.claude/plugins/data/unity-guidgraph-murnana-claude-code-plugin --project .
+```
+
+グラフがなければ作り、あれば変更分だけを更新して終了します。更新に失敗しても、前のグラフは残ります。
+
+## 質問して探す(search-graph)
+
+質問に合うファイルを探し、見つけた理由も一緒に答える機能です。たとえば次のように質問します。`/unity-guidgraph:search-graph` と入力して呼ぶこともできます。
+
+- 「`Enemy.cs` か、それを引き継いだクラスが付いているプレハブは?」
+- 「ボスの行動に関係するスクリプトと、それが付いたプレハブは?」(コード内の説明文も手がかりにします)
+- 「`Hero.prefab` が置かれているシーンは?(プレハブの中のプレハブも含めて)」
+- 「UI フォルダのプレハブが使っているスクリプトは?」
+- 「どこからも参照されていないプレハブは?」
+
+結果に出なくても、使われていないとは限りません([limitations.md](limitations.md))。
+
+コード内の説明文が検索できないという警告が出た場合は、グラフが古い形式です。「グラフを更新して」と入力すると、作り直されます。
+
+## 設定値
+
+通常は設定する必要はありません。
+
+| 環境変数 | 内容 |
+|---|---|
+| `GUIDGRAPH_RETENTION_DAYS` | 使わないグラフを削除するまでの日数(1以上の整数)。指定しない場合は30 |
+| `GUIDGRAPH_BIN` | 使う `guidgraph` の場所。入れたもの以外を使う場合だけ指定します |
+
+日数を変える場合は、`~/.claude/settings.json` の `env` に追加します。`~` は自分のユーザーフォルダです。ファイルにほかの内容がある場合は消さず、`env` の部分だけを足します。
+
+```json
+{ "env": { "GUIDGRAPH_RETENTION_DAYS": "60" } }
+```
+
+## プラグインを消す
+
+**次の命令は、グラフも削除します。**
+
+```sh
+claude plugin uninstall unity-guidgraph@murnana-claude-code-plugin
+```
+
+グラフを残す場合は、代わりに次の命令を入力します。
+
+```sh
+claude plugin uninstall unity-guidgraph@murnana-claude-code-plugin --keep-data
+```
+
+## グラフの場所を自分で決める
+
+プラグインでは、グラフの場所は変えられません。別の場所に置く場合は、プラグインを消してから、次の命令で登録します。`<` と `>` で囲んだ部分は、記号ごと自分の場所に置き換えます。この方法では、自動の作成と削除は働きません。
+
+```sh
+claude mcp add guidgraph -- guidgraph serve --db "<graph.db の絶対パス>" --project "<Unity プロジェクトの絶対パス>"
+```
+
+「絶対パス」は、ドライブ名や `/` から始まる、省略のないファイルの場所です。
+
+## うまく動かないとき
+
+### `/mcp` で「plugin:unity-guidgraph:guidgraph」が失敗になる
+
+次を順に確認します。
+
+1. `Assets` フォルダがある場所で Claude Code を起動しているか。
+2. `node --version` が動くか(20.12 以降)。
+3. `guidgraph --help` が動くか。
+4. それでも分からない場合は、起動用のファイルを直接実行して、表示される内容を読みます。
+
+直接実行する場合は、上の `script` を探す1行目を入力してから、次を入力します。
+
+Windows(PowerShell):
+
+```powershell
+node $script --data-dir "$HOME\.claude\plugins\data\unity-guidgraph-murnana-claude-code-plugin" --project .
+```
+
+macOS:
+
+```sh
+node "$script" --data-dir ~/.claude/plugins/data/unity-guidgraph-murnana-claude-code-plugin --project .
+```
+
+「guidgraph:」で始まる失敗の理由が出ず、次の命令を入力できる状態に戻らなければ、起動できています。Ctrl キーを押しながら C キーを押して止めます。
+
+### `guidgraph` が見つからない
+
+インストーラーで入れたあと、ターミナルと Claude Code を閉じて、開き直します。
+
+### グラフを削除して容量を空けたい
+
+1. Claude Code をすべて終了します。
+2. 次の「保存先」のフォルダにある `index.json` を開き、`name` と `path` で対象のフォルダ名を確認します。
+3. そのフォルダだけを削除します。Unity のプロジェクトは削除しないでください。
+
+次に開くと、グラフは作り直されます。
+
+## くわしい仕組み
+
+この章は、開発の知識がある人向けです。
+
+### 保存先
+
+グラフは、プロジェクトの中ではなく、プラグインのデータフォルダに保存します。
+
+- macOS:`~/.claude/plugins/data/unity-guidgraph-murnana-claude-code-plugin/`
+- Windows:`%USERPROFILE%\.claude\plugins\data\unity-guidgraph-murnana-claude-code-plugin\`
 
 ```text
-~/.claude/plugins/data/unity-guidgraph-murnana-claude-code-plugin/
+unity-guidgraph-murnana-claude-code-plugin/
 ├── index.json          # ハッシュ → プロジェクト名・パス・最終利用日時
 ├── 48f69d66fe0e/graph.db
 └── 89e851c482fa/graph.db
 ```
 
-- **フォルダ名**は、プロジェクトのフルパス(末尾の区切りと `.` / `..` を正規化したもの。Windows は大文字小文字を区別しません)の SHA-256 の先頭 12 文字です。同じプロジェクトは常に同じフォルダになります
-- **衝突の回避**: 別のプロジェクトがすでに同じハッシュを使っていたら、フォルダ名を 16、20、…文字と延ばします。どのフォルダがどのプロジェクトかは `index.json` の `name` / `path` で分かります
-- **複数のセッション**が同時に起動しても、`index.json` は排他ロックで保護されます
-- 初回はプロジェクトの規模に応じて解析時間がかかります。解析中は `/mcp` が接続中のままになり、Claude Code の MCP 接続がタイムアウトすることがあります。タイムアウトすると解析も中断され、結果は残りません(次の起動でやり直しになります)。大きなプロジェクトでは、次の[事前の作成](#グラフの作成更新update-graph-スキル----update)をするか、環境変数 `MCP_TIMEOUT`(ミリ秒)を大きくして Claude Code を起動してください
-- Unity プロジェクト(`Assets/` があるフォルダ)以外で Claude Code を開くと、`/mcp` で failed になります
-- プラグインをアンインストールすると、Claude Code がデータディレクトリごと削除します(`claude plugin uninstall --keep-data` で残せます)
+- フォルダ名は、プロジェクトのフルパス(末尾の区切りと `.` / `..` を正規化したもの。Windows は大文字と小文字を区別しない)の SHA-256 の先頭12文字です。
+- 別のプロジェクトと重なる場合は、16、20、…文字と延ばします。
+- `index.json` は排他ロックで保護します。
 
-### 古いデータの掃除
+### 起動時の処理
 
-起動のたびに、**30 日間使われていないプロジェクトのデータを削除**します(フォルダと `index.json` の項目)。削除後にそのプロジェクトを開くと、自動で作り直されます。
+`scripts/launch.mjs` が保存先を決め、グラフがなければ `guidgraph analyze` で作ります。次に古いデータを削除し、`guidgraph serve --db <graph.db> --project <プロジェクト>` を実行します。
 
-- 期間は環境変数 `GUIDGRAPH_RETENTION_DAYS`(1 以上の整数)で変えられます。Claude Code の `settings.json` の `env` や、起動するシェルで設定してください
-- 起動中の `serve` は 6 時間ごとに最終利用日時を更新するため、長く開きっぱなしのセッションの DB が、他のセッションの掃除で消えることはありません
-- `index.json` が壊れたり失われたりして項目から外れた、ハッシュ名のフォルダも、中のファイルが保持期間を超えて古くなれば削除します。ハッシュ名でないフォルダには触れません
-- 掃除に失敗しても(たとえば他のプロセスが使用中で削除できなくても)サーバーは起動します。削除できなかったデータは次回に再試行します
+### 自動削除
 
-### グラフの作成・更新(`update-graph` スキル / `--update`)
+- 起動中の `serve` は6時間ごとに最終利用日時を更新します。
+- `index.json` の項目から外れたハッシュ名のフォルダも、保持期間を超えて古くなれば削除します。ハッシュ名でないフォルダには触れません。
+- 削除に失敗してもサーバーは起動し、次回に再び試します。
 
-自動で作られるのは**初回だけ**で、既存のグラフは自動では更新されません。コードやアセットを変更したときは、次のどちらかで更新します。
+### 環境変数
 
-**Claude Code に頼む(おすすめ)**: プラグインの `update-graph` スキルを使います。「グラフを更新して」と頼むか、`/unity-guidgraph:update-graph` を実行してください。アセットやスクリプトを変更した直後に MCP ツールの結果が実際と合わないときは、Claude が自分でこのスキルを使うこともあります。内容は次の `--update` の実行と、結果の報告です。
-
-**自分で実行する**: Unity プロジェクトのルートで、起動スクリプトを `--update` 付きで実行します。大きなプロジェクトを、Claude Code を開く前に作っておきたいときにも使えます。
-
-```sh
-node <スクリプト> --update --data-dir ~/.claude/plugins/data/unity-guidgraph-murnana-claude-code-plugin --project .
-```
-
-- `<スクリプト>` は `find ~/.claude/plugins -name launch.mjs` で探せます(プラグインを更新するとパスが変わります)。Windows では `--data-dir` に `%USERPROFILE%\.claude\plugins\data\unity-guidgraph-murnana-claude-code-plugin` を指定します
-- 保存先(ハッシュのフォルダ)は自動で決まるので、パスを調べる必要はありません
-- `graph.db` が無ければ作り、あれば**差分更新**して終了します。MCP サーバーは起動せず、稼働中の MCP サーバーの再起動も不要です(ツールは呼び出しごとに DB を開き直します)
-- 更新に失敗しても、それまでの DB は残ります
-
-### オントロジー検索(`search-graph` スキル)
-
-グラフのノードにはアセットの種類(Scene / Prefab / Script / Material …)、エッジには参照の種類(`uses_script` / `prefab_instance` / `inherits` …)が付いています。`search-graph` スキルは、質問をこの「種類と関係の連鎖」と「名前・概念の手がかり」(ファイル名・フォルダー名・C# の XML ドキュメントコメント)のクエリに直し、guidgraph の `search` ツールを呼んで、返ってきた根拠(参照経路、当たった名前・コメント、Editor / Resources などの注記)を添えて答えます。**検索そのものは guidgraph が行い、スキルは呼び出すだけです**。同じ検索は `guidgraph search` コマンドでも使えます([cli.md](cli.md))。
-
-次のような質問をすると、Claude がこのスキルを使います(`/unity-guidgraph:search-graph` で明示的に呼ぶこともできます)。
-
-- 「`Enemy.cs` かそのサブクラスがコンポーネントとして付いているプレハブは?」
-- 「ボスの行動に関係するスクリプトと、それが付いたプレハブは?」(ドキュメントコメントに「ボス」とあるスクリプトから探します)
-- 「`Hero.prefab` が置かれているシーンは?(ネストしたプレハブ経由も含めて)」
-- 「UI フォルダーのプレハブが使っているスクリプトは?」
-- 「どこからも参照されていないプレハブは?」
-
-ドキュメントコメントと型名は `analyze` が記録します。この機能より前の guidgraph で作った `graph.db` には入っていないため、`update-graph` で作り直してください(スキーマが変わったので自動でフル再構築になります)。
-
-ツールの仕様は [mcp-server.md](mcp-server.md) をご覧ください。
-
-## 使用する環境変数
-
-| 環境変数 | 設定する人 | 用途 |
-|---|---|---|
-| `CLAUDE_PLUGIN_ROOT` | Claude Code が自動設定 | プラグインのインストール先。`.mcp.json` が起動スクリプトの場所を指すために使います。**利用者の設定は不要です** |
-| `CLAUDE_PLUGIN_DATA` | Claude Code が自動設定 | プラグインのデータディレクトリ。`graph.db` の保存先になります。**利用者の設定は不要です** |
-| `CLAUDE_PROJECT_DIR` | Claude Code が自動設定 | プロジェクトのルート。どのプロジェクトの DB を使うかを決めます。**利用者の設定は不要です** |
-| `GUIDGRAPH_RETENTION_DAYS` | 利用者(任意) | 掃除までの日数(デフォルト 30) |
-| `GUIDGRAPH_BIN` | 利用者(任意) | `guidgraph` の実行ファイルのパス。PATH 上の `guidgraph` 以外を使うときだけ設定します |
-| `PATH` | インストーラー | `guidgraph` を見つけるために使います。Windows は `C:\Program Files\GuidGraph` をシステムの PATH に追加します(**反映にはターミナルと Claude Code の再起動が必要**)。macOS は `/usr/local/bin/guidgraph` へのリンクを置くため、通常は追加設定が要りません。`node` も PATH 上にある必要があります |
-
-## graph.db を自分で決めた場所に置く場合
-
-プラグインの DB の置き場所はデータディレクトリに固定です。別の場所に置く場合は、プラグインを入れずに `claude mcp add` で直接登録してください([mcp-server.md](mcp-server.md))。この場合、自動作成や掃除は働きません。
-
-```sh
-claude mcp add guidgraph -- guidgraph serve --db <graph.dbの絶対パス> --project <Unity プロジェクトの絶対パス>
-```
-
-## うまく動かないとき
-
-- `/mcp` で `guidgraph` が failed になる → 次を順に確認してください
-  1. Claude Code を **Unity プロジェクトのルート**(`Assets/` があるフォルダ)で起動しているか
-  2. `node --version` が動くか(Node.js 20.12 以降)。`node` が無いと、起動そのものに失敗します
-  3. `guidgraph --help` が動くか(下の項目)
-  4. 原因が分からないときは、Unity プロジェクトのルートで起動スクリプトを手動で実行すると、エラーメッセージが読めます。`guidgraph serve` が起動して待機状態になれば成功です(Ctrl+C で止めます)
-
-     ```sh
-     node <スクリプト> --data-dir ~/.claude/plugins/data/unity-guidgraph-murnana-claude-code-plugin --project .
-     ```
-
-- `guidgraph` が見つからない → インストーラーで入れたあと、ターミナルと Claude Code を再起動してください
-- データを消したい・容量を空けたい → データディレクトリの中の、不要なプロジェクトのフォルダ(`index.json` で名前を確認できます)を削除してください。`index.json` に項目が残っていても、次回の起動時に作り直されます
+`CLAUDE_PLUGIN_ROOT`、`CLAUDE_PLUGIN_DATA`、`CLAUDE_PROJECT_DIR` は Claude Code が自動で設定します。インストーラーは、`guidgraph` を呼べるように設定します。Windows は `C:\Program Files\GuidGraph` を `PATH` に追加し、macOS は `/usr/local/bin/guidgraph` にリンクを置きます。
