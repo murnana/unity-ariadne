@@ -90,14 +90,14 @@ Apple Developer ID 署名+notarization が必要で、アカウントと証明�
 ```json
 { "name": "guidgraph",
   "source": { "source": "archive",
-              "url": "https://github.com/murnana/unity-ariadne/releases/download/vX.Y.Z/guidgraph-X.Y.Z-claude-plugin.zip",
+              "url": "https://github.com/murnana/unity-guidgraph/releases/download/vX.Y.Z/guidgraph-X.Y.Z-claude-plugin.zip",
               "sha256": "<.sha256 ファイルの値>" } }
 ```
 
 ```json
 { "name": "guidgraph",
   "source": { "source": "git-subdir",
-              "url": "https://github.com/murnana/unity-ariadne.git",
+              "url": "https://github.com/murnana/unity-guidgraph.git",
               "path": "claude-plugins",
               "ref": "vX.Y.Z" } }
 ```

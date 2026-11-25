@@ -55,7 +55,7 @@ GuidGraph は Unity Editor API を使わず、ファイルを直接パースし�
 ## クエリ・エクスポート層
 
 - `corresponding_source` エッジ(prefab の `m_CorrespondingSourceObject`)は件数が膨大なため、**MCP ツールと jsonl エクスポートからは除外**されています。SQLite の refs テーブルには残っているため、必要な場合は直接引いてください([schema.md](schema.md))。
-- MCP ツールのリストは 200 件で打ち切られます(`truncated: true`)。全件必要な場合は SQLite を直接引いてください。
+- MCP ツールのリストは件数の上限(多くは 200 件、`search_nodes` は 100 件)で打ち切られます(`truncated: true`。[mcp-server.md](mcp-server.md) の「共通の出力仕様」)。全件必要な場合は SQLite を直接引いてください。
 
 ## 未解決 GUID は「エラー」ではありません
 

@@ -14,7 +14,7 @@
 ```json
 {"asset": {...}, "hops": 1, "total_assets": 5, "total_edges": 6,
  "assets": [{"name": "...", "type": "Material", "source": "Assets"}],
- "edges": [{"from": "...", "to": "...", "kind": "uses_material", "ref_count": 1}],
+ "edges": [{"from": "...", "to": "...", "kind": "generic", "ref_count": 1}],
  "truncated": true}
 ```
 

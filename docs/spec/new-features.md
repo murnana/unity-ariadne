@@ -1,8 +1,8 @@
-# 新機能の仕様（提案・未実装）
+# 追加仕様
 
 検索時のトークン消費を減らすための追加仕様です。各項目に効果の見込みと互換性への影響を併記します。数値はすべて見込みで、フィクスチャでの実測が必要です。
 
-実装済みなのは、`search` の description と引数説明の圧縮（`tools/list` 8,475 → 6,757 文字）と、`describe_ontology` の `search_guide` の追加だけです。
+**N-2 と N-3 は未実装です。** ほかの項目（N-1、N-4〜N-9）と、`search` の description と引数説明の圧縮（`tools/list` 8,475 → 6,757 文字）、`describe_ontology` の `search_guide` は実装済みです。現在の動作は各ツールの仕様（[README.md](README.md)）が正です。「効果」「見込み」の数値は提案時のものです。
 
 ## 共通方針
 
@@ -36,7 +36,7 @@
 **効果**: 参照元が多いアセットで出力が 1/5〜1/20 になり、往復が 1 回で済む見込みです。
 **互換性**: `summary` が false の間は現状と同一です。
 
-## N-2. `search` の `verbose`（改善点 1）
+## N-2. `search` の `verbose`（改善点 1。見送り・未実装）
 
 **引数の追加**: `verbose`（bool、既定 false）。
 
@@ -47,7 +47,7 @@
 **効果**: 1 件あたりの出力が小さくなります。削減量は実測が必要です。
 **互換性**: 既定の出力が変わります。`claude-plugins/skills/search-graph` が `clues` / `doc` を報告に使っているため、スキルを更新するか、当面は既定を true にします。
 
-## N-3. `describe_ontology` の `detail`（改善点 1）
+## N-3. `describe_ontology` の `detail`（改善点 1。未実装）
 
 **引数の追加**: `detail`（`summary` | `full`）。
 
@@ -95,7 +95,7 @@ VCS のリビジョン（Git の SHA、Subversion のリビジョン）による
 
 ## N-5. `summarize_project`（改善点 7）
 
-**目的**: プロジェクト概要を数百トークンで返します。引数はありません。
+**目的**: プロジェクト概要を数百トークンで返します。引数はすべて省略できます（下表）。
 
 ```json
 {"scenes": ["Assets/Scenes/Main.unity"], "build_order": ["Assets/Scenes/Main.unity"],
@@ -127,7 +127,7 @@ VCS のリビジョン（Git の SHA、Subversion のリビジョン）による
 `search` の `matches[]` に `role` を追加します（`wrapper` のときだけ付けます。全件に付けると出力が約 2.2k 文字増え、Prefab 全件の検索が呼び出し側の出力上限を超えたため）。
 
 - `wrapper`: 自身のコンポーネントを持たず、子が別 prefab のインスタンス（`prefab_instance`）だけで構成される prefab。
-- `leaf`: それ以外の prefab。
+- それ以外の prefab（`leaf`）には `role` を付けません。
 
 「木」のような概念検索で、ラッパーと中身を数え分けられるようにします。判定は `refs` の `prefab_instance` 辺と、`objects` の中身から行います。
 サンプルプロジェクト（prefab 172 件）で確認した定義: 入れ子の PrefabInstance があり、自身の持ち物が GameObject・Transform・RectTransform だけなら `wrapper`（88 件）、それ以外は `leaf`（84 件）。
@@ -181,9 +181,9 @@ VCS のリビジョン（Git の SHA、Subversion のリビジョン）による
 3. 取り除かれた分を差し引きます（下記）。
 
 - 入れ子の乗算に使うのは `contain` だけです。マテリアルからテクスチャへのような `use` の連鎖は掛け合わせません（テクスチャが何個のマテリアルに使われているかを数えたいのではなく、シーンでの使用箇所を数えたいため）。
-- 経路が複数あるときは合計します。循環は検出して打ち切ります。
+- 経路が複数あるときは合計します。循環の検出はせず、`max_depth` で打ち切ります。
 - バリアント prefab は、元の prefab の中身も含めて数えます。
-- `m_Modifications` による差し替え（別のアセットへの付け替え）は、対象が一致するときに反映します。
+- `m_Modifications` による差し替え（別のアセットへの付け替え）は未対応です。新しいアセットは PrefabInstance ごとに 1 回数え、元のアセットからは引きません。
 
 ### 取り除かれた分の差し引き
 
@@ -192,7 +192,7 @@ VCS のリビジョン（Git の SHA、Subversion のリビジョン）による
 - 取り除かれたコンポーネントが `asset` を参照していれば、1 差し引きます。
 - 取り除かれた GameObject は、そのコンポーネントと子のうち `asset` を参照するものを、すべて差し引きます（子へのたどり方は `m_Children` の参照によります）。
 - 取り除きは PrefabInstance ごとに別なので、インスタンスごとに差し引きます。
-- `asset` が prefab のとき、取り除かれたもの自体が入れ子の PrefabInstance であれば、その分を差し引きます。
+- 取り除かれたもの自体が入れ子の PrefabInstance である場合の専用の処理はありません。対象を特定できないものは `unresolved_removals` に数えます。
 
 ### 解析時に保存するもの
 
@@ -202,7 +202,7 @@ VCS のリビジョン（Git の SHA、Subversion のリビジョン）による
 - 増分更新が全再構築と行単位で一致することを、差分テストで保証します。
 
 **効果**: シーンや prefab の YAML を呼び出し時に読まないので、応答が速く、エージェントが YAML を直接集計する必要もなくなります。prefab 以外のアセット（「このマテリアルはシーンにいくつあるか」など）にも使えます。
-**互換性**: ツールの追加と、テーブルの追加です。古い db では `placements` が無いため、再 analyze を案内するエラーを返します。
+**互換性**: ツールの追加と、テーブルの追加です。古い db には `placements` が無いため、`expanded_count` は汎用のエラーになります（再 analyze を案内する文はまだ出ません）。`analyze` を実行すると全再構築されて使えるようになります。
 **リスク**: 4 件中最も実装が大きく、実際の Unity のデータで正答を確認するまで正しさを保証できません。`placements` を全アセットに広げたため、行数が増えます（参照のあるアセットの組み合わせごとに 1 行）。実測して、大きすぎる場合は `use` を対象種別で絞る案があります。
 
 **実装結果（サンプルプロジェクト）**: `placements` 13,900 行（contain 584、use 13,316）、`placement_removals` 1,080 行。Demo.unity の Atlas_Mat.mat は 6,651 個で、入れ子を 1 つずつたどる独立した数え方と一致しました。ただし、取り除かれた対象の大半は fileID を特定できず（`unresolved_removals`）、取り除きの差し引きは実データでは検証できていません。`m_Modifications` の差し替えの反映も未対応です。

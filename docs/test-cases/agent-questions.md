@@ -1,6 +1,14 @@
 # エージェント向けの質問（トークン消費の比較用）
 
-AI エージェント（Claude Code）に実際に聞く質問です。グラフありとグラフなしで、同じ質問に対する回答の正しさと、トークン消費・ターン数を比べるために使います。測り方は [../development/benchmark.md](../development/benchmark.md) を参照してください。計測結果はここには書きません。
+AI エージェント（Claude Code）に実際に聞く質問です。グラフありとグラフなしで、同じ質問に対する回答の正しさと、トークン消費・ターン数を比べるために使います。計測結果はここには書きません。
+
+## 測り方
+
+- サンプルプロジェクトをカレントディレクトリにして、`claude -p --output-format json --model sonnet --max-turns 40 --tools Read,Glob,Grep --strict-mcp-config --disable-slash-commands --permission-mode dontAsk` を実行し、質問の文面は標準入力で渡します。
+- グラフありは `--mcp-config <guidgraph の serve を登録した JSON> --allowedTools "mcp__guidgraph__*"` を足します。グラフなしは `--allowedTools Read,Glob,Grep` を足します。
+- トークン数は、結果の JSON の `usage`（input + output + cache read + cache creation）の合計です。ターン数は `num_turns` です。
+
+（[../development/benchmark.md](../development/benchmark.md) は、`sqlite3` で直接引く形の過去の測定で、条件が異なります。）
 
 前提: サンプルプロジェクト（Fantasy Kingdom in Unity 6 | URP。[../development/fixtures.md](../development/fixtures.md)）を `analyze` した graph.db。質問の文面は固定し、プロジェクトの内容が変わったときは期待する答えを `graph.db` から確かめ直します。
 

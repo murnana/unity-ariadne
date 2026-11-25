@@ -4,7 +4,7 @@ GuidGraph への貢献を歓迎します。参加にあたっては [行動規�
 
 ## 進め方
 
-1. 大きな変更は、先に Issue で相談してください(残課題は [GitHub Issues](https://github.com/murnana/unity-ariadne/issues) で管理しています)。
+1. 大きな変更は、先に Issue で相談してください(残課題は [GitHub Issues](https://github.com/murnana/unity-guidgraph/issues) で管理しています)。
 2. リポジトリを fork し、`develop` ブランチから作業ブランチを切って変更します(`main` からは切りません)。`develop` がない場合は、先に `main` から `develop` を作成してください。
 3. `dotnet test` が通ることを確認して、`develop` 宛てに Pull Request を作成します。PR テンプレートのチェックリストに沿って確認してください。
 

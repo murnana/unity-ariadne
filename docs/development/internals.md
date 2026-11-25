@@ -15,8 +15,9 @@ Non-obvious facts about Unity's file formats and about how the analyzer handles 
 | Code layer (Roslyn syntax only) | `Code/CSharpSourceParser`, `Code/CodeScanner`, `Code/AddressableGroupScanner` |
 | Full build / incremental update | `Storage/GraphBuilder`, `Storage/GraphUpdater`, `Storage/ContentHasher` |
 | Schema, writer, queries, export | `src/Graph/` — `GraphDatabase`, `GraphWriter`, `GraphQueries`, `MemoryJsonlExporter` |
+| Whole-graph tools (`expanded_count`, `unreachable`) | `src/Graph/ExpandedCount.cs`, `src/Graph/Unreachable.cs` |
 | Ontology search (MCP `search` + CLI `search`) | `src/Graph/GraphSearch.cs` (query model, start ranking, relaxation, evidence), `Ontology.cs` (relation meanings, type categories, folder-convention notes) |
-| MCP server | `Mcp/GraphMcpTools` + `serve` in `Program.cs` |
+| MCP server | `Mcp/GraphMcpTools`, `Mcp/GraphFreshness` (`meta`) + `serve` in `Program.cs` |
 
 ## Scanning and .meta files
 

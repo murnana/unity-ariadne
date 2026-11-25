@@ -43,9 +43,8 @@
 ## memory サーバーへの読み込み
 
 ```sh
-# 出力ファイルをそのまま memory サーバーの保存先に指定する
-npx -y @modelcontextprotocol/server-memory
-# 環境変数 MEMORY_FILE_PATH=out.jsonl を指定して起動
+# 出力ファイルをそのまま memory サーバーの保存先に指定して起動する(パスは絶対パス)
+MEMORY_FILE_PATH=/path/to/out.jsonl npx -y @modelcontextprotocol/server-memory
 ```
 
 読み込み後は `search_nodes` / `open_nodes` などの memory サーバー標準ツールで参照関係を照会できます。ライブで最新のグラフを引きたい場合は、jsonl 経由ではなく本ツール自身の MCP サーバー([mcp-server.md](mcp-server.md))をお使いいただくほうがよいでしょう(`analyze` の再実行が即反映されます)。

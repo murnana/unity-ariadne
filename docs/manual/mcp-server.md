@@ -9,10 +9,10 @@
 ### Claude Code に登録する
 
 ```sh
-claude mcp add guidgraph -- dotnet run --project <このリポジトリ>/src/Analyzer -- serve --db <graph.db の絶対パス>
+claude mcp add guidgraph -- dotnet run --project <このリポジトリ>/src/Analyzer -- serve --db <graph.db の絶対パス> --project <Unity プロジェクトの絶対パス>
 ```
 
-登録後、Claude Code のセッションで `find_references` などのツールが使えるようになります。リポジトリのチェックアウトから始める通し手順(SDK 準備、パスの注意、トラブルシューティング含む)は [claude-code-setup.md](claude-code-setup.md) をご覧ください。
+`--project` は省略できます(下の「グラフの鮮度」を参照)。登録後、Claude Code のセッションで `find_references` などのツールが使えるようになります。リポジトリのチェックアウトから始める通し手順(SDK 準備、パスの注意、トラブルシューティング含む)は [claude-code-setup.md](claude-code-setup.md) をご覧ください。
 
 ### 動作の要点
 
@@ -166,7 +166,7 @@ search(from, steps = null, unreferenced = false, limit = 20, relax = true)
 | `matches[].notes` | パスから分かる注記: `Editor` フォルダー(ビルドに入らない)、`Resources` フォルダー(参照が無くても名前で読み込まれうる)、`StreamingAssets`、`Plugins`、サンプル、テスト、PackageCache、ビルトイン、未解決 GUID |
 | `relations` | 経路に出てきた関係それぞれの意味(`A -[uses_script]-> B: A has a component ... whose script is B` など) |
 | `relaxed` | 0 件だったために緩めた条件(順番どおり) |
-| `warnings` | グラフに存在しない種類名・関係名(綴りの誤りなど)、古い DB で型名・コメントが検索できなかったこと |
+| `warnings` | グラフに存在しない種類名・関係名(綴りの誤りなど)、古い DB で型名・コメントが検索できなかったこと、出力の上限で件数を減らしたこと |
 
 ```text
 search(from: {keywords: ["ボス", "boss"], types: ["Script"]},
@@ -178,6 +178,8 @@ search(from: {keywords: ["ボス", "boss"], types: ["Script"]},
     from_clues: ["ボス → doc of Game.Boss", "boss → file name: Boss.cs"]
     from_doc:   "Game.Boss: ボスの行動を制御する"
 ```
+
+答えが約 48,000 文字を超えるときは、呼び出し側のツール出力の上限に収まるように `limit` を自動で小さくし、`truncated: true` と `warnings` を付けます。
 
 説明文(`relations`、`notes`、`clues` の見出し、`relaxed`、`warnings`、エラーの `hint`)は英語です。アセット名・キーワード・手がかりの対象・ドキュメントコメントの抜粋は、日本語・韓国語・中国語などの文字のまま、エスケープも変換もせずに返します。
 
@@ -222,6 +224,7 @@ expanded_count(asset, scene, max_depth = 10)
 - `unresolved_removals`: 取り除かれた対象を特定できなかった数。入れ子の prefab やモデルの中のオブジェクトは Unity が派生させた ID で記録されるため、グラフでは追えません。この数が大きいと、`expanded_count` は取り除かれた分だけ多めになっている可能性があります。
 - `m_Modifications` による差し替え(あるアセットを別のものに付け替える)は、新しいアセットを PrefabInstance ごとに 1 回だけ数え、元のアセットからは引きません。
 - バイナリ本体を読んでいない種類(Texture / Model など)は `unsupported` に載ります。
+- `scene` がシーンでも prefab でもないときは `error: "invalid_scene"` です。
 
 ### unreachable — シーンから到達できないアセット
 
@@ -267,7 +270,7 @@ list_unresolved(limit = 20)
 ## 共通の出力仕様
 
 - 返り値はコンパクトな snake_case JSON 文字列です。非 ASCII のアセットパスもエスケープせずそのまま入ります。
-- **リストは最大 200 件で打ち切られ**、打ち切り時は `truncated: true` が付きます(ハブアセットで呼び出し側のコンテキストが溢れないための上限です)。
+- **リストは件数の上限で打ち切られ**、打ち切り時は `truncated: true`(`summarize_project` は `*_truncated`)が付きます。上限は多くのリストで 200 件、`search_nodes` は 100 件です。`limit` を持つツールの既定は、`search` / `search_nodes` / `list_unresolved` が 20 件、`unreachable` が 50 件です(ハブアセットで呼び出し側のコンテキストが溢れないための上限です)。
 - `corresponding_source` エッジ(prefab 内部の対応元オブジェクト参照)は、jsonl エクスポートと同じくクエリ結果から除外されています。生データが必要な場合は SQLite を直接引いてください([schema.md](schema.md))。
 - 未解決 GUID がアセットとして返るときは `dangling: true` が付きます。
 

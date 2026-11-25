@@ -11,7 +11,7 @@
 
 ## 導入手順
 
-1. [Releases](https://github.com/murnana/unity-ariadne/releases) のインストーラーで `guidgraph` を入れます(Windows は `.msi`、macOS は `.pkg`)。
+1. [Releases](https://github.com/murnana/unity-guidgraph/releases) のインストーラーで `guidgraph` を入れます(Windows は `.msi`、macOS は `.pkg`)。
 2. **ターミナルと Claude Code を再起動します**(Windows は PATH の変更が起動済みのプロセスに反映されないためです)。`guidgraph --help` と `node --version` が動けば準備完了です。
 3. Claude Code に marketplace を登録し、プラグインを入れます。marketplace は [murnana/murnana-claude-code-plugin](https://github.com/murnana/murnana-claude-code-plugin) で管理しています。
 
@@ -42,7 +42,7 @@
 - **フォルダ名**は、プロジェクトのフルパス(末尾の区切りと `.` / `..` を正規化したもの。Windows は大文字小文字を区別しません)の SHA-256 の先頭 12 文字です。同じプロジェクトは常に同じフォルダになります
 - **衝突の回避**: 別のプロジェクトがすでに同じハッシュを使っていたら、フォルダ名を 16、20、…文字と延ばします。どのフォルダがどのプロジェクトかは `index.json` の `name` / `path` で分かります
 - **複数のセッション**が同時に起動しても、`index.json` は排他ロックで保護されます
-- 初回はプロジェクトの規模に応じて解析時間がかかります。解析中は `/mcp` が接続中のままになり、Claude Code の MCP 接続がタイムアウトすることがあります。タイムアウトすると解析も中断され、結果は残りません(次の起動でやり直しになります)。大きなプロジェクトでは、次の[事前の作成](#グラフの作成更新--update)をするか、環境変数 `MCP_TIMEOUT`(ミリ秒)を大きくして Claude Code を起動してください
+- 初回はプロジェクトの規模に応じて解析時間がかかります。解析中は `/mcp` が接続中のままになり、Claude Code の MCP 接続がタイムアウトすることがあります。タイムアウトすると解析も中断され、結果は残りません(次の起動でやり直しになります)。大きなプロジェクトでは、次の[事前の作成](#グラフの作成更新update-graph-スキル----update)をするか、環境変数 `MCP_TIMEOUT`(ミリ秒)を大きくして Claude Code を起動してください
 - Unity プロジェクト(`Assets/` があるフォルダ)以外で Claude Code を開くと、`/mcp` で failed になります
 - プラグインをアンインストールすると、Claude Code がデータディレクトリごと削除します(`claude plugin uninstall --keep-data` で残せます)
 
@@ -104,7 +104,7 @@ node <スクリプト> --update --data-dir ~/.claude/plugins/data/guidgraph-murn
 プラグインの DB の置き場所はデータディレクトリに固定です。別の場所に置く場合は、プラグインを入れずに `claude mcp add` で直接登録してください([mcp-server.md](mcp-server.md))。この場合、自動作成や掃除は働きません。
 
 ```sh
-claude mcp add guidgraph -- guidgraph serve --db <graph.dbの絶対パス>
+claude mcp add guidgraph -- guidgraph serve --db <graph.dbの絶対パス> --project <Unity プロジェクトの絶対パス>
 ```
 
 ## うまく動かないとき

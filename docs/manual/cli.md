@@ -30,7 +30,7 @@ dotnet run --project src/Analyzer -- <command> ...
 analyze <unity-project-path> [--db <path>] [--full]
 report  --db <path>
 export  --db <path> --jsonl <path> [--include-packages]
-serve   --db <path>
+serve   --db <path> [--project <unity-project-path>]
 search  --db <path> (--query <json> | --query-file <path or ->)
 ```
 

@@ -42,7 +42,7 @@ cd <guidgraph>
 dotnet build
 ```
 
-これだけで動きます。追加のセットアップ(NuGet の手動復元、グローバルツールのインストール等)は不要です。動作確認したい場合は `dotnet test` をお使いください(フィクスチャ同梱、数十秒。PackageCache 依存の一部テストは環境によりスキップされますが正常です)。
+これだけで動きます。追加のセットアップ(NuGet の手動復元、グローバルツールのインストール等)は不要です。動作確認したい場合は `dotnet test` をお使いください(数十秒)。実際の Unity プロジェクトを使うテストは、フィクスチャをリポジトリに同梱していないためスキップされますが正常です([../development/fixtures.md](../development/fixtures.md))。
 
 ## 3. グラフ DB を構築する
 
@@ -63,7 +63,7 @@ dotnet run --project <guidgraph>/src/Analyzer -- analyze <unity-project> --db <g
 ```sh
 cd <unity-project>
 claude mcp add guidgraph -- \
-  <dotnetの絶対パス> run --project <guidgraph>/src/Analyzer -- serve --db <graph.dbの絶対パス>
+  <dotnetの絶対パス> run --project <guidgraph>/src/Analyzer -- serve --db <graph.dbの絶対パス> --project <unity-projectの絶対パス>
 ```
 
 具体例:
@@ -71,9 +71,10 @@ claude mcp add guidgraph -- \
 ```sh
 cd ~/Projects/MyGame
 claude mcp add guidgraph -- \
-  ~/.dotnet/dotnet run --project ~/Projects/guidgraph/src/Analyzer -- serve --db ~/Projects/MyGame/graph.db
+  ~/.dotnet/dotnet run --project ~/Projects/guidgraph/src/Analyzer -- serve --db ~/Projects/MyGame/graph.db --project ~/Projects/MyGame
 ```
 
+- `serve` の `--project` は省略できます。指定すると、応答でグラフが古いかどうか(`stale`)が分かります([mcp-server.md](mcp-server.md) の「グラフの鮮度」)。
 - **パスはすべて絶対パスで書いてください。** Claude Code が起動するサーバープロセスの作業ディレクトリは登録時のシェルと同じとは限りません。
 - スコープを変えたい場合は `--scope` を付けてください: `--scope project` はリポジトリの `.mcp.json` に書き込まれチームで共有できます(ただしパスが各自のマシンで一致している必要があります)。`--scope user` は全プロジェクト共通です。既定(`local`)は自分のマシンのそのプロジェクトのみです。
 - 登録内容の確認・削除: `claude mcp list` / `claude mcp remove guidgraph` をお使いください。
@@ -109,7 +110,7 @@ dotnet publish src/Analyzer -c Release -o publish
 ```sh
 cd <unity-project>
 claude mcp add guidgraph -- \
-  <guidgraph>/publish/guidgraph serve --db <graph.dbの絶対パス>
+  <guidgraph>/publish/guidgraph serve --db <graph.dbの絶対パス> --project <unity-projectの絶対パス>
 ```
 
 この場合、リポジトリを更新(git pull)したら `dotnet publish` を再実行してください。
@@ -118,7 +119,7 @@ claude mcp add guidgraph -- \
 
 ```sh
 claude mcp add guidgraph -e DOTNET_ROOT="$HOME/.dotnet" -- \
-  <guidgraph>/publish/guidgraph serve --db <graph.dbの絶対パス>
+  <guidgraph>/publish/guidgraph serve --db <graph.dbの絶対パス> --project <unity-projectの絶対パス>
 ```
 
 ## トラブルシューティング

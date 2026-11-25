@@ -1,6 +1,6 @@
 # GuidGraph
 
-[![CI](https://github.com/murnana/unity-ariadne/actions/workflows/ci.yml/badge.svg)](https://github.com/murnana/unity-ariadne/actions/workflows/ci.yml) [![CodeQL](https://github.com/murnana/unity-ariadne/actions/workflows/codeql.yml/badge.svg)](https://github.com/murnana/unity-ariadne/actions/workflows/codeql.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Release](https://img.shields.io/github/v/release/murnana/unity-ariadne)](https://github.com/murnana/unity-ariadne/releases)
+[![CI](https://github.com/murnana/unity-guidgraph/actions/workflows/ci.yml/badge.svg)](https://github.com/murnana/unity-guidgraph/actions/workflows/ci.yml) [![CodeQL](https://github.com/murnana/unity-guidgraph/actions/workflows/codeql.yml/badge.svg)](https://github.com/murnana/unity-guidgraph/actions/workflows/codeql.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Release](https://img.shields.io/github/v/release/murnana/unity-guidgraph)](https://github.com/murnana/unity-guidgraph/releases)
 
 Unityプロジェクトを解析して依存関係グラフをSQLiteに構築するCLIツールです。**Unity Editor不要**で、ファイルを直接パースし、`dotnet run` のみで動きます。
 
@@ -10,7 +10,7 @@ Unityプロジェクトを解析して依存関係グラフをSQLiteに構築す
 
 - **アセット層**: シーン / プレハブ / マテリアル等のYAML、.meta、ProjectSettings、shadergraph等のJSON埋め込み参照、Addressablesグループ
 - **コード層**: C#をRoslynで構文解析します — 継承、シリアライズフィールド、GetComponent、Resources.Load / Addressables.Loadのリテラルキー等
-- 参照は19種のref_kindに分類され、SQLiteに1参照=1行で入ります(→ [docs/manual/schema.md](docs/manual/schema.md))
+- 参照は18種のref_kindに分類され、SQLiteに1参照=1行で入ります(→ [docs/manual/schema.md](docs/manual/schema.md))
 
 ## 使い方
 

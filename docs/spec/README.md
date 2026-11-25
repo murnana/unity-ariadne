@@ -1,6 +1,6 @@
 # MCP ツール仕様
 
-`guidgraph serve` が公開する MCP ツールの仕様書です。実装は `src/Analyzer/Mcp/GraphMcpTools.cs` と `src/Graph/GraphSearch.cs` にあります。テストケースは [../test-cases/](../test-cases/) を参照してください。
+`guidgraph serve` が公開する MCP ツールの仕様書です。MCP の入口は `src/Analyzer/Mcp/GraphMcpTools.cs`（鮮度は `GraphFreshness.cs`）、`search` は `src/Graph/GraphSearch.cs`、`expanded_count` は `src/Graph/ExpandedCount.cs`、`unreachable` は `src/Graph/Unreachable.cs` にあります。テストケースは [../test-cases/](../test-cases/) を参照してください。
 
 ## 共通仕様
 
@@ -13,7 +13,7 @@
   - `{error: "ambiguous", name, candidate_count, candidates(最大10), hint}`
 - アセットの要約形式: `{name, guid?, type, source, dangling?}`。`guid` は name と異なるときだけ、`dangling` は未解決 GUID のときだけ付きます。
 
-## 既存ツール
+## ツール
 
 - [find_references](find_references.md)
 - [impact_analysis](impact_analysis.md)
@@ -27,7 +27,7 @@
 - [expanded_count](expanded_count.md)
 - [unreachable](unreachable.md)
 
-## 新機能（提案。未実装）
+## データベースと追加仕様
 
 - [databases/](databases/README.md) — データベース定義
-- [new-features.md](new-features.md)
+- [new-features.md](new-features.md) — 追加仕様（N-2 と N-3 は未実装）
