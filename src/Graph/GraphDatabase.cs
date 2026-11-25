@@ -112,17 +112,70 @@ public sealed class GraphDatabase : IDisposable
         CreateEmpty(new SqliteConnectionStringBuilder { DataSource = ":memory:", Pooling = false });
 
     /// <summary>
-    /// Creates a fresh database file, replacing any previous one — `analyze` is a full
-    /// rebuild every run (incremental updates are Phase 4).
+    /// Creates a fresh database file for a full rebuild, replacing a previous graph database.
     /// </summary>
+    /// <exception cref="IOException"><see cref="CanReplace"/> is false for the path.</exception>
     public static GraphDatabase CreateFile(string path)
     {
+        if (!CanReplace(path))
+        {
+            throw new IOException($"refusing to delete a file that is not a guidgraph database: {path}");
+        }
+
         File.Delete(path);
         File.Delete(path + "-wal");
         File.Delete(path + "-shm");
         // Pooling off: a pooled handle from a previous run would still see the
         // deleted file's inode, and Dispose must actually release the new file.
         return CreateEmpty(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false });
+    }
+
+    /// <summary>
+    /// Whether <see cref="CreateFile"/> may delete what is at <paramref name="path"/>: nothing,
+    /// an empty file, or a graph database of any schema version. False for every other file,
+    /// including one that cannot be read (locked, corrupt), because it may be the user's data.
+    /// </summary>
+    public static bool CanReplace(string path)
+    {
+        var file = new FileInfo(path);
+        if (!file.Exists || file.Length == 0)
+        {
+            return true;
+        }
+
+        try
+        {
+            // ReadWrite so SQLite can recover a journal left by an interrupted run.
+            using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+            {
+                DataSource = path,
+                Mode = SqliteOpenMode.ReadWrite,
+                Pooling = false,
+            }.ToString());
+            connection.Open();
+            return IsGraphDatabase(connection);
+        }
+        catch (SqliteException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// A set user_version plus the tables and views every schema version has had. The version
+    /// number alone is not enough: other applications use user_version too.
+    /// </summary>
+    private static bool IsGraphDatabase(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT (SELECT user_version FROM pragma_user_version) > 0
+               AND (SELECT COUNT(*) FROM sqlite_master
+                    WHERE (type = 'table' AND name IN ('assets', 'objects', 'refs'))
+                       OR (type = 'view' AND name IN ('asset_edges', 'unresolved_guids'))) = 5
+            """;
+        return (long)command.ExecuteScalar()! == 1;
     }
 
     /// <summary>Opens an existing database read-only (for report/export).</summary>
@@ -145,9 +198,9 @@ public sealed class GraphDatabase : IDisposable
 
     /// <summary>
     /// Opens an existing database read-write for an incremental update (Phase 4b).
-    /// Returns null when the file does not exist, is not a SQLite database, or was
+    /// Returns null when the file does not exist, is not a graph database, or was
     /// written with a different <see cref="SchemaVersion"/> — the caller should fall
-    /// back to a full rebuild via <see cref="CreateFile"/>.
+    /// back to a full rebuild via <see cref="CreateFile"/>, which refuses foreign files.
     /// </summary>
     public static GraphDatabase? TryOpenForUpdate(string path)
     {
@@ -169,7 +222,7 @@ public sealed class GraphDatabase : IDisposable
             var db = new GraphDatabase(connection);
             using var command = connection.CreateCommand();
             command.CommandText = "PRAGMA user_version";
-            if ((long)command.ExecuteScalar()! != SchemaVersion)
+            if ((long)command.ExecuteScalar()! != SchemaVersion || !IsGraphDatabase(connection))
             {
                 db.Dispose();
                 return null;
@@ -191,8 +244,9 @@ public sealed class GraphDatabase : IDisposable
         connection.Open();
         var db = new GraphDatabase(connection);
         db.Execute("PRAGMA foreign_keys = ON");
-        db.Execute(Schema);
-        db.Execute($"PRAGMA user_version = {SchemaVersion}");
+        // One transaction: an interrupted run must not leave a partial schema, which
+        // CanReplace would take for someone else's file.
+        db.Execute($"BEGIN; {Schema}\nPRAGMA user_version = {SchemaVersion}; COMMIT;");
         return db;
     }
 
