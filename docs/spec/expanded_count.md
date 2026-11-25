@@ -36,4 +36,4 @@
 
 ## エラー
 
-`not_found` / `ambiguous`（共通仕様）。`scene` が Scene でも Prefab でもないときは `invalid_scene`。
+`not_found` / `ambiguous`（共通仕様）。`scene` が Scene でも Prefab でもないときは `invalid_scene`。`placements` が無い古い db（スキーマ v3 以前）では、アセット指定の解決より先に `{error: "outdated_db", hint}` を返します（`hint` は `analyze` の再実行を案内します）。

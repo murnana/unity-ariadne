@@ -317,6 +317,16 @@ public sealed class GraphMcpTools(GraphMcpOptions options)
         [Description("Nesting levels followed, 1-50 (default 10)")] int max_depth = 10)
     {
         using var db = OpenDatabase();
+        if (!db.HasPlacements)
+        {
+            return Serialize(new
+            {
+                Error = "outdated_db",
+                Hint = "This graph was built by an older guidgraph without placement counts. " +
+                       "Re-run analyze (it rebuilds the database), then call again.",
+            });
+        }
+
         var assets = GraphQueries.ResolveAssets(db, asset);
         if (assets.Count != 1)
         {

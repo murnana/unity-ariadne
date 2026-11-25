@@ -225,6 +225,7 @@ expanded_count(asset, scene, max_depth = 10)
 - `m_Modifications` による差し替え(あるアセットを別のものに付け替える)は、新しいアセットを PrefabInstance ごとに 1 回だけ数え、元のアセットからは引きません。
 - バイナリ本体を読んでいない種類(Texture / Model など)は `unsupported` に載ります。
 - `scene` がシーンでも prefab でもないときは `error: "invalid_scene"` です。
+- 古い guidgraph で作った `graph.db` では `error: "outdated_db"` です。`analyze` を再実行してください(自動でフル再構築になります)。
 
 ### unreachable — シーンから到達できないアセット
 

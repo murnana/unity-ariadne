@@ -1,5 +1,6 @@
 using System.IO.Pipelines;
 using System.Text.Json;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -327,6 +328,24 @@ public sealed class McpServerTests : IAsyncLifetime
         });
         Assert.Equal("ＨＥＲＯ → file name: Hero.prefab",
             Assert.Single(result.GetProperty("matches").EnumerateArray()).GetProperty("clues")[0].GetString());
+    }
+
+    [Fact]
+    public async Task ExpandedCountAsksForReanalyzeOnADbWithoutPlacements()
+    {
+        // What a schema v3 database lacks; the tools re-open the file on every call.
+        using (var connection = new SqliteConnection($"Data Source={_dbPath};Pooling=False"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "DROP TABLE placements; DROP TABLE placement_removals";
+            command.ExecuteNonQuery();
+        }
+
+        var result = await CallAsync("expanded_count", new() { ["asset"] = "Sky.mat", ["scene"] = "Main.unity" });
+
+        Assert.Equal("outdated_db", result.GetProperty("error").GetString());
+        Assert.Contains("analyze", result.GetProperty("hint").GetString());
     }
 
     private async Task<JsonElement> CallAsync(string tool, Dictionary<string, object?> arguments)

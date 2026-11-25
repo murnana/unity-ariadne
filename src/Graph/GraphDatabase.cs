@@ -200,14 +200,17 @@ public sealed class GraphDatabase : IDisposable
     /// False for databases written before schema v3 (no code_symbols table). Readers that
     /// only query — serve, export — must keep working on those until the next analyze.
     /// </summary>
-    public bool HasCodeSymbols
+    public bool HasCodeSymbols => HasTable("code_symbols");
+
+    /// <summary>False for databases written before schema v4 (no placements tables).</summary>
+    public bool HasPlacements => HasTable("placements");
+
+    private bool HasTable(string name)
     {
-        get
-        {
-            using var command = Connection.CreateCommand();
-            command.CommandText = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'code_symbols'";
-            return command.ExecuteScalar() is not null;
-        }
+        using var command = Connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = $name";
+        command.Parameters.AddWithValue("$name", name);
+        return command.ExecuteScalar() is not null;
     }
 
     /// <summary>One transaction with prepared inserts; dispose without Commit rolls back.</summary>
