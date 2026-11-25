@@ -1,6 +1,6 @@
 # SQLite スキーマと直接クエリ
 
-`analyze --db graph.db` が書き出す SQLite は、MCP サーバーや `export` を介さず `sqlite3` で直接引くことができます。AI エージェントに sqlite3 の読み取りを許可してこの DB を渡すだけでも実用になります([効果測定](../development/benchmark.md)はこの形で実施しました)。
+`analyze --db graph.db` が書き出す SQLite は、MCP サーバーや `export` を介さず `sqlite3` で直接引くことができます。AI エージェントに sqlite3 の読み取りを許可してこの DB を渡すだけでも実用になります。
 
 ## スキーマ
 
